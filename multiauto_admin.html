@@ -4,6 +4,9 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Multi Auto — Administration</title>
+<script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-auth-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-firestore-compat.js"></script>
 <style>
 :root{
   --rouge:#C8341A;--rouge-dk:#9E2510;--rouge-lt:#FFF0EB;
@@ -295,7 +298,7 @@ input:checked+.sw-slider:before{transform:translateX(20px)}
     <input class="inp" id="inp-id" type="text" placeholder="admin ou secretaire" autocomplete="off">
     <span class="fl">Mot de passe</span>
     <input class="inp" id="inp-pw" type="password" placeholder="••••••••">
-    <button class="btn-login" onclick="seConnecter()">Se connecter</button>
+    <button class="btn-login" id="btn-login">Se connecter</button>
     <div class="login-err" id="login-err">Identifiant ou mot de passe incorrect</div>
   </div>
 </div>
@@ -335,7 +338,7 @@ input:checked+.sw-slider:before{transform:translateX(20px)}
       <div class="sb-item" onclick="afficherPage('pg-parametres')" id="nav-parametres"><span class="ico">⚙️</span> Paramètres</div>
     </nav>
     <div class="sb-bottom">
-      <button class="btn-logout" onclick="seDeconnecter()">🚪 Déconnexion</button>
+      <button class="btn-logout" id="btn-logout">🚪 Déconnexion</button>
     </div>
   </div>
 
@@ -650,15 +653,7 @@ input:checked+.sw-slider:before{transform:translateX(20px)}
   </div><!-- /main -->
 </div><!-- /pg-app -->
 
-<script type="module">
-import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
-import { getAuth, signInWithEmailAndPassword, signOut, updatePassword }
-  from "https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js";
-import { getFirestore, collection, doc, getDoc, getDocs, addDoc, updateDoc,
-         deleteDoc, setDoc, query, where, orderBy, limit, serverTimestamp,
-         Timestamp, writeBatch }
-  from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
-
+<script>
 const firebaseConfig = {
   apiKey: "AIzaSyB0pp8ZysKVomkmmx3uYWJZHtiFpvSPJi4",
   authDomain: "multiauto-depannage.firebaseapp.com",
@@ -668,11 +663,12 @@ const firebaseConfig = {
   appId: "1:389555321846:web:da201dce0fee10e32fe5d7"
 };
 
-const app  = initializeApp(firebaseConfig);
-const auth = getAuth(app);
-const db   = getFirestore(app);
+firebase.initializeApp(firebaseConfig);
+const auth = firebase.auth();
+const db   = firebase.firestore();
+db.enablePersistence().catch(()=>{});
 
-let userAdmin = null;
+let userAdmin      = null;
 let chauffeursList = [];
 let camionsList    = [];
 let clientsList    = [];
@@ -680,737 +676,579 @@ let editingId      = null;
 
 const G = id => document.getElementById(id);
 
-// ── UTILS ──
 function toast(msg, type="ok"){
   const t = G("toast");
   t.className = "toast on " + type;
   t.innerHTML = (type==="ok"?"✅":"❌") + " " + msg;
-  setTimeout(()=>{ t.classList.remove("on"); }, 3000);
+  setTimeout(()=>t.classList.remove("on"), 3500);
 }
 function loader(on, txt="Chargement..."){
   G("loader").classList.toggle("on", on);
-  G("loader-txt").textContent = txt;
+  if(txt) G("loader-txt").textContent = txt;
 }
 function fmtDate(ts){
   if(!ts) return "—";
   const d = ts.toDate ? ts.toDate() : new Date(ts);
   return ("0"+d.getDate()).slice(-2)+"/"+("0"+(d.getMonth()+1)).slice(-2)+"/"+d.getFullYear();
 }
-function fmtMontant(n){ return n ? n.toFixed(2).replace(".",",")+" €" : "0,00 €"; }
+function fmtMontant(n){ return n ? Number(n).toFixed(2).replace(".",",")+" €" : "0,00 €"; }
 
 // ── PAGES ──
-window.afficherPage = function(id){
+function afficherPage(id){
   document.querySelectorAll(".pg").forEach(p=>p.classList.remove("on"));
   document.querySelectorAll(".sb-item").forEach(i=>i.classList.remove("active"));
   G(id).classList.add("on");
   const navId = "nav-"+id.replace("pg-","");
   if(G(navId)) G(navId).classList.add("active");
   if(G("sidebar").classList.contains("open")) G("sidebar").classList.remove("open");
-
-  // Charger les données selon la page
-  if(id==="pg-dashboard")   chargerDashboard();
-  if(id==="pg-chauffeurs")  chargerChauffeurs();
-  if(id==="pg-camions")     chargerCamions();
-  if(id==="pg-clients")     chargerClients();
-  if(id==="pg-droits")      chargerDroits();
-  if(id==="pg-parametres")  chargerParametres();
-};
-
-window.toggleSidebar = ()=> G("sidebar").classList.toggle("open");
+  if(id==="pg-dashboard")  chargerDashboard();
+  if(id==="pg-chauffeurs") chargerChauffeurs();
+  if(id==="pg-camions")    chargerCamions();
+  if(id==="pg-clients")    chargerClients();
+  if(id==="pg-droits")     chargerDroits();
+  if(id==="pg-parametres") chargerParametres();
+  if(id==="pg-carburant")  chargerCarburant();
+}
+function toggleSidebar(){ G("sidebar").classList.toggle("open"); }
+function fermerModal(id){ G(id).classList.remove("on"); }
 
 // ── LOGIN ──
-window.seConnecter = async function(){
+function seConnecter(){
   const id = G("inp-id").value.trim().toLowerCase();
   const pw = G("inp-pw").value;
-  if(!id||!pw) return;
+  if(!id||!pw){ G("login-err").classList.add("on"); return; }
   loader(true,"Connexion...");
-  try {
-    const email = id+"@multiauto.fr";
-    const cred  = await signInWithEmailAndPassword(auth, email, pw);
-    const snap  = await getDoc(doc(db,"users",cred.user.uid));
-    if(!snap.exists() || !["admin","secretaire"].includes(snap.data().role)){
-      await signOut(auth); loader(false);
-      G("login-err").textContent = "Accès non autorisé.";
-      G("login-err").classList.add("on"); return;
-    }
-    userAdmin = { uid: cred.user.uid, ...snap.data() };
-    loader(false);
-    G("pg-login").style.display = "none";
-    G("pg-app").classList.add("on");
-    G("sb-nom").textContent  = userAdmin.nom;
-    G("sb-role").textContent = userAdmin.role === "admin" ? "Administrateur" : "Secrétaire";
-    await Promise.all([chargerListeChauffeurs(), chargerListeCamions()]);
-    chargerDashboard();
-  } catch(e){
-    loader(false);
-    G("login-err").textContent = "Identifiant ou mot de passe incorrect";
-    G("login-err").classList.add("on");
-    G("inp-pw").value = "";
-  }
-};
-
-window.seDeconnecter = async function(){
-  await signOut(auth);
-  location.reload();
-};
-
-// ── CHARGER LISTES ──
-async function chargerListeChauffeurs(){
-  const snap = await getDocs(query(collection(db,"users"), where("role","==","chauffeur")));
-  chauffeursList = [];
-  snap.forEach(d => chauffeursList.push({ id: d.id, ...d.data() }));
-  chauffeursList.sort((a,b)=>a.nom.localeCompare(b.nom));
-  // Remplir les selects chauffeurs
-  ["bl-filtre-chauffeur","rc-filtre-chauffeur","assign-chauffeur","stats-chauffeur",
-   "gps-chauffeur","comm-chauffeur","reset-chauffeur"].forEach(sid => {
-    const sel = G(sid); if(!sel) return;
-    const first = sel.options[0];
-    sel.innerHTML = "";
-    sel.appendChild(first);
-    chauffeursList.forEach(ch => {
-      const o = document.createElement("option");
-      o.value = ch.id; o.textContent = ch.nom;
-      sel.appendChild(o);
+  const email = id+"@multiauto.fr";
+  auth.signInWithEmailAndPassword(email, pw)
+    .then(cred => db.collection("users").doc(cred.user.uid).get())
+    .then(snap => {
+      if(!snap.exists || !["admin","secretaire"].includes(snap.data().role)){
+        return auth.signOut().then(()=>{ throw new Error("Accès non autorisé"); });
+      }
+      userAdmin = { uid: snap.id, ...snap.data() };
+      loader(false);
+      G("pg-login").style.display = "none";
+      G("pg-app").classList.add("on");
+      G("sb-nom").textContent  = userAdmin.nom;
+      G("sb-role").textContent = userAdmin.role==="admin" ? "Administrateur" : "Secrétaire";
+      return Promise.all([chargerListeChauffeurs(), chargerListeCamions()]);
+    })
+    .then(()=> chargerDashboard())
+    .catch(e=>{
+      loader(false);
+      G("login-err").textContent = e.message==="Accès non autorisé" ? "Accès non autorisé" : "Identifiant ou mot de passe incorrect";
+      G("login-err").classList.add("on");
+      G("inp-pw").value="";
     });
-  });
-  // Select chauffeur camion
-  const sc = G("cam-chauffeur");
-  if(sc){ sc.innerHTML = "<option value=''>— Aucun —</option>";
-    chauffeursList.forEach(ch => { const o=document.createElement("option"); o.value=ch.id; o.textContent=ch.nom; sc.appendChild(o); }); }
 }
 
-async function chargerListeCamions(){
-  const snap = await getDocs(collection(db,"vehicules"));
-  camionsList = [];
-  snap.forEach(d => camionsList.push({ id: d.id, ...d.data() }));
-  camionsList.sort((a,b)=>a.nom.localeCompare(b.nom));
-  ["assign-camion","fuel-filtre-camion","stats-camion"].forEach(sid => {
-    const sel = G(sid); if(!sel) return;
-    const first = sel.options[0]; sel.innerHTML = ""; sel.appendChild(first);
-    camionsList.forEach(cam => { const o=document.createElement("option"); o.value=cam.id; o.textContent=cam.nom+" "+(cam.immat||""); sel.appendChild(o); });
+function seDeconnecter(){
+  auth.signOut().then(()=> location.reload());
+}
+
+// ── CHARGER LISTES ──
+function chargerListeChauffeurs(){
+  return db.collection("users").where("role","==","chauffeur").get().then(snap=>{
+    chauffeursList = [];
+    snap.forEach(d=> chauffeursList.push({ id:d.id, ...d.data() }));
+    chauffeursList.sort((a,b)=>a.nom.localeCompare(b.nom));
+    ["bl-filtre-chauffeur","rc-filtre-chauffeur","assign-chauffeur","stats-chauffeur",
+     "gps-chauffeur","comm-chauffeur","reset-chauffeur"].forEach(sid=>{
+      const sel=G(sid); if(!sel) return;
+      const first=sel.options[0]; sel.innerHTML=""; sel.appendChild(first);
+      chauffeursList.forEach(ch=>{ const o=document.createElement("option"); o.value=ch.id; o.textContent=ch.nom; sel.appendChild(o); });
+    });
+    const sc=G("cam-chauffeur");
+    if(sc){ sc.innerHTML="<option value=''>— Aucun —</option>";
+      chauffeursList.forEach(ch=>{ const o=document.createElement("option"); o.value=ch.id; o.textContent=ch.nom; sc.appendChild(o); }); }
   });
-  const sc = G("ch-camion");
-  if(sc){ sc.innerHTML="<option value=''>— Choisir —</option>";
-    camionsList.forEach(cam => { const o=document.createElement("option"); o.value=cam.nom; o.textContent=cam.nom+" "+(cam.immat||""); sc.appendChild(o); }); }
+}
+
+function chargerListeCamions(){
+  return db.collection("vehicules").get().then(snap=>{
+    camionsList = [];
+    snap.forEach(d=> camionsList.push({ id:d.id, ...d.data() }));
+    camionsList.sort((a,b)=>a.nom.localeCompare(b.nom));
+    ["assign-camion","fuel-filtre-camion","stats-camion"].forEach(sid=>{
+      const sel=G(sid); if(!sel) return;
+      const first=sel.options[0]; sel.innerHTML=""; sel.appendChild(first);
+      camionsList.forEach(cam=>{ const o=document.createElement("option"); o.value=cam.id; o.textContent=cam.nom+" "+(cam.immat||""); sel.appendChild(o); });
+    });
+    const sc=G("ch-camion");
+    if(sc){ sc.innerHTML="<option value=''>— Choisir —</option>";
+      camionsList.forEach(cam=>{ const o=document.createElement("option"); o.value=cam.nom; o.textContent=cam.nom+" "+(cam.immat||""); sc.appendChild(o); }); }
+  });
 }
 
 // ── DASHBOARD ──
-window.chargerDashboard = async function(){
+function chargerDashboard(){
   const now = new Date();
   G("dash-date").textContent = now.toLocaleDateString("fr-FR",{weekday:"long",year:"numeric",month:"long",day:"numeric"});
-  try {
+  db.collection("bons").orderBy("timestamp","desc").limit(300).get().then(snap=>{
     const todayStr = ("0"+now.getDate()).slice(-2)+"/"+("0"+(now.getMonth()+1)).slice(-2)+"/"+now.getFullYear();
-    const moisStr  = ("0"+(now.getMonth()+1)).slice(-2)+"/"+now.getFullYear();
-
-    const allBons = await getDocs(collection(db,"bons"));
-    let blToday=0, blMois=0, espToday=0, espMois=0;
-    let recentBons=[]; let parChauffeur={};
-
-    allBons.forEach(d => {
-      const b = d.data();
-      if(b.date_bl === todayStr){ blToday++; if(b.especes) espToday += b.montant_especes||0; }
-      if(b.date_bl && b.date_bl.endsWith(moisStr.slice(-7))){ blMois++; if(b.especes) espMois += b.montant_especes||0; }
-      recentBons.push({ id:d.id, ...b });
-      const ch = b.chauffeur_nom||"—";
-      parChauffeur[ch] = (parChauffeur[ch]||0) + 1;
+    const moisStr  = "/"+("0"+(now.getMonth()+1)).slice(-2)+"/"+now.getFullYear();
+    let blToday=0,blMois=0,espToday=0,espMois=0,recentBons=[],parChauffeur={};
+    snap.forEach(d=>{
+      const b=d.data();
+      if(b.date_bl===todayStr){ blToday++; if(b.especes) espToday+=b.montant_especes||0; }
+      if(b.date_bl && b.date_bl.endsWith(moisStr)){ blMois++; if(b.especes) espMois+=b.montant_especes||0; }
+      recentBons.push({id:d.id,...b});
+      const ch=b.chauffeur_nom||"—";
+      parChauffeur[ch]=(parChauffeur[ch]||0)+1;
     });
-
-    recentBons.sort((a,b)=>{ const ta=a.timestamp?.seconds||0, tb=b.timestamp?.seconds||0; return tb-ta; });
-
-    G("s-bl").textContent = blToday;
-    G("s-bl-mois").textContent = blMois+" ce mois";
-    G("s-especes").textContent = fmtMontant(espToday);
-    G("s-esp-mois").textContent = fmtMontant(espMois)+" ce mois";
-    G("s-chauffeurs").textContent = chauffeursList.length;
-    G("s-camions").textContent = camionsList.length;
-
-    // Derniers BL
-    let html = "";
-    recentBons.slice(0,6).forEach(b => {
-      html += `<div style="display:flex;justify-content:space-between;align-items:center;padding:8px 0;border-bottom:1px solid var(--gris2);font-size:12px">
+    G("s-bl").textContent=blToday; G("s-bl-mois").textContent=blMois+" ce mois";
+    G("s-especes").textContent=fmtMontant(espToday); G("s-esp-mois").textContent=fmtMontant(espMois)+" ce mois";
+    G("s-chauffeurs").textContent=chauffeursList.length; G("s-camions").textContent=camionsList.length;
+    let html="";
+    recentBons.slice(0,6).forEach(b=>{
+      html+=`<div style="display:flex;justify-content:space-between;align-items:center;padding:8px 0;border-bottom:1px solid var(--gris2);font-size:12px">
         <div><span style="font-weight:700;color:var(--bleu)">${b.bon_num||"—"}</span><span style="color:var(--gris3);margin-left:8px">${b.chauffeur_nom||""}</span></div>
         <div style="display:flex;gap:8px;align-items:center">
-          <span class="badge ${b.tarif==='NORMAL'?'badge-vert':b.tarif==='TN'?'badge-bleu':'badge-violet'}">${b.tarif||"—"}</span>
+          <span class="badge ${b.tarif==="NORMAL"?"badge-vert":b.tarif==="TN"?"badge-bleu":"badge-violet"}">${b.tarif||"—"}</span>
           <span style="color:var(--gris3)">${b.date_bl||""}</span>
-        </div>
-      </div>`;
+        </div></div>`;
     });
-    G("dash-bons-list").innerHTML = html || "<div style='color:var(--gris3);font-size:12px'>Aucun bon</div>";
+    G("dash-bons-list").innerHTML=html||"<div style='color:var(--gris3);font-size:12px'>Aucun bon</div>";
+    const maxVal=Math.max(...Object.values(parChauffeur),1);
+    G("dash-chart").innerHTML=Object.entries(parChauffeur).sort((a,b)=>b[1]-a[1]).slice(0,8)
+      .map(([nom,nb])=>`<div class="chart-row"><div class="chart-lbl">${nom}</div><div class="chart-bar-bg"><div class="chart-bar-fill" style="width:${Math.round(nb/maxVal*100)}%"></div></div><div class="chart-val">${nb} BL</div></div>`).join("");
+  }).catch(e=>console.error(e));
+}
 
-    // Graphique par chauffeur
-    const maxVal = Math.max(...Object.values(parChauffeur), 1);
-    let chartHtml = "";
-    Object.entries(parChauffeur).sort((a,b)=>b[1]-a[1]).slice(0,8).forEach(([nom,nb])=>{
-      chartHtml += `<div class="chart-row">
-        <div class="chart-lbl">${nom}</div>
-        <div class="chart-bar-bg"><div class="chart-bar-fill" style="width:${Math.round(nb/maxVal*100)}%"></div></div>
-        <div class="chart-val">${nb} BL</div>
-      </div>`;
-    });
-    G("dash-chart").innerHTML = chartHtml || "<div style='color:var(--gris3);font-size:12px'>Aucune donnée</div>";
-
-  } catch(e){ console.error(e); }
-};
-
-// ── BONS DE LIVRAISON ──
-window.chargerBons = async function(){
-  loader(true,"Chargement des BL...");
-  try {
-    let q = query(collection(db,"bons"), orderBy("timestamp","desc"), limit(200));
-    const snap = await getDocs(q);
-    let bons = [];
-    snap.forEach(d => bons.push({ id:d.id, ...d.data() }));
-
-    // Filtres côté client
-    const debut = G("bl-date-debut").value;
-    const fin   = G("bl-date-fin").value;
-    const ch    = G("bl-filtre-chauffeur").value;
-    const tarif = G("bl-filtre-tarif").value;
-
-    if(debut) bons = bons.filter(b => b.date_bl >= debut.split("-").reverse().join("/"));
-    if(fin)   bons = bons.filter(b => b.date_bl <= fin.split("-").reverse().join("/"));
-    if(ch)    bons = bons.filter(b => b.chauffeur_uid === ch);
-    if(tarif) bons = bons.filter(b => b.tarif === tarif);
-
-    let html = "";
-    bons.forEach(b => {
-      html += `<tr>
+// ── BONS ──
+function chargerBons(){
+  loader(true,"Chargement BL...");
+  db.collection("bons").orderBy("timestamp","desc").limit(300).get().then(snap=>{
+    let bons=[];
+    snap.forEach(d=>bons.push({id:d.id,...d.data()}));
+    const ch=G("bl-filtre-chauffeur").value;
+    const tarif=G("bl-filtre-tarif").value;
+    if(ch) bons=bons.filter(b=>b.chauffeur_uid===ch);
+    if(tarif) bons=bons.filter(b=>b.tarif===tarif);
+    let html="";
+    bons.forEach(b=>{
+      html+=`<tr>
         <td><span style="font-weight:700;color:var(--bleu);font-size:12px">${b.bon_num||"—"}</span></td>
-        <td>${b.date_bl||"—"}</td>
-        <td>${b.heure_bl||"—"}</td>
-        <td><span class="badge ${b.tarif==='NORMAL'?'tarif-normal':b.tarif==='TN'?'tarif-tn':'tarif-tw'}">${b.tarif||"—"}</span></td>
+        <td>${b.date_bl||"—"}</td><td>${b.heure_bl||"—"}</td>
+        <td><span class="badge ${b.tarif==="NORMAL"?"tarif-normal":b.tarif==="TN"?"tarif-tn":"tarif-tw"}">${b.tarif||"—"}</span></td>
         <td>${b.chauffeur_nom||"—"}</td>
         <td style="font-weight:600">${b.nom_client||"—"}</td>
         <td>${b.marque||""} ${b.modele||""}<br><span style="font-size:10px;color:var(--gris3)">${b.immatriculation||""}</span></td>
         <td>${b.lieu_embarquement||"—"} → ${b.destination||"—"}</td>
-        <td>${b.especes ? '<span class="badge badge-vert">'+fmtMontant(b.montant_especes)+'</span>' : '<span class="badge badge-gris">—</span>'}</td>
-        <td>
-          <div style="display:flex;gap:4px">
-            <button class="btn btn-secondary btn-sm btn-icon" onclick="voirBL('${b.id}')" title="Voir">👁</button>
-            <button class="btn btn-secondary btn-sm btn-icon" onclick="imprimerBL('${b.id}')" title="Imprimer">🖨</button>
-            <button class="btn btn-secondary btn-sm btn-icon" onclick="telechargerBL('${b.id}')" title="Télécharger">⬇</button>
-            ${userAdmin?.role==="admin"?`<button class="btn btn-danger btn-sm btn-icon" onclick="supprimerBon('${b.id}')" title="Supprimer">🗑</button>`:""}
-          </div>
-        </td>
-      </tr>`;
+        <td>${b.especes?`<span class="badge badge-vert">${fmtMontant(b.montant_especes)}</span>`:'<span class="badge badge-gris">—</span>'}</td>
+        <td><div style="display:flex;gap:4px">
+          <button class="btn btn-secondary btn-sm btn-icon" onclick="imprimerBL('${b.id}')" title="Imprimer">🖨</button>
+          ${userAdmin&&userAdmin.role==="admin"?`<button class="btn btn-danger btn-sm btn-icon" onclick="supprimerBon('${b.id}')">🗑</button>`:""}
+        </div></td></tr>`;
     });
-    G("bons-tbody").innerHTML = html || `<tr><td colspan="10" style="text-align:center;color:var(--gris3);padding:24px">Aucun bon trouvé</td></tr>`;
-  } catch(e){ console.error(e); toast("Erreur chargement BL","err"); }
-  loader(false);
-};
+    G("bons-tbody").innerHTML=html||`<tr><td colspan="10" style="text-align:center;color:var(--gris3);padding:24px">Aucun bon trouvé</td></tr>`;
+    loader(false);
+  }).catch(e=>{ loader(false); toast("Erreur","err"); });
+}
 
-window.supprimerBon = async function(id){
-  if(!confirm("Supprimer ce bon de livraison ? Cette action est irréversible.")) return;
-  try { await deleteDoc(doc(db,"bons",id)); toast("Bon supprimé"); chargerBons(); }
-  catch(e){ toast("Erreur suppression","err"); }
-};
+function supprimerBon(id){
+  if(!confirm("Supprimer ce bon ?")) return;
+  db.collection("bons").doc(id).delete().then(()=>{ toast("Bon supprimé"); chargerBons(); }).catch(()=>toast("Erreur","err"));
+}
 
 // ── REÇUS ──
-window.chargerRecus = async function(){
-  loader(true,"Chargement des reçus...");
-  try {
-    const snap = await getDocs(query(collection(db,"recus"), orderBy("timestamp","desc"), limit(200)));
-    let recus = [];
-    snap.forEach(d => recus.push({ id:d.id, ...d.data() }));
-
-    const ch = G("rc-filtre-chauffeur").value;
-    if(ch) recus = recus.filter(r => r.chauffeur_uid === ch);
-
-    let html = "";
-    recus.forEach(r => {
-      html += `<tr>
+function chargerRecus(){
+  loader(true);
+  db.collection("recus").orderBy("timestamp","desc").limit(200).get().then(snap=>{
+    let recus=[];
+    snap.forEach(d=>recus.push({id:d.id,...d.data()}));
+    const ch=G("rc-filtre-chauffeur").value;
+    if(ch) recus=recus.filter(r=>r.chauffeur_uid===ch);
+    let html="";
+    recus.forEach(r=>{
+      html+=`<tr>
         <td><span style="font-weight:700;color:var(--vert);font-size:12px">${r.recu_num||"—"}</span></td>
-        <td>${r.date||"—"}</td>
-        <td>${r.chauffeur_nom||"—"}</td>
+        <td>${r.date||"—"}</td><td>${r.chauffeur_nom||"—"}</td>
         <td style="font-weight:600">${r.nom_client||"—"}</td>
         <td>${r.marque||""} ${r.modele||""}</td>
         <td>${r.mission||"—"}</td>
-        <td><span style="font-weight:900;color:var(--vert);font-size:14px">${fmtMontant(r.montant)}</span></td>
+        <td><span style="font-weight:900;color:var(--vert)">${fmtMontant(r.montant)}</span></td>
         <td><span style="color:var(--bleu);font-size:12px">${r.bon_num||"—"}</span></td>
-        <td>
-          <div style="display:flex;gap:4px">
-            <button class="btn btn-secondary btn-sm btn-icon" title="Voir">👁</button>
-            <button class="btn btn-secondary btn-sm btn-icon" title="Imprimer">🖨</button>
-            <button class="btn btn-secondary btn-sm btn-icon" title="Télécharger">⬇</button>
-            ${userAdmin?.role==="admin"?`<button class="btn btn-danger btn-sm btn-icon" onclick="supprimerRecu('${r.id}')">🗑</button>`:""}
-          </div>
-        </td>
-      </tr>`;
+        <td><div style="display:flex;gap:4px">
+          <button class="btn btn-secondary btn-sm btn-icon" onclick="imprimerBL('${r.id}')">🖨</button>
+          ${userAdmin&&userAdmin.role==="admin"?`<button class="btn btn-danger btn-sm btn-icon" onclick="supprimerRecu('${r.id}')">🗑</button>`:""}
+        </div></td></tr>`;
     });
-    G("recus-tbody").innerHTML = html || `<tr><td colspan="9" style="text-align:center;color:var(--gris3);padding:24px">Aucun reçu trouvé</td></tr>`;
-  } catch(e){ console.error(e); toast("Erreur","err"); }
-  loader(false);
-};
-
-window.supprimerRecu = async function(id){
-  if(!confirm("Supprimer ce reçu ?")) return;
-  try { await deleteDoc(doc(db,"recus",id)); toast("Reçu supprimé"); chargerRecus(); }
-  catch(e){ toast("Erreur suppression","err"); }
-};
+    G("recus-tbody").innerHTML=html||`<tr><td colspan="9" style="text-align:center;color:var(--gris3);padding:24px">Aucun reçu</td></tr>`;
+    loader(false);
+  }).catch(()=>{ loader(false); toast("Erreur","err"); });
+}
+function supprimerRecu(id){ if(!confirm("Supprimer ?")) return; db.collection("recus").doc(id).delete().then(()=>{ toast("Supprimé"); chargerRecus(); }); }
 
 // ── CHAUFFEURS ──
-window.chargerChauffeurs = async function(){
-  try {
-    const snap = await getDocs(query(collection(db,"users"), where("role","==","chauffeur")));
-    let list = [];
-    snap.forEach(d => list.push({ id:d.id, ...d.data() }));
+function chargerChauffeurs(){
+  db.collection("users").where("role","==","chauffeur").get().then(snap=>{
+    let list=[];
+    snap.forEach(d=>list.push({id:d.id,...d.data()}));
     list.sort((a,b)=>a.nom.localeCompare(b.nom));
-
-    let html = "";
-    list.forEach(ch => {
-      const actif = ch.actif !== false;
-      const tmpCam = ch.camion_temporaire ? `<span class="badge badge-jaune">🔄 ${ch.camion_temporaire}</span>` : "";
-      html += `<tr>
+    let html="";
+    list.forEach(ch=>{
+      const actif=ch.actif!==false;
+      const tmp=ch.camion_temporaire?`<span class="badge badge-jaune">🔄 ${ch.camion_temporaire}</span>`:"";
+      html+=`<tr>
         <td><strong>${ch.nom}</strong></td>
         <td><span class="badge badge-bleu">${ch.identifiant||"—"}</span></td>
-        <td>${ch.camion||"—"} ${tmpCam}</td>
-        <td style="font-family:monospace;font-size:12px">${ch.immat_camion||<span style="color:var(--gris3)">À renseigner</span>}</td>
+        <td>${ch.camion||"—"} ${tmp}</td>
+        <td style="font-family:monospace;font-size:12px">${ch.immat_camion||"<span style='color:var(--gris3)'>À renseigner</span>"}</td>
         <td><span class="badge badge-gris">${ch.prefixe_bl||"—"}/BL</span></td>
         <td style="font-weight:700">${ch.bl_compteur||1}</td>
-        <td><span class="badge ${actif?'badge-vert':'badge-rouge'}">${actif?"Actif":"Inactif"}</span></td>
-        <td>
-          <div style="display:flex;gap:4px">
-            <button class="btn btn-secondary btn-sm" onclick="editerChauffeur('${ch.id}')">✏️ Modifier</button>
-            <button class="btn btn-danger btn-sm" onclick="toggleActifChauffeur('${ch.id}',${actif})">${actif?"Désactiver":"Activer"}</button>
-          </div>
-        </td>
-      </tr>`;
+        <td><span class="badge ${actif?"badge-vert":"badge-rouge"}">${actif?"Actif":"Inactif"}</span></td>
+        <td><div style="display:flex;gap:4px">
+          <button class="btn btn-secondary btn-sm" onclick="editerChauffeur('${ch.id}')">✏️ Modifier</button>
+          <button class="btn btn-danger btn-sm" onclick="toggleActifChauffeur('${ch.id}',${actif})">${actif?"Désactiver":"Activer"}</button>
+        </div></td></tr>`;
     });
-    G("ch-tbody").innerHTML = html || `<tr><td colspan="8" style="text-align:center;color:var(--gris3);padding:24px">Aucun chauffeur</td></tr>`;
-  } catch(e){ console.error(e); }
-};
+    G("ch-tbody").innerHTML=html||`<tr><td colspan="8" style="text-align:center;color:var(--gris3);padding:24px">Aucun chauffeur</td></tr>`;
+  });
+}
 
-window.ouvrirModalChauffeur = function(){
-  editingId = null;
-  G("modal-ch-title").textContent = "👤 Ajouter un chauffeur";
-  ["ch-nom","ch-id","ch-mdp","ch-pref-bl","ch-immat"].forEach(id=>G(id).value="");
-  G("ch-camion").value=""; G("ch-photo").checked=true;
-  G("modal-chauffeur").classList.add("on");
-};
+function ouvrirModalChauffeur(){ editingId=null; G("modal-ch-title").textContent="👤 Ajouter un chauffeur"; ["ch-nom","ch-id","ch-mdp","ch-pref-bl","ch-immat"].forEach(id=>G(id).value=""); G("ch-photo").checked=true; G("modal-chauffeur").classList.add("on"); }
 
-window.editerChauffeur = async function(uid){
-  const snap = await getDoc(doc(db,"users",uid));
-  if(!snap.exists()) return;
-  const ch = snap.data();
-  editingId = uid;
-  G("modal-ch-title").textContent = "✏️ Modifier — "+ch.nom;
-  G("ch-nom").value = ch.nom||"";
-  G("ch-id").value  = ch.identifiant||"";
-  G("ch-mdp").value = "";
-  G("ch-pref-bl").value = ch.prefixe_bl||"";
-  G("ch-immat").value   = ch.immat_camion||"";
-  G("ch-camion").value  = ch.camion||"";
-  G("ch-photo").checked = ch.photo_obligatoire !== false;
-  G("modal-chauffeur").classList.add("on");
-};
+function editerChauffeur(uid){
+  db.collection("users").doc(uid).get().then(snap=>{
+    if(!snap.exists) return;
+    const ch=snap.data(); editingId=uid;
+    G("modal-ch-title").textContent="✏️ Modifier — "+ch.nom;
+    G("ch-nom").value=ch.nom||""; G("ch-id").value=ch.identifiant||"";
+    G("ch-mdp").value=""; G("ch-pref-bl").value=ch.prefixe_bl||"";
+    G("ch-immat").value=ch.immat_camion||""; G("ch-camion").value=ch.camion||"";
+    G("ch-photo").checked=ch.photo_obligatoire!==false;
+    G("modal-chauffeur").classList.add("on");
+  });
+}
 
-window.sauvegarderChauffeur = async function(){
-  const nom  = G("ch-nom").value.trim();
-  const id   = G("ch-id").value.trim().toUpperCase();
-  const mdp  = G("ch-mdp").value;
-  const pref = G("ch-pref-bl").value.trim().toUpperCase();
-  const cam  = G("ch-camion").value;
-  const immat= G("ch-immat").value.trim().toUpperCase();
-  const photo= G("ch-photo").checked;
-
+function sauvegarderChauffeur(){
+  const nom=G("ch-nom").value.trim(), id=G("ch-id").value.trim().toUpperCase();
+  const pref=G("ch-pref-bl").value.trim().toUpperCase();
+  const cam=G("ch-camion").value, immat=G("ch-immat").value.trim().toUpperCase();
+  const photo=G("ch-photo").checked;
   if(!nom||!id){ toast("Nom et identifiant obligatoires","err"); return; }
-  loader(true,"Enregistrement...");
-  try {
-    if(editingId){
-      const upd = { nom, identifiant:id, prefixe_bl:pref, prefixe_recu:pref, camion:cam, immat_camion:immat, photo_obligatoire:photo };
-      await updateDoc(doc(db,"users",editingId), upd);
-      toast("Chauffeur modifié ✅");
-    } else {
-      if(!mdp){ toast("Mot de passe obligatoire","err"); loader(false); return; }
-      // Créer compte Firebase Auth via Admin SDK n'est pas possible côté client
-      // On crée juste le profil avec un flag "à activer"
-      toast("Pour créer un nouveau chauffeur, utilisez le fichier init_firebase.html","err");
-      loader(false); return;
-    }
-    fermerModal("modal-chauffeur");
-    chargerChauffeurs();
-    chargerListeChauffeurs();
-  } catch(e){ toast("Erreur : "+e.message,"err"); }
-  loader(false);
-};
+  if(!editingId){ toast("Pour ajouter un chauffeur, utilisez init_firebase.html","err"); return; }
+  loader(true);
+  db.collection("users").doc(editingId).update({ nom,identifiant:id,prefixe_bl:pref,prefixe_recu:pref,camion:cam,immat_camion:immat,photo_obligatoire:photo })
+    .then(()=>{ toast("Chauffeur modifié ✅"); fermerModal("modal-chauffeur"); chargerChauffeurs(); chargerListeChauffeurs(); loader(false); })
+    .catch(()=>{ toast("Erreur","err"); loader(false); });
+}
 
-window.toggleActifChauffeur = async function(uid, actuel){
-  if(!confirm(`${actuel?"Désactiver":"Activer"} ce chauffeur ?`)) return;
-  try {
-    await updateDoc(doc(db,"users",uid), { actif: !actuel });
-    toast("Chauffeur "+(actuel?"désactivé":"activé"));
-    chargerChauffeurs();
-  } catch(e){ toast("Erreur","err"); }
-};
+function toggleActifChauffeur(uid,actuel){
+  if(!confirm((actuel?"Désactiver":"Activer")+" ce chauffeur ?")) return;
+  db.collection("users").doc(uid).update({actif:!actuel}).then(()=>{ toast("Mis à jour"); chargerChauffeurs(); });
+}
 
 // ── CAMIONS ──
-window.chargerCamions = async function(){
-  try {
-    const snap = await getDocs(collection(db,"vehicules"));
-    let list = [];
-    snap.forEach(d => list.push({ id:d.id, ...d.data() }));
+function chargerCamions(){
+  db.collection("vehicules").get().then(snap=>{
+    let list=[]; snap.forEach(d=>list.push({id:d.id,...d.data()}));
     list.sort((a,b)=>a.nom.localeCompare(b.nom));
-
-    let html = "";
-    list.forEach(cam => {
-      const ch = chauffeursList.find(c=>c.identifiant===cam.chauffeur_defaut);
-      html += `<tr>
+    let html="";
+    list.forEach(cam=>{
+      const ch=chauffeursList.find(c=>c.identifiant===cam.chauffeur_defaut);
+      html+=`<tr>
         <td><strong>${cam.nom||"—"}</strong></td>
-        <td style="font-family:monospace;font-size:12px">${cam.immat||'<span style="color:var(--gris3)">À renseigner</span>'}</td>
-        <td>${cam.marque||"—"}</td>
-        <td>${cam.modele||"—"}</td>
-        <td>${ch ? ch.nom : (cam.chauffeur_defaut||"—")}</td>
-        <td><span class="badge ${cam.actif!==false?'badge-vert':'badge-rouge'}">${cam.actif!==false?"Actif":"Inactif"}</span></td>
-        <td>
-          <div style="display:flex;gap:4px">
-            <button class="btn btn-secondary btn-sm" onclick="editerCamion('${cam.id}')">✏️ Modifier</button>
-            <button class="btn btn-danger btn-sm" onclick="supprimerCamion('${cam.id}')">🗑</button>
-          </div>
-        </td>
-      </tr>`;
+        <td style="font-family:monospace;font-size:12px">${cam.immat||"<span style='color:var(--gris3)'>À renseigner</span>"}</td>
+        <td>${cam.marque||"—"}</td><td>${cam.modele||"—"}</td>
+        <td>${ch?ch.nom:(cam.chauffeur_defaut||"—")}</td>
+        <td><span class="badge ${cam.actif!==false?"badge-vert":"badge-rouge"}">${cam.actif!==false?"Actif":"Inactif"}</span></td>
+        <td><div style="display:flex;gap:4px">
+          <button class="btn btn-secondary btn-sm" onclick="editerCamion('${cam.id}')">✏️</button>
+          <button class="btn btn-danger btn-sm" onclick="supprimerCamion('${cam.id}')">🗑</button>
+        </div></td></tr>`;
     });
-    G("cam-tbody").innerHTML = html || `<tr><td colspan="7" style="text-align:center;color:var(--gris3);padding:24px">Aucun camion</td></tr>`;
-  } catch(e){ console.error(e); }
-};
+    G("cam-tbody").innerHTML=html||`<tr><td colspan="7" style="text-align:center;color:var(--gris3);padding:24px">Aucun camion</td></tr>`;
+  });
+}
 
-window.ouvrirModalCamion = function(){
-  editingId = null;
-  G("modal-cam-title").textContent = "🚛 Ajouter un camion";
-  ["cam-nom","cam-immat","cam-marque","cam-modele","cam-annee"].forEach(id=>G(id).value="");
-  G("cam-chauffeur").value="";
-  G("modal-camion").classList.add("on");
-};
+function ouvrirModalCamion(){ editingId=null; G("modal-cam-title").textContent="🚛 Ajouter un camion"; ["cam-nom","cam-immat","cam-marque","cam-modele","cam-annee"].forEach(id=>G(id).value=""); G("cam-chauffeur").value=""; G("modal-camion").classList.add("on"); }
 
-window.editerCamion = async function(id){
-  const snap = await getDoc(doc(db,"vehicules",id));
-  if(!snap.exists()) return;
-  const cam = snap.data();
-  editingId = id;
-  G("modal-cam-title").textContent = "✏️ Modifier — "+cam.nom;
-  G("cam-nom").value    = cam.nom||"";
-  G("cam-immat").value  = cam.immat||"";
-  G("cam-marque").value = cam.marque||"";
-  G("cam-modele").value = cam.modele||"";
-  G("cam-annee").value  = cam.annee||"";
-  G("cam-chauffeur").value = cam.chauffeur_defaut||"";
-  G("modal-camion").classList.add("on");
-};
+function editerCamion(id){
+  db.collection("vehicules").doc(id).get().then(snap=>{
+    if(!snap.exists) return;
+    const cam=snap.data(); editingId=id;
+    G("modal-cam-title").textContent="✏️ Modifier — "+cam.nom;
+    G("cam-nom").value=cam.nom||""; G("cam-immat").value=cam.immat||"";
+    G("cam-marque").value=cam.marque||""; G("cam-modele").value=cam.modele||"";
+    G("cam-annee").value=cam.annee||""; G("cam-chauffeur").value=cam.chauffeur_defaut||"";
+    G("modal-camion").classList.add("on");
+  });
+}
 
-window.sauvegarderCamion = async function(){
-  const nom   = G("cam-nom").value.trim();
-  const immat = G("cam-immat").value.trim().toUpperCase();
-  const marque= G("cam-marque").value.trim();
-  const modele= G("cam-modele").value.trim();
-  const annee = G("cam-annee").value;
-  const ch    = G("cam-chauffeur").value;
-  if(!nom){ toast("Nom du camion obligatoire","err"); return; }
+function sauvegarderCamion(){
+  const nom=G("cam-nom").value.trim(), immat=G("cam-immat").value.trim().toUpperCase();
+  const marque=G("cam-marque").value.trim(), modele=G("cam-modele").value.trim();
+  const annee=G("cam-annee").value, ch=G("cam-chauffeur").value;
+  if(!nom){ toast("Nom obligatoire","err"); return; }
   loader(true);
-  try {
-    const data = { nom, immat, marque, modele, annee, chauffeur_defaut:ch, actif:true };
-    if(editingId){ await updateDoc(doc(db,"vehicules",editingId), data); toast("Camion modifié ✅"); }
-    else { await addDoc(collection(db,"vehicules"), { ...data, createdAt:serverTimestamp() }); toast("Camion ajouté ✅"); }
-    fermerModal("modal-camion");
-    chargerCamions();
-    chargerListeCamions();
-  } catch(e){ toast("Erreur","err"); }
-  loader(false);
-};
+  const data={nom,immat,marque,modele,annee,chauffeur_defaut:ch,actif:true};
+  const p=editingId ? db.collection("vehicules").doc(editingId).update(data) : db.collection("vehicules").add({...data,createdAt:firebase.firestore.FieldValue.serverTimestamp()});
+  p.then(()=>{ toast(editingId?"Modifié ✅":"Ajouté ✅"); fermerModal("modal-camion"); chargerCamions(); chargerListeCamions(); loader(false); })
+   .catch(()=>{ toast("Erreur","err"); loader(false); });
+}
 
-window.supprimerCamion = async function(id){
-  if(!confirm("Supprimer ce camion ?")) return;
-  try { await deleteDoc(doc(db,"vehicules",id)); toast("Camion supprimé"); chargerCamions(); chargerListeCamions(); }
-  catch(e){ toast("Erreur","err"); }
-};
+function supprimerCamion(id){ if(!confirm("Supprimer ?")) return; db.collection("vehicules").doc(id).delete().then(()=>{ toast("Supprimé"); chargerCamions(); chargerListeCamions(); }); }
 
 // ── CLIENTS ──
-window.chargerClients = async function(){
-  try {
-    const snap = await getDocs(query(collection(db,"clients"), orderBy("nom","asc")));
-    clientsList = [];
-    snap.forEach(d => clientsList.push({ id:d.id, ...d.data() }));
+function chargerClients(){
+  db.collection("clients").orderBy("nom","asc").get().then(snap=>{
+    clientsList=[];
+    snap.forEach(d=>clientsList.push({id:d.id,...d.data()}));
     afficherClients(clientsList);
-  } catch(e){ console.error(e); }
-};
-
+  });
+}
 function afficherClients(list){
-  let html = "";
-  list.forEach(cl => {
-    html += `<tr>
+  let html="";
+  list.forEach(cl=>{
+    html+=`<tr>
       <td><strong>${cl.nom||"—"}</strong></td>
       <td>${cl.tel||"—"}</td>
       <td><span class="badge badge-gris">${cl.mode_paiement||"—"}</span></td>
       <td>—</td>
-      <td><span style="font-weight:700;color:var(--vert)">${cl.solde!=null?fmtMontant(cl.solde):"0,00 €"}</span></td>
-      <td>
-        <div style="display:flex;gap:4px">
-          <button class="btn btn-secondary btn-sm" onclick="editerClient('${cl.id}')">✏️</button>
-          <button class="btn btn-danger btn-sm" onclick="supprimerClient('${cl.id}')">🗑</button>
-        </div>
-      </td>
-    </tr>`;
+      <td><span style="font-weight:700;color:var(--vert)">${fmtMontant(cl.solde)}</span></td>
+      <td><div style="display:flex;gap:4px">
+        <button class="btn btn-danger btn-sm" onclick="supprimerClient('${cl.id}')">🗑</button>
+      </div></td></tr>`;
   });
-  G("clients-tbody").innerHTML = html || `<tr><td colspan="6" style="text-align:center;color:var(--gris3);padding:24px">Aucun client</td></tr>`;
+  G("clients-tbody").innerHTML=html||`<tr><td colspan="6" style="text-align:center;color:var(--gris3);padding:24px">Aucun client</td></tr>`;
 }
-
-window.filtrerClients = function(){
-  const q = G("client-search").value.toLowerCase();
-  afficherClients(clientsList.filter(c=>(c.nom||"").toLowerCase().includes(q)));
-};
-
-window.ouvrirModalClient = function(){};
-window.editerClient = function(id){};
-window.supprimerClient = async function(id){
-  if(!confirm("Supprimer ce client ?")) return;
-  try { await deleteDoc(doc(db,"clients",id)); toast("Client supprimé"); chargerClients(); }
-  catch(e){ toast("Erreur","err"); }
-};
+function filtrerClients(){ const q=G("client-search").value.toLowerCase(); afficherClients(clientsList.filter(c=>(c.nom||"").toLowerCase().includes(q))); }
+function ouvrirModalClient(){}
+function editerClient(){}
+function supprimerClient(id){ if(!confirm("Supprimer ?")) return; db.collection("clients").doc(id).delete().then(()=>{ toast("Supprimé"); chargerClients(); }); }
 
 // ── ASSIGNATION TEMPORAIRE ──
-window.ouvrirModalAssign = function(){ G("modal-assign").classList.add("on"); };
-window.sauvegarderAssign = async function(){
-  cons
-  const uid  = G("assign-chauffeur").value;
-  const camId= G("assign-camion").value;
+function ouvrirModalAssign(){ G("modal-assign").classList.add("on"); }
+function sauvegarderAssign(){
+  const uid=G("assign-chauffeur").value, camId=G("assign-camion").value;
   if(!uid||!camId){ toast("Sélectionner chauffeur et camion","err"); return; }
-  const cam = camionsList.find(c=>c.id===camId);
-  try {
-    await updateDoc(doc(db,"users",uid),{ camion_temporaire: cam?.nom||"", immat_temporaire: cam?.immat||"" });
-    toast("Assignation temporaire enregistrée ✅");
-    fermerModal("modal-assign");
-    chargerChauffeurs();
-  } catch(e){ toast("Erreur","err"); }
-};
-window.retirerAssign = async function(){
-  const uid = G("assign-chauffeur").value;
+  const cam=camionsList.find(c=>c.id===camId);
+  db.collection("users").doc(uid).update({camion_temporaire:cam?.nom||"",immat_temporaire:cam?.immat||""})
+    .then(()=>{ toast("Assignation enregistrée ✅"); fermerModal("modal-assign"); chargerChauffeurs(); });
+}
+function retirerAssign(){
+  const uid=G("assign-chauffeur").value;
   if(!uid){ toast("Sélectionner un chauffeur","err"); return; }
-  try {
-    await updateDoc(doc(db,"users",uid),{ camion_temporaire:null, immat_temporaire:null });
-    toast("Assignation temporaire retirée");
-    fermerModal("modal-assign");
-    chargerChauffeurs();
-  } catch(e){ toast("Erreur","err"); }
-};
+  db.collection("users").doc(uid).update({camion_temporaire:null,immat_temporaire:null})
+    .then(()=>{ toast("Assignation retirée"); fermerModal("modal-assign"); chargerChauffeurs(); });
+}
 
 // ── RESET COMPTEUR ──
-window.ouvrirModalReset = function(){
-  const sel = G("reset-chauffeur");
-  sel.innerHTML = "<option value='tous'>— Tous les chauffeurs —</option>";
-  chauffeursList.forEach(ch => { const o=document.createElement("option"); o.value=ch.id; o.textContent=ch.nom; sel.appendChild(o); });
+function ouvrirModalReset(){
+  const sel=G("reset-chauffeur");
+  sel.innerHTML="<option value='tous'>— Tous —</option>";
+  chauffeursList.forEach(ch=>{ const o=document.createElement("option"); o.value=ch.id; o.textContent=ch.nom; sel.appendChild(o); });
   G("modal-reset").classList.add("on");
-};
-window.confirmerReset = async function(){
-  const uid = G("reset-chauffeur").value;
-  const resetBL = G("reset-bl").checked;
-  const resetRC = G("reset-rc").checked;
-  if(!resetBL&&!resetRC){ toast("Sélectionner au moins un compteur","err"); return; }
-  if(!confirm("Remettre les compteurs à zéro ?")) return;
-  loader(true,"Remise à zéro...");
-  try {
-    const upd = {};
-    if(resetBL) upd.bl_compteur = 1;
-    if(resetRC) upd.recu_compteur = 1;
-    if(uid==="tous"){
-      for(const ch of chauffeursList){ await updateDoc(doc(db,"users",ch.id), upd); }
-    } else {
-      await updateDoc(doc(db,"users",uid), upd);
-    }
-    toast("Compteurs remis à zéro ✅");
-    fermerModal("modal-reset");
-    chargerChauffeurs();
-  } catch(e){ toast("Erreur","err"); }
-  loader(false);
-};
-
-// ── DROITS ──
-window.chargerDroits = async function(){
-  try {
-    const snap = await getDoc(doc(db,"parametres","societe"));
-    const d = snap.data()?.droits||{};
-    G("d-bl-creer").checked        = d.secretaire_bl_creer !== false;
-    G("d-bl-voir").checked         = d.secretaire_bl_voir !== false;
-    G("d-bl-imprimer").checked     = d.secretaire_bl_imprimer !== false;
-    G("d-bl-telecharger").checked  = d.secretaire_bl_telecharger !== false;
-    G("d-rc-voir").checked         = d.secretaire_recu_voir !== false;
-    G("d-rc-imprimer").checked     = d.secretaire_recu_imprimer !== false;
-    G("d-rc-telecharger").checked  = d.secretaire_recu_telecharger !== false;
-    G("d-stats").checked           = d.secretaire_stats === true;
-    G("d-clients").checked         = d.secretaire_clients !== false;
-    G("d-clients-ajouter").checked = d.secretaire_clients_ajouter !== false;
-    G("d-clients-modifier").checked= d.secretaire_clients_modifier === true;
-    G("d-solde").checked           = d.secretaire_solde === true;
-    G("d-sans-immat").checked      = d.chauffeur_sans_immat === true;
-    G("d-sans-photo").checked      = d.chauffeur_sans_photo === true;
-    G("d-sans-emb").checked        = d.chauffeur_sans_embarquement === true;
-    const p = snap.data()||{};
-    G("taux-normal-inp").value   = p.taux_commission_normal||3;
-    G("taux-tntw-inp").value     = p.taux_commission_tn_tw||5;
-    G("taux-depenses-inp").value = p.taux_depenses_fixes||15;
-  } catch(e){ console.error(e); }
-};
-
-window.sauvegarderDroits = async function(){
-  loader(true,"Enregistrement...");
-  try {
-    await updateDoc(doc(db,"parametres","societe"),{
-      droits:{
-        secretaire_bl_creer:        G("d-bl-creer").checked,
-        secretaire_bl_voir:         G("d-bl-voir").checked,
-        secretaire_bl_imprimer:     G("d-bl-imprimer").checked,
-        secretaire_bl_telecharger:  G("d-bl-telecharger").checked,
-        secretaire_recu_voir:       G("d-rc-voir").checked,
-        secretaire_recu_imprimer:   G("d-rc-imprimer").checked,
-        secretaire_recu_telecharger:G("d-rc-telecharger").checked,
-        secretaire_stats:           G("d-stats").checked,
-        secretaire_clients:         G("d-clients").checked,
-        secretaire_clients_ajouter: G("d-clients-ajouter").checked,
-        secretaire_clients_modifier:G("d-clients-modifier").checked,
-        secretaire_solde:           G("d-solde").checked,
-        chauffeur_sans_immat:       G("d-sans-immat").checked,
-        chauffeur_sans_photo:       G("d-sans-photo").checked,
-        chauffeur_sans_embarquement:G("d-sans-emb").checked
-      },
-      taux_commission_normal: parseFloat(G("taux-normal-inp").value)||3,
-      taux_commission_tn_tw:  parseFloat(G("taux-tntw-inp").value)||5,
-      taux_depenses_fixes:    parseFloat(G("taux-depenses-inp").value)||15,
-      updatedAt: serverTimestamp()
-    });
-    toast("Droits enregistrés ✅");
-  } catch(e){ toast("Erreur","err"); }
-  loader(false);
-};
-
-// ── PARAMÈTRES ──
-window.chargerParametres = async function(){
-  try {
-    const snap = await getDoc(doc(db,"parametres","societe"));
-    const p = snap.data()||{};
-    G("soc-nom").value     = p.nom||"";
-    G("soc-adresse").value = p.adresse||"";
-    G("soc-tel").value     = p.telephone||"";
-    G("soc-email").value   = p.email||"";
-  } catch(e){}
-};
-
-window.sauvegarderParametres = async function(){
+}
+function confirmerReset(){
+  const uid=G("reset-chauffeur").value;
+  const bl=G("reset-bl").checked, rc=G("reset-rc").checked;
+  if(!bl&&!rc){ toast("Sélectionner au moins un compteur","err"); return; }
+  if(!confirm("Remettre à zéro ?")) return;
   loader(true);
-  try {
-    await updateDoc(doc(db,"parametres","societe"),{
-      nom:       G("soc-nom").value.trim(),
-      adresse:   G("soc-adresse").value.trim(),
-      telephone: G("soc-tel").value.trim(),
-      email:     G("soc-email").value.trim(),
-      updatedAt: serverTimestamp()
-    });
-    toast("Paramètres enregistrés ✅");
-  } catch(e){ toast("Erreur","err"); }
-  loader(false);
-};
+  const upd={}; if(bl) upd.bl_compteur=1; if(rc) upd.recu_compteur=1;
+  const targets=uid==="tous"?chauffeursList.map(c=>c.id):[uid];
+  Promise.all(targets.map(id=>db.collection("users").doc(id).update(upd)))
+    .then(()=>{ toast("Remis à zéro ✅"); fermerModal("modal-reset"); chargerChauffeurs(); loader(false); })
+    .catch(()=>{ toast("Erreur","err"); loader(false); });
+}
 
-// ── PURGE PHOTOS ──
-window.purgerPhotos = async function(){
-  const mois = parseInt(G("purge-mois").value);
-  if(!confirm("Supprimer les photos de plus de "+mois+" mois ?")) return;
-  loader(true,"Purge...");
-  try {
-    const snap = await getDocs(collection(db,"bons"));
-    const limite = new Date(); limite.setMonth(limite.getMonth()-mois);
-    let count=0; const batch=writeBatch(db);
-    snap.forEach(d=>{
-      const b=d.data(); const ts=b.timestamp?.toDate?b.timestamp.toDate():null;
-      if(ts&&ts<limite&&b.photo_vehicule){ batch.update(doc(db,"bons",d.id),{photo_vehicule:""}); count++; }
-    });
-    await batch.commit();
-    G("purge-result").textContent="✅ "+count+" photo(s) purgée(s)";
-    toast(count+" photo(s) purgée(s) ✅");
-  } catch(e){ toast("Erreur purge","err"); }
-  loader(false);
-};
+// ── CARBURANT ──
+function chargerCarburant(){
+  db.collection("carburant").orderBy("timestamp","desc").limit(100).get().then(snap=>{
+    let list=[]; snap.forEach(d=>list.push({id:d.id,...d.data()}));
+    let parCamion={};
+    list.forEach(f=>{ const c=f.camion||"?"; if(!parCamion[c]) parCamion[c]={litres:0,montant:0}; parCamion[c].litres+=f.litres||0; parCamion[c].montant+=f.montant||0; });
+    G("fuel-stats").innerHTML=Object.entries(parCamion).map(([nom,d])=>`<div class="fuel-card"><div class="fuel-num">${d.litres.toFixed(0)} L</div><div class="fuel-label">${nom}</div><div style="margin-top:8px;font-size:13px;opacity:.8">${fmtMontant(d.montant)}</div></div>`).join("");
+    let html="";
+    list.forEach(f=>{ html+=`<tr><td>${f.date||"—"}</td><td>${f.chauffeur_nom||"—"}</td><td>${f.camion||"—"}</td><td>${f.litres||"—"} L</td><td>${fmtMontant(f.montant)}</td><td>${f.kilometrage||"—"} km</td><td style="font-weight:700;color:var(--vert)">${f.litres&&f.distance_km?(f.litres/f.distance_km*100).toFixed(1)+" L/100":"—"}</td></tr>`; });
+    G("fuel-tbody").innerHTML=html||`<tr><td colspan="7" style="text-align:center;color:var(--gris3);padding:24px">Aucune saisie</td></tr>`;
+  }).catch(()=>{});
+}
 
-// ── CHANGER MDP ──
-window.changerMDP = async function(){
-  const mdp1=G("new-mdp").value, mdp2=G("new-mdp2").value;
-  if(!mdp1||mdp1!==mdp2){ toast("Mots de passe différents ou vides","err"); return; }
-  if(mdp1.length<6){ toast("Minimum 6 caractères","err"); return; }
-  try { await updatePassword(auth.currentUser,mdp1); toast("Mot de passe modifié ✅"); G("new-mdp").value=""; G("new-mdp2").value=""; }
-  catch(e){ toast("Erreur : "+e.message,"err"); }
-};
+// ── STATS ──
+function chargerStats(){
+  loader(true,"Calcul...");
+  db.collection("bons").orderBy("timestamp","desc").limit(500).get().then(snap=>{
+    let bons=[]; snap.forEach(d=>bons.push({id:d.id,...d.data()}));
+    const ch=G("stats-chauffeur").value;
+    if(ch) bons=bons.filter(b=>b.chauffeur_uid===ch);
+    let totalBL=0,totalEsp=0,parTarif={NORMAL:0,TN:0,TW:0},parCam={},parCh={},parCl={};
+    bons.forEach(b=>{ totalBL++; if(b.especes) totalEsp+=b.montant_especes||0; const t=b.tarif||"NORMAL"; parTarif[t]=(parTarif[t]||0)+1; parCam[b.camion||"—"]=(parCam[b.camion||"—"]||0)+1; parCh[b.chauffeur_nom||"—"]=(parCh[b.chauffeur_nom||"—"]||0)+1; parCl[b.nom_client||"—"]=(parCl[b.nom_client||"—"]||0)+1; });
+    G("stats-cards").innerHTML=`
+      <div class="stat-card"><div class="stat-num">${totalBL}</div><div class="stat-label">Total BL</div></div>
+      <div class="stat-card" style="border-left-color:var(--vert)"><div class="stat-num">${fmtMontant(totalEsp)}</div><div class="stat-label">Total espèces</div></div>
+      <div class="stat-card" style="border-left-color:var(--vert)"><div class="stat-num">${parTarif.NORMAL}</div><div class="stat-label">BL Normal</div></div>
+      <div class="stat-card" style="border-left-color:var(--bleu)"><div class="stat-num">${parTarif.TN}</div><div class="stat-label">BL TN</div></div>
+      <div class="stat-card" style="border-left-color:var(--violet)"><div class="stat-num">${parTarif.TW}</div><div class="stat-label">BL TW</div></div>`;
+    const mkChart=(data,id)=>{ const max=Math.max(...Object.values(data),1); G(id).innerHTML=Object.entries(data).sort((a,b)=>b[1]-a[1]).slice(0,8).map(([k,v])=>`<div class="chart-row"><div class="chart-lbl">${k}</div><div class="chart-bar-bg"><div class="chart-bar-fill" style="width:${Math.round(v/max*100)}%"></div></div><div class="chart-val">${v}</div></div>`).join(""); };
+    mkChart(parCam,"chart-camions"); mkChart(parCh,"chart-chauffeurs");
+    mkChart({Normal:parTarif.NORMAL,TN:parTarif.TN,TW:parTarif.TW},"chart-tarifs");
+    mkChart(parCl,"chart-clients");
+    loader(false);
+  }).catch(()=>loader(false));
+}
 
-// ── EXPORTS PDF ──
-window.voirBL          = ()=> toast("Aperçu BL — prochaine étape 📄");
-window.imprimerBL      = ()=> window.print();
-window.telechargerBL   = ()=> toast("Téléchargement PDF — prochaine étape 📄");
-window.exporterBonsPDF = ()=> toast("Export PDF — prochaine étape 📄");
-window.exporterRecusPDF= ()=> toast("Export PDF — prochaine étape 📄");
-window.exporterStatsPDF= ()=> toast("Export PDF — prochaine étape 📄");
-window.exporterCommissionsPDF=()=>toast("Export PDF — prochaine étape 📄");
-
-
-// ── GPS & TRAJETS ──
-window.chargerGPS = async function(){
-  loader(true,"Chargement trajets...");
-  try {
-    const snap = await getDocs(query(collection(db,"bons"), orderBy("timestamp","desc"), limit(300)));
-    let bons = [];
-    snap.forEach(d => bons.push({ id:d.id, ...d.data() }));
-    const ch = G("gps-chauffeur").value;
-    if(ch) bons = bons.filter(b=>b.chauffeur_uid===ch);
-
-    let html = "";
-    bons.forEach(b => {
-      const duree = b.duree_trajet_min > 0
-        ? (b.duree_trajet_min >= 60
-            ? Math.floor(b.duree_trajet_min/60)+"h"+("0"+(b.duree_trajet_min%60)).slice(-2)+"min"
-            : b.duree_trajet_min+"min")
-        : "—";
-
-      // Nom de lieu GPS (invisible chauffeur, visible admin)
-      const lieuEmb  = b.gps_emb_lieu  || b.lieu_embarquement  || "—";
-      const lieuDest = b.gps_dest_lieu || b.destination || "—";
-
-      // Lien Google Maps — trajet complet si GPS dispo, sinon noms de villes
-      let mapsUrl = "";
-      if(b.gps_emb_lat && b.gps_emb_lng && b.gps_dest_lat && b.gps_dest_lng){
-        // Coordonnées GPS précises → trajet exact sur Maps
-        mapsUrl = "https://www.google.com/maps/dir/"+b.gps_emb_lat+","+b.gps_emb_lng+"/"+b.gps_dest_lat+","+b.gps_dest_lng;
-      } else if(b.lieu_embarquement && b.destination){
-        // Fallback noms de villes
-        mapsUrl = "https://www.google.com/maps/dir/"+encodeURIComponent(b.lieu_embarquement+", Mayotte")+"/"+encodeURIComponent(b.destination+", Mayotte");
-      }
-
-      const btnCarte = mapsUrl
-        ? `<a href="${mapsUrl}" target="_blank" rel="noopener" class="btn btn-secondary btn-sm" style="text-decoration:none;white-space:nowrap">🗺️ Voir carte</a>`
-        : `<span style="color:var(--gris3);font-size:11px">GPS indisponible</span>`;
-
-      html += `<tr>
-        <td>
-          <strong>${b.date_bl||"—"}</strong>
-          <br><span style="font-size:10px;color:var(--gris3)">${b.heure_bl||""}</span>
-        </td>
+// ── GPS ──
+function chargerGPS(){
+  loader(true);
+  db.collection("bons").orderBy("timestamp","desc").limit(300).get().then(snap=>{
+    let bons=[]; snap.forEach(d=>bons.push({id:d.id,...d.data()}));
+    const ch=G("gps-chauffeur").value;
+    if(ch) bons=bons.filter(b=>b.chauffeur_uid===ch);
+    let html="";
+    bons.forEach(b=>{
+      const min=b.duree_trajet_min||0;
+      const duree=min>0?(min>=60?Math.floor(min/60)+"h"+("0"+(min%60)).slice(-2)+"min":min+"min"):"—";
+      let mapsUrl="";
+      if(b.gps_emb_lat&&b.gps_dest_lat) mapsUrl="https://www.google.com/maps/dir/"+b.gps_emb_lat+","+b.gps_emb_lng+"/"+b.gps_dest_lat+","+b.gps_dest_lng;
+      else if(b.lieu_embarquement&&b.destination) mapsUrl="https://www.google.com/maps/dir/"+encodeURIComponent(b.lieu_embarquement+", Mayotte")+"/"+encodeURIComponent(b.destination+", Mayotte");
+      html+=`<tr>
+        <td><strong>${b.date_bl||"—"}</strong><br><span style="font-size:10px;color:var(--gris3)">${b.heure_bl||""}</span></td>
         <td>${b.chauffeur_nom||"—"}</td>
-        <td>
-          <strong>${b.lieu_embarquement||"—"}</strong>
-          ${lieuEmb !== b.lieu_embarquement && lieuEmb !== "—" ? `<br><span style="font-size:10px;color:var(--gris3)">📍 ${lieuEmb}</span>` : ""}
-          ${b.heure_embarquement ? `<br><span style="font-size:10px;color:var(--bleu-md)">⏱ Parti à ${b.heure_embarquement}</span>` : ""}
-        </td>
-        <td>
-          <strong>${b.destination||"—"}</strong>
-          ${lieuDest !== b.destination && lieuDest !== "—" ? `<br><span style="font-size:10px;color:var(--gris3)">📍 ${lieuDest}</span>` : ""}
-          ${b.heure_arrivee ? `<br><span style="font-size:10px;color:var(--bleu-md)">⏱ Arrivé à ${b.heure_arrivee}</span>` : ""}
-        </td>
-        <td style="font-weight:700;color:var(--vert);white-space:nowrap">${duree}</td>
+        <td><strong>${b.lieu_embarquement||"—"}</strong>${b.heure_embarquement?`<br><span style="font-size:10px;color:var(--bleu-md)">⏱ ${b.heure_embarquement}</span>`:""}</td>
+        <td><strong>${b.destination||"—"}</strong>${b.heure_arrivee?`<br><span style="font-size:10px;color:var(--bleu-md)">⏱ ${b.heure_arrivee}</span>`:""}</td>
+        <td style="font-weight:700;color:var(--vert)">${duree}</td>
         <td><span class="badge ${b.tarif==="NORMAL"?"tarif-normal":b.tarif==="TN"?"tarif-tn":"tarif-tw"}">${b.tarif||"—"}</span></td>
-        <td>${btnCarte}</td>
+        <td>${mapsUrl?`<a href="${mapsUrl}" target="_blank" class="btn btn-secondary btn-sm" style="text-decoration:none">🗺️ Carte</a>`:`<span style="color:var(--gris3);font-size:11px">—</span>`}</td>
       </tr>`;
     });
-    G("gps-tbody").innerHTML = html || `<tr><td colspan="7" style="text-align:center;color:var(--gris3);padding:24px">Aucun trajet trouvé</td></tr>`;
-  } catch(e){ toast("Erreur GPS","err"); console.error(e); }
-  loader(false);
-};
+    G("gps-tbody").innerHTML=html||`<tr><td colspan="7" style="text-align:center;color:var(--gris3);padding:24px">Aucun trajet</td></tr>`;
+    loader(false);
+  }).catch(()=>loader(false));
+}
 
-// ── MODAL FERMER ──
-window.fermerModal = id => G(id).classList.remove("on");
+// ── COMMISSIONS ──
+function chargerCommissions(){
+  loader(true);
+  db.collection("parametres").doc("societe").get().then(snap=>{
+    const p=snap.data()||{};
+    const txN=p.taux_commission_normal||3, txTW=p.taux_commission_tn_tw||5;
+    G("taux-normal").textContent=txN+"%"; G("taux-tntw").textContent=txTW+"%";
+    return db.collection("bons").orderBy("timestamp","desc").limit(500).get().then(snap2=>{
+      let bons=[]; snap2.forEach(d=>bons.push({id:d.id,...d.data()}));
+      const ch=G("comm-chauffeur").value;
+      if(ch) bons=bons.filter(b=>b.chauffeur_uid===ch);
+      let parCh={};
+      bons.forEach(b=>{ const k=b.chauffeur_nom||"—"; if(!parCh[k]) parCh[k]={blN:0,montN:0,blTW:0,montTW:0}; const m=b.montant_especes||0; if(b.tarif==="NORMAL"){ parCh[k].blN++; parCh[k].montN+=m; } else { parCh[k].blTW++; parCh[k].montTW+=m; } });
+      let html="",total=0;
+      Object.entries(parCh).sort((a,b)=>a[0].localeCompare(b[0])).forEach(([nom,d])=>{
+        const cN=d.montN*txN/100, cTW=d.montTW*txTW/100, t=cN+cTW; total+=t;
+        html+=`<tr><td><strong>${nom}</strong></td><td>${d.blN}</td><td>${fmtMontant(d.montN)}</td><td style="color:var(--vert);font-weight:700">${fmtMontant(cN)}</td><td>${d.blTW}</td><td>${fmtMontant(d.montTW)}</td><td style="color:var(--violet);font-weight:700">${fmtMontant(cTW)}</td><td style="font-weight:900;color:var(--rouge)">${fmtMontant(t)}</td></tr>`;
+      });
+      html+=`<tr style="background:var(--gris)"><td colspan="7" style="text-align:right;font-weight:800">TOTAL</td><td style="font-size:16px;font-weight:900;color:var(--rouge)">${fmtMontant(total)}</td></tr>`;
+      G("comm-tbody").innerHTML=html||`<tr><td colspan="8" style="text-align:center;color:var(--gris3);padding:24px">Aucune donnée</td></tr>`;
+      loader(false);
+    });
+  }).catch(()=>loader(false));
+}
+
+// ── DROITS ──
+function chargerDroits(){
+  db.collection("parametres").doc("societe").get().then(snap=>{
+    const d=snap.data()?.droits||{}, p=snap.data()||{};
+    G("d-bl-creer").checked=d.secretaire_bl_creer!==false;
+    G("d-bl-voir").checked=d.secretaire_bl_voir!==false;
+    G("d-bl-imprimer").checked=d.secretaire_bl_imprimer!==false;
+    G("d-bl-telecharger").checked=d.secretaire_bl_telecharger!==false;
+    G("d-rc-voir").checked=d.secretaire_recu_voir!==false;
+    G("d-rc-imprimer").checked=d.secretaire_recu_imprimer!==false;
+    G("d-rc-telecharger").checked=d.secretaire_recu_telecharger!==false;
+    G("d-stats").checked=d.secretaire_stats===true;
+    G("d-clients").checked=d.secretaire_clients!==false;
+    G("d-clients-ajouter").checked=d.secretaire_clients_ajouter!==false;
+    G("d-clients-modifier").checked=d.secretaire_clients_modifier===true;
+    G("d-solde").checked=d.secretaire_solde===true;
+    G("d-sans-immat").checked=d.chauffeur_sans_immat===true;
+    G("d-sans-photo").checked=d.chauffeur_sans_photo===true;
+    G("d-sans-emb").checked=d.chauffeur_sans_embarquement===true;
+    G("taux-normal-inp").value=p.taux_commission_normal||3;
+    G("taux-tntw-inp").value=p.taux_commission_tn_tw||5;
+    G("taux-depenses-inp").value=p.taux_depenses_fixes||15;
+  });
+}
+function sauvegarderDroits(){
+  loader(true);
+  db.collection("parametres").doc("societe").update({
+    droits:{
+      secretaire_bl_creer:G("d-bl-creer").checked,
+      secretaire_bl_voir:G("d-bl-voir").checked,
+      secretaire_bl_imprimer:G("d-bl-imprimer").checked,
+      secretaire_bl_telecharger:G("d-bl-telecharger").checked,
+      secretaire_recu_voir:G("d-rc-voir").checked,
+      secretaire_recu_imprimer:G("d-rc-imprimer").checked,
+      secretaire_recu_telecharger:G("d-rc-telecharger").checked,
+      secretaire_stats:G("d-stats").checked,
+      secretaire_clients:G("d-clients").checked,
+      secretaire_clients_ajouter:G("d-clients-ajouter").checked,
+      secretaire_clients_modifier:G("d-clients-modifier").checked,
+      secretaire_solde:G("d-solde").checked,
+      chauffeur_sans_immat:G("d-sans-immat").checked,
+      chauffeur_sans_photo:G("d-sans-photo").checked,
+      chauffeur_sans_embarquement:G("d-sans-emb").checked
+    },
+    taux_commission_normal:parseFloat(G("taux-normal-inp").value)||3,
+    taux_commission_tn_tw:parseFloat(G("taux-tntw-inp").value)||5,
+    taux_depenses_fixes:parseFloat(G("taux-depenses-inp").value)||15,
+    updatedAt:firebase.firestore.FieldValue.serverTimestamp()
+  }).then(()=>{ toast("Droits enregistrés ✅"); loader(false); }).catch(()=>{ toast("Erreur","err"); loader(false); });
+}
+
+// ── PARAMÈTRES ──
+function chargerParametres(){
+  db.collection("parametres").doc("societe").get().then(snap=>{
+    const p=snap.data()||{};
+    G("soc-nom").value=p.nom||""; G("soc-adresse").value=p.adresse||"";
+    G("soc-tel").value=p.telephone||""; G("soc-email").value=p.email||"";
+  });
+}
+function sauvegarderParametres(){
+  loader(true);
+  db.collection("parametres").doc("societe").update({
+    nom:G("soc-nom").value.trim(), adresse:G("soc-adresse").value.trim(),
+    telephone:G("soc-tel").value.trim(), email:G("soc-email").value.trim(),
+    updatedAt:firebase.firestore.FieldValue.serverTimestamp()
+  }).then(()=>{ toast("Enregistré ✅"); loader(false); }).catch(()=>{ toast("Erreur","err"); loader(false); });
+}
+
+// ── PURGE PHOTOS ──
+function purgerPhotos(){
+  const mois=parseInt(G("purge-mois").value);
+  if(!confirm("Purger les photos de plus de "+mois+" mois ?")) return;
+  loader(true,"Purge...");
+  const limite=new Date(); limite.setMonth(limite.getMonth()-mois);
+  db.collection("bons").get().then(snap=>{
+    let count=0; const batch=db.batch();
+    snap.forEach(d=>{ const b=d.data(); const ts=b.timestamp?.toDate?b.timestamp.toDate():null; if(ts&&ts<limite&&b.photo_vehicule){ batch.update(d.ref,{photo_vehicule:""}); count++; } });
+    return batch.commit().then(()=>{ G("purge-result").textContent="✅ "+count+" photo(s) purgée(s)"; toast(count+" photo(s) purgée(s)"); loader(false); });
+  }).catch(()=>{ toast("Erreur","err"); loader(false); });
+}
+
+// ── CHANGER MDP ──
+function changerMDP(){
+  const m1=G("new-mdp").value, m2=G("new-mdp2").value;
+  if(!m1||m1!==m2){ toast("Mots de passe différents","err"); return; }
+  if(m1.length<6){ toast("Minimum 6 caractères","err"); return; }
+  auth.currentUser.updatePassword(m1).then(()=>{ toast("Mot de passe modifié ✅"); G("new-mdp").value=""; G("new-mdp2").value=""; }).catch(e=>toast("Erreur: "+e.message,"err"));
+}
+
+// ── EXPORTS ──
+function imprimerBL(){ window.print(); }
+function voirBL(){ toast("PDF — prochaine étape"); }
+function telechargerBL(){ toast("PDF — prochaine étape"); }
+function exporterBonsPDF(){ toast("PDF — prochaine étape"); }
+function exporterRecusPDF(){ toast("PDF — prochaine étape"); }
+function exporterStatsPDF(){ toast("PDF — prochaine étape"); }
+function exporterCommissionsPDF(){ toast("PDF — prochaine étape"); }
+
+// ── MODALS ──
+function fermerModal(id){ G(id).classList.remove("on"); }
 document.querySelectorAll(".modal-bg").forEach(m=>m.addEventListener("click",e=>{if(e.target===m)m.classList.remove("on");}));
-document.addEventListener("keydown",e=>{ if(e.key==="Enter") seConnecter(); });
+document.addEventListener("keydown",e=>{ if(e.key==="Enter" && G("pg-login").style.display!=="none") seConnecter(); });
+document.getElementById("btn-login").addEventListener("click", seConnecter);
+document.getElementById("btn-logout").addEventListener("click", seDeconnecter);
 </script>
 </body>
 </html>
