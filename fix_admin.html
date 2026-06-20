@@ -1,0 +1,75 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<title>Fix Admin</title>
+<style>
+body{font-family:Arial,sans-serif;background:#1A2540;display:flex;align-items:center;justify-content:center;min-height:100vh;margin:0}
+.card{background:white;border-radius:16px;padding:28px;width:100%;max-width:400px;text-align:center}
+h2{color:#C8341A;margin-bottom:20px}
+.btn{width:100%;padding:16px;background:#C8341A;color:white;border:none;border-radius:10px;font-size:16px;font-weight:700;cursor:pointer;margin-bottom:10px}
+.log{background:#F4F4F4;border-radius:8px;padding:14px;font-size:13px;font-family:monospace;margin-top:16px;text-align:left;line-height:1.8;max-height:300px;overflow-y:auto}
+.ok{color:#1A7A40}.err{color:#C8341A}.info{color:#1565C0}
+</style>
+</head>
+<body>
+<div class="card">
+  <h2>🔧 Réparer le compte Admin</h2>
+  <button class="btn" onclick="fixAdmin()">✅ Créer le profil Admin</button>
+  <div class="log" id="log">En attente...</div>
+</div>
+
+<script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-auth-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-firestore-compat.js"></script>
+<script>
+firebase.initializeApp({
+  apiKey: "AIzaSyB0pp8ZysKVomkmmx3uYWJZHtiFpvSPJi4",
+  authDomain: "multiauto-depannage.firebaseapp.com",
+  projectId: "multiauto-depannage",
+  storageBucket: "multiauto-depannage.firebasestorage.app",
+  messagingSenderId: "389555321846",
+  appId: "1:389555321846:web:da201dce0fee10e32fe5d7"
+});
+
+const auth = firebase.auth();
+const db   = firebase.firestore();
+
+function log(msg, type="info"){
+  const el = document.getElementById("log");
+  el.innerHTML += '<div class="'+type+'">'+msg+'</div>';
+  el.scrollTop = el.scrollHeight;
+}
+
+function fixAdmin(){
+  document.getElementById("log").innerHTML = "";
+  log("🔐 Connexion en tant qu'admin...", "info");
+
+  auth.signInWithEmailAndPassword("admin@multiauto.fr", "kz0810")
+    .then(cred => {
+      const uid = cred.user.uid;
+      log("✅ Connecté ! UID : " + uid, "ok");
+      log("📝 Création du profil Firestore...", "info");
+
+      return db.collection("users").doc(uid).set({
+        uid: uid,
+        nom: "Administrateur",
+        identifiant: "ADMIN",
+        email: "admin@multiauto.fr",
+        role: "admin",
+        actif: true,
+        createdAt: firebase.firestore.FieldValue.serverTimestamp()
+      });
+    })
+    .then(() => {
+      log("✅ Profil admin créé avec succès !", "ok");
+      log("🎉 Vous pouvez maintenant vous connecter sur l'admin !", "ok");
+      log("👉 Identifiant : admin | Mot de passe : kz0810", "info");
+    })
+    .catch(e => {
+      log("❌ Erreur : " + e.message, "err");
+    });
+}
+</script>
+</body>
+</html>
