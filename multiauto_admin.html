@@ -398,6 +398,11 @@ input:checked+.sw-slider:before{transform:translateX(20px)}
       <div class="sb-section">Opérations</div>
       <div class="sb-item" onclick="afficherPage('pg-magasinage')" id="nav-magasinage"><span class="ico">🏠</span> Magasinage</div>
       <div class="sb-item" onclick="afficherPage('pg-pc')" id="nav-pc"><span class="ico">📄</span> Prises en charge</div>
+      <div class="sb-section">Historiques</div>
+      <div class="sb-item" onclick="afficherPage('pg-bons')" id="nav-bons2" style="display:none"></div>
+      <div class="sb-item" onclick="afficherPage('pg-hist-mag')" id="nav-hist-mag"><span class="ico">🏠</span> Hist. Magasinage</div>
+      <div class="sb-item" onclick="afficherPage('pg-hist-pc')" id="nav-hist-pc"><span class="ico">📄</span> Hist. Prises en charge</div>
+      <div class="sb-item" onclick="afficherPage('pg-hist-carburant')" id="nav-hist-carburant"><span class="ico">⛽</span> Hist. Carburant</div>
       <div class="sb-section">Analyses</div>
       <div class="sb-item" onclick="afficherPage('pg-stats')" id="nav-stats"><span class="ico">📈</span> Statistiques</div>
       <div class="sb-item" onclick="afficherPage('pg-gps')" id="nav-gps"><span class="ico">🗺️</span> GPS & Trajets</div>
@@ -813,6 +818,138 @@ input:checked+.sw-slider:before{transform:translateX(20px)}
       </div>
     </div>
 
+
+    <!-- ══ HISTORIQUE MAGASINAGE ══ -->
+    <div class="pg" id="pg-hist-mag">
+      <div class="page-header">
+        <div><div class="page-title">🏠 Historique Magasinage</div><div class="page-sub">Tous les gardiennages — en cours et livrés</div></div>
+        <div style="display:flex;gap:8px">
+          <button class="btn btn-secondary" onclick="imprimerPage()">🖨 Imprimer</button>
+          <button class="btn btn-secondary" onclick="exporterHistMagPDF()">⬇ Export PDF</button>
+        </div>
+      </div>
+      <div class="card">
+        <div class="filtres">
+          <input class="filtre-inp" type="date" id="hm-debut" placeholder="Date début">
+          <input class="filtre-inp" type="date" id="hm-fin" placeholder="Date fin">
+          <input class="filtre-inp" type="text" id="hm-immat" placeholder="Immatriculation" style="text-transform:uppercase" oninput="this.value=this.value.toUpperCase()">
+          <select class="filtre-inp" id="hm-statut">
+            <option value="">Tous statuts</option>
+            <option value="en_cours">En cours</option>
+            <option value="livre">Livré</option>
+          </select>
+          <select class="filtre-inp" id="hm-mode">
+            <option value="montant">📊 Résumé</option>
+            <option value="detail">📋 Avec détails</option>
+          </select>
+          <button class="btn btn-primary" onclick="chargerHistMag()">🔍 Filtrer</button>
+        </div>
+        <!-- Stats rapides -->
+        <div class="stats-grid" id="hm-stats" style="margin-bottom:16px"></div>
+        <!-- Sélection groupée -->
+        <div style="display:flex;gap:8px;margin-bottom:10px;flex-wrap:wrap" id="hm-actions" style="display:none">
+          <button class="btn btn-danger btn-sm" onclick="supprimerSelectionHist('magasinage','hm-check')">🗑 Supprimer sélection</button>
+        </div>
+        <div class="table-wrap">
+          <table>
+            <thead><tr>
+              <th><input type="checkbox" id="hm-check-all" onclick="toutSelectionnerHist('hm-check')"></th>
+              <th>Immat.</th><th>Client</th><th>Véhicule</th>
+              <th>Date entrée</th><th>Date sortie</th><th>Jours</th>
+              <th>Tarif/j</th><th>Total</th><th>Remise</th><th>Net</th>
+              <th>Statut</th><th>Actions</th>
+            </tr></thead>
+            <tbody id="hm-tbody"><tr><td colspan="13" style="text-align:center;color:var(--gris3);padding:24px">Cliquez sur Filtrer</td></tr></tbody>
+          </table>
+        </div>
+        <div id="hm-detail-view" style="margin-top:16px"></div>
+      </div>
+    </div>
+
+    <!-- ══ HISTORIQUE PRISES EN CHARGE ══ -->
+    <div class="pg" id="pg-hist-pc">
+      <div class="page-header">
+        <div><div class="page-title">📄 Historique Prises en charge</div><div class="page-sub">Tous les dossiers assureurs</div></div>
+        <div style="display:flex;gap:8px">
+          <button class="btn btn-secondary" onclick="imprimerPage()">🖨 Imprimer</button>
+          <button class="btn btn-secondary" onclick="exporterHistPCPDF()">⬇ Export PDF</button>
+        </div>
+      </div>
+      <div class="card">
+        <div class="filtres">
+          <input class="filtre-inp" type="date" id="hpc-debut">
+          <input class="filtre-inp" type="date" id="hpc-fin">
+          <input class="filtre-inp" type="text" id="hpc-search" placeholder="🔍 Dossier, client, assureur...">
+          <select class="filtre-inp" id="hpc-statut">
+            <option value="">Tous statuts</option>
+            <option value="en_cours">En cours</option>
+            <option value="livre">Livré</option>
+            <option value="annule">Annulé</option>
+          </select>
+          <select class="filtre-inp" id="hpc-mode">
+            <option value="montant">📊 Résumé</option>
+            <option value="detail">📋 Avec détails</option>
+          </select>
+          <button class="btn btn-primary" onclick="chargerHistPC()">🔍 Filtrer</button>
+        </div>
+        <div class="stats-grid" id="hpc-stats" style="margin-bottom:16px"></div>
+        <div style="display:flex;gap:8px;margin-bottom:10px;flex-wrap:wrap">
+          <button class="btn btn-danger btn-sm" onclick="supprimerSelectionHist('prises_en_charge','hpc-check')">🗑 Supprimer sélection</button>
+        </div>
+        <div class="table-wrap">
+          <table>
+            <thead><tr>
+              <th><input type="checkbox" id="hpc-check-all" onclick="toutSelectionnerHist('hpc-check')"></th>
+              <th>N° Dossier</th><th>Date</th><th>Assureur</th><th>Client</th>
+              <th>Véhicule</th><th>Part Assurance</th><th>Part Client</th>
+              <th>Payé client</th><th>Reste dû</th><th>Statut</th><th>Actions</th>
+            </tr></thead>
+            <tbody id="hpc-tbody"><tr><td colspan="12" style="text-align:center;color:var(--gris3);padding:24px">Cliquez sur Filtrer</td></tr></tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <!-- ══ HISTORIQUE CARBURANT ══ -->
+    <div class="pg" id="pg-hist-carburant">
+      <div class="page-header">
+        <div><div class="page-title">⛽ Historique Carburant</div><div class="page-sub">Consommations et dépenses par camion</div></div>
+        <div style="display:flex;gap:8px">
+          <button class="btn btn-secondary" onclick="imprimerPage()">🖨 Imprimer</button>
+          <button class="btn btn-secondary" onclick="exporterHistCarburantPDF()">⬇ Export PDF</button>
+        </div>
+      </div>
+      <div class="card">
+        <div class="filtres">
+          <input class="filtre-inp" type="date" id="hc-debut">
+          <input class="filtre-inp" type="date" id="hc-fin">
+          <select class="filtre-inp" id="hc-camion"><option value="">Tous les camions</option></select>
+          <select class="filtre-inp" id="hc-mode">
+            <option value="montant">📊 Résumé</option>
+            <option value="detail">📋 Avec détails</option>
+          </select>
+          <button class="btn btn-primary" onclick="chargerHistCarburant()">🔍 Filtrer</button>
+        </div>
+        <!-- Stats par camion -->
+        <div class="stats-grid" id="hc-stats" style="margin-bottom:16px"></div>
+        <div style="display:flex;gap:8px;margin-bottom:10px">
+          <button class="btn btn-danger btn-sm" onclick="supprimerSelectionHist('carburant','hc-check')">🗑 Supprimer sélection</button>
+        </div>
+        <div class="table-wrap">
+          <table>
+            <thead><tr>
+              <th><input type="checkbox" id="hc-check-all" onclick="toutSelectionnerHist('hc-check')"></th>
+              <th>Date</th><th>Chauffeur</th><th>Camion</th>
+              <th>Litres</th><th>Montant</th><th>Kilométrage</th><th>L/100km</th><th>Actions</th>
+            </tr></thead>
+            <tbody id="hc-tbody"><tr><td colspan="9" style="text-align:center;color:var(--gris3);padding:24px">Cliquez sur Filtrer</td></tr></tbody>
+          </table>
+        </div>
+        <!-- Vue détail par camion -->
+        <div id="hc-detail-view" style="margin-top:16px"></div>
+      </div>
+    </div>
+
   </div><!-- /main -->
 </div><!-- /pg-app -->
 
@@ -871,8 +1008,14 @@ function afficherPage(id){
   if(id==="pg-droits")     chargerDroits();
   if(id==="pg-parametres") chargerParametres();
   if(id==="pg-carburant")  chargerCarburant();
+  if(id==="pg-hist-mag") chargerHistMag();
+  if(id==="pg-hist-pc") chargerHistPC();
+  if(id==="pg-hist-carburant") chargerHistCarburant();
   if(id==="pg-magasinage") chargerMagasinage();
   if(id==="pg-pc")         chargerPC();
+  if(id==="pg-hist-mag")    chargerHistMag();
+  if(id==="pg-hist-pc")     chargerHistPC();
+  if(id==="pg-hist-carburant") chargerHistCarburant();
 }
 function toggleSidebar(){ G("sidebar").classList.toggle("open"); }
 function fermerModal(id){ G(id).classList.remove("on"); }
@@ -1459,6 +1602,193 @@ document.querySelectorAll(".modal-bg").forEach(m=>m.addEventListener("click",e=>
 document.addEventListener("keydown",e=>{ if(e.key==="Enter" && G("pg-login").style.display!=="none") seConnecter(); });
 document.getElementById("btn-login").addEventListener("click", seConnecter);
 document.getElementById("btn-logout").addEventListener("click", seDeconnecter);
+
+// ════════════════════════════════════
+// UTILITAIRES HISTORIQUES
+// ════════════════════════════════════
+function toutSelectionnerHist(cls){
+  const allId = cls+'-all';
+  const checked = document.getElementById(allId)?.checked;
+  document.querySelectorAll('.'+cls).forEach(cb=>cb.checked=checked);
+}
+
+function supprimerSelectionHist(collection, cls){
+  const ids = Array.from(document.querySelectorAll('.'+cls+':checked')).map(c=>c.dataset.id);
+  if(!ids.length){ toast("Sélectionnez au moins un élément","err"); return; }
+  if(!confirm("Supprimer "+ids.length+" élément(s) ?")) return;
+  loader(true,"Suppression...");
+  Promise.all(ids.map(id=>db.collection(collection).doc(id).delete()))
+    .then(()=>{ toast(ids.length+" supprimé(s) ✅"); loader(false);
+      if(collection==="magasinage") chargerHistMag();
+      else if(collection==="prises_en_charge") chargerHistPC();
+      else chargerHistCarburant();
+    }).catch(()=>{ toast("Erreur","err"); loader(false); });
+}
+
+function imprimerPage(){ window.print(); }
+
+function chargerHistMag(){
+  loader(true);
+  db.collection("magasinage").orderBy("date_entree","desc").get().then(snap=>{
+    let list=[]; snap.forEach(d=>list.push({id:d.id,...d.data()}));
+    const debut=G("hm-debut").value, fin=G("hm-fin").value;
+    const immat=G("hm-immat").value.trim().toUpperCase();
+    const statut=G("hm-statut").value, mode=G("hm-mode").value;
+    if(debut) list=list.filter(m=>m.date_entree>=debut);
+    if(fin)   list=list.filter(m=>m.date_entree<=fin);
+    if(immat) list=list.filter(m=>(m.immat||"").includes(immat));
+    if(statut) list=list.filter(m=>m.statut===statut);
+
+    const totalNet=list.reduce((s,m)=>s+(m.montant_net||0),0);
+    G("hm-stats").innerHTML=`
+      <div class="stat-card"><div class="stat-num">${list.length}</div><div class="stat-label">Total dossiers</div></div>
+      <div class="stat-card" style="border-left-color:var(--jaune)"><div class="stat-num">${list.filter(m=>m.statut==="en_cours").length}</div><div class="stat-label">En cours</div></div>
+      <div class="stat-card" style="border-left-color:var(--vert)"><div class="stat-num">${list.filter(m=>m.statut==="livre").length}</div><div class="stat-label">Livrés</div></div>
+      <div class="stat-card" style="border-left-color:var(--rouge)"><div class="stat-num">${fmtMontant(totalNet)}</div><div class="stat-label">Total encaissé</div></div>`;
+
+    let html="";
+    list.forEach(m=>{
+      const e=m.date_entree?new Date(m.date_entree):null;
+      const s=m.date_sortie?new Date(m.date_sortie):new Date();
+      const jours=e?Math.max(1,Math.ceil((s-e)/(1000*60*60*24))):0;
+      const tarif=m.tarif_jour||40;
+      const total=jours*tarif, remise=m.remise||0, net=total-remise;
+      const st=m.statut==="en_cours"?`<span class="badge badge-jaune">🔄 En cours</span>`:`<span class="badge badge-vert">✅ Livré</span>`;
+      html+=`<tr>
+        <td><input type="checkbox" class="hm-check" data-id="${m.id}"></td>
+        <td style="font-weight:700;font-family:monospace;font-size:12px">${m.immat||"—"}</td>
+        <td><strong>${m.client||"—"}</strong></td>
+        <td style="font-size:12px">${m.vehicule||"—"}</td>
+        <td>${m.date_entree||"—"}</td>
+        <td>${m.date_sortie||'<span style="color:var(--gris3)">En cours</span>'}</td>
+        <td style="font-weight:700;color:var(--bleu);text-align:center">${jours}j</td>
+        <td style="text-align:center">${tarif} €</td>
+        <td>${fmtMontant(total)}</td>
+        <td style="color:var(--rouge)">${remise>0?"-"+fmtMontant(remise):"—"}</td>
+        <td style="font-weight:900;color:var(--vert)">${fmtMontant(net)}</td>
+        <td>${st}</td>
+        <td><div style="display:flex;gap:4px;flex-wrap:wrap">
+          ${m.statut==="en_cours"
+            ?`<button class="btn btn-success btn-sm" onclick="ouvrirLivraison('${m.id}')">✅ Restituer</button>`
+            :`<span style="font-size:11px;color:var(--gris3)">Livré le ${m.date_sortie||"—"}</span>`}
+          <button class="btn btn-secondary btn-sm btn-icon" onclick="imprimerPage()">🖨</button>
+          <button class="btn btn-danger btn-sm btn-icon" onclick="supprimerMagasinage('${m.id}')">🗑</button>
+        </div></td>
+      </tr>`;
+    });
+    G("hm-tbody").innerHTML=html||`<tr><td colspan="13" style="text-align:center;color:var(--gris3);padding:24px">Aucun résultat</td></tr>`;
+
+    if(mode==="detail"){
+      let parClient={};
+      list.forEach(m=>{ const cl=m.client||"—"; if(!parClient[cl]) parClient[cl]={count:0,net:0}; parClient[cl].count++; parClient[cl].net+=(m.montant_net||0); });
+      let dh=`<div class="card-title" style="margin:16px 0 10px">📊 Par client</div><div class="table-wrap"><table><thead><tr><th>Client</th><th>Dossiers</th><th>Total encaissé</th></tr></thead><tbody>`;
+      Object.entries(parClient).sort((a,b)=>b[1].net-a[1].net).forEach(([cl,d])=>{ dh+=`<tr><td><strong>${cl}</strong></td><td style="text-align:center">${d.count}</td><td style="font-weight:700;color:var(--vert)">${fmtMontant(d.net)}</td></tr>`; });
+      dh+=`</tbody></table></div>`;
+      G("hm-detail-view").innerHTML=dh;
+    } else { G("hm-detail-view").innerHTML=""; }
+    loader(false);
+  }).catch(e=>{ console.error(e); loader(false); });
+}
+
+function chargerHistPC(){
+  loader(true);
+  db.collection("prises_en_charge").orderBy("date","desc").get().then(snap=>{
+    let list=[]; snap.forEach(d=>list.push({id:d.id,...d.data()}));
+    const search=G("hpc-search").value.toLowerCase();
+    const statut=G("hpc-statut").value, mode=G("hpc-mode").value;
+    if(search) list=list.filter(p=>(p.dossier||"").toLowerCase().includes(search)||(p.client||"").toLowerCase().includes(search)||(p.assureur||"").toLowerCase().includes(search));
+    if(statut) list=list.filter(p=>p.statut===statut);
+
+    const totalAss=list.reduce((s,p)=>s+(p.montant_assurance||0),0);
+    const totalClient=list.reduce((s,p)=>s+(p.montant_client||0),0);
+    const totalPaye=list.reduce((s,p)=>s+(p.paye_client||0),0);
+    G("hpc-stats").innerHTML=`
+      <div class="stat-card"><div class="stat-num">${list.length}</div><div class="stat-label">Total dossiers</div></div>
+      <div class="stat-card" style="border-left-color:var(--vert)"><div class="stat-num">${list.filter(p=>p.statut==="en_cours").length}</div><div class="stat-label">En cours</div></div>
+      <div class="stat-card" style="border-left-color:var(--rouge)"><div class="stat-num">${list.filter(p=>p.statut==="annule").length}</div><div class="stat-label">Annulés</div></div>
+      <div class="stat-card" style="border-left-color:var(--jaune)"><div class="stat-num">${fmtMontant(totalAss)}</div><div class="stat-label">Total assurances</div></div>
+      <div class="stat-card" style="border-left-color:var(--bleu)"><div class="stat-num">${fmtMontant(totalClient)}</div><div class="stat-label">Part clients</div></div>
+      <div class="stat-card" style="border-left-color:var(--rouge)"><div class="stat-num">${fmtMontant(totalClient-totalPaye)}</div><div class="stat-label">Reste à encaisser</div></div>`;
+
+    let html="";
+    list.forEach(p=>{
+      const paye=p.paye_client||0, reste=(p.montant_client||0)-paye;
+      const st=p.statut==="en_cours"?`<span class="badge badge-jaune">🔄 En cours</span>`:p.statut==="livre"?`<span class="badge badge-vert">✅ Livré</span>`:`<span class="badge badge-rouge">✕ Annulé</span>`;
+      html+=`<tr>
+        <td><input type="checkbox" class="hpc-check" data-id="${p.id}"></td>
+        <td style="font-weight:700;color:var(--bleu);font-size:12px">${p.dossier||"—"}</td>
+        <td>${p.date||"—"}</td><td>${p.assureur||"—"}</td>
+        <td><strong>${p.client||"—"}</strong><br><span style="font-size:10px;color:var(--gris3)">${p.tel||""}</span></td>
+        <td style="font-size:12px">${p.vehicule||"—"}<br><span style="font-family:monospace;font-size:11px">${p.immat||""}</span></td>
+        <td style="color:var(--vert);font-weight:700">${fmtMontant(p.montant_assurance)}</td>
+        <td style="color:var(--bleu);font-weight:700">${fmtMontant(p.montant_client)}</td>
+        <td style="color:var(--vert);font-weight:700">${fmtMontant(paye)}</td>
+        <td style="color:${reste>0?"var(--rouge)":"var(--vert)"};font-weight:700">${reste>0?fmtMontant(reste):"✅ Soldé"}</td>
+        <td>${st}</td>
+        <td><div style="display:flex;gap:4px;flex-wrap:wrap">
+          <button class="btn btn-secondary btn-sm btn-icon" onclick="editerPC('${p.id}')">✏️</button>
+          <button class="btn btn-secondary btn-sm btn-icon" onclick="imprimerPage()">🖨</button>
+          ${p.statut==="en_cours"?`<button class="btn btn-success btn-sm" onclick="changerStatutPC('${p.id}','livre')">✅ Livrer</button><button class="btn btn-danger btn-sm" onclick="changerStatutPC('${p.id}','annule')">✕ Annuler</button>`:""}
+          <button class="btn btn-danger btn-sm btn-icon" onclick="supprimerPC('${p.id}')">🗑</button>
+        </div></td>
+      </tr>`;
+    });
+    G("hpc-tbody").innerHTML=html||`<tr><td colspan="12" style="text-align:center;color:var(--gris3);padding:24px">Aucun résultat</td></tr>`;
+    loader(false);
+  }).catch(e=>{ console.error(e); loader(false); });
+}
+
+function chargerHistCarburant(){
+  loader(true);
+  const selCam=G("hc-camion");
+  if(selCam && selCam.options.length<=1){ camionsList.forEach(cam=>{ const o=document.createElement("option"); o.value=cam.nom; o.textContent=cam.nom+" "+(cam.immat||""); selCam.appendChild(o); }); }
+  db.collection("carburant").orderBy("timestamp","desc").limit(500).get().then(snap=>{
+    let list=[]; snap.forEach(d=>list.push({id:d.id,...d.data()}));
+    const cam=G("hc-camion").value, mode=G("hc-mode").value;
+    if(cam) list=list.filter(f=>f.camion===cam);
+    const totalL=list.reduce((s,f)=>s+(f.litres||0),0);
+    const totalM=list.reduce((s,f)=>s+(f.montant||0),0);
+    G("hc-stats").innerHTML=`
+      <div class="stat-card"><div class="stat-num">${list.length}</div><div class="stat-label">Pleins</div></div>
+      <div class="stat-card" style="border-left-color:var(--jaune)"><div class="stat-num">${totalL.toFixed(0)} L</div><div class="stat-label">Total litres</div></div>
+      <div class="stat-card" style="border-left-color:var(--rouge)"><div class="stat-num">${fmtMontant(totalM)}</div><div class="stat-label">Total dépenses</div></div>`;
+    let html="";
+    list.forEach(f=>{
+      const conso=(f.litres&&f.distance_km)?(f.litres/f.distance_km*100).toFixed(1)+" L/100":"—";
+      html+=`<tr>
+        <td><input type="checkbox" class="hc-check" data-id="${f.id}"></td>
+        <td>${f.date||"—"}</td><td>${f.chauffeur_nom||"—"}</td>
+        <td><strong>${f.camion||"—"}</strong></td>
+        <td style="font-weight:700;color:var(--bleu)">${f.litres||"—"} L</td>
+        <td style="font-weight:700;color:var(--rouge)">${fmtMontant(f.montant)}</td>
+        <td style="font-family:monospace">${f.kilometrage||"—"} km</td>
+        <td style="font-weight:700;color:var(--vert)">${conso}</td>
+        <td><div style="display:flex;gap:4px">
+          <button class="btn btn-secondary btn-sm btn-icon" onclick="imprimerPage()">🖨</button>
+          <button class="btn btn-danger btn-sm btn-icon" onclick="supprimerCarburant('${f.id}')">🗑</button>
+        </div></td>
+      </tr>`;
+    });
+    G("hc-tbody").innerHTML=html||`<tr><td colspan="9" style="text-align:center;color:var(--gris3);padding:24px">Aucune saisie</td></tr>`;
+
+    if(mode==="detail"){
+      let parCam={};
+      list.forEach(f=>{ const c=f.camion||"—"; if(!parCam[c]) parCam[c]={count:0,litres:0,montant:0}; parCam[c].count++; parCam[c].litres+=f.litres||0; parCam[c].montant+=f.montant||0; });
+      let dh=`<div class="card-title" style="margin:16px 0 10px">📊 Par camion</div><div class="table-wrap"><table><thead><tr><th>Camion</th><th>Pleins</th><th>Litres</th><th>Dépenses</th></tr></thead><tbody>`;
+      Object.entries(parCam).sort((a,b)=>b[1].montant-a[1].montant).forEach(([cam2,d])=>{ dh+=`<tr><td><strong>${cam2}</strong></td><td style="text-align:center">${d.count}</td><td style="color:var(--bleu);font-weight:700">${d.litres.toFixed(0)} L</td><td style="color:var(--rouge);font-weight:700">${fmtMontant(d.montant)}</td></tr>`; });
+      dh+=`</tbody></table></div>`;
+      G("hc-detail-view").innerHTML=dh;
+    } else { G("hc-detail-view").innerHTML=""; }
+    loader(false);
+  }).catch(e=>{ console.error(e); loader(false); });
+}
+
+function supprimerCarburant(id){ if(!confirm("Supprimer ?")) return; db.collection("carburant").doc(id).delete().then(()=>{ toast("Supprimé ✅"); chargerHistCarburant(); }); }
+function exporterHistMagPDF(){ toast("Export PDF — prochaine étape 📄"); }
+function exporterHistPCPDF(){ toast("Export PDF — prochaine étape 📄"); }
+function exporterHistCarburantPDF(){ toast("Export PDF — prochaine étape 📄"); }
+
+
 </script>
 </body>
 </html>
