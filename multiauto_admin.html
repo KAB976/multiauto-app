@@ -677,8 +677,14 @@ input:checked+.sw-slider:before{transform:translateX(20px)}
         <div class="card">
           <div class="card-title">📊 Secrétaire — Autres accès</div>
           <div class="perm-group">
-            <div class="perm-group-title">Statistiques</div>
+            <div class="perm-group-title">Statistiques et GPS</div>
             <div class="switch-row"><div class="switch-info"><div class="switch-label">Accès statistiques</div><div class="switch-desc">Si OFF, l'onglet est invisible</div></div><label class="switch"><input type="checkbox" id="d-stats"><span class="sw-slider"></span></label></div>
+            <div class="switch-row"><div class="switch-info"><div class="switch-label">Accès GPS & Trajets</div><div class="switch-desc">Voir les trajets GPS des chauffeurs</div></div><label class="switch"><input type="checkbox" id="d-gps"><span class="sw-slider"></span></label></div>
+          </div>
+          <div class="perm-group">
+            <div class="perm-group-title">Gestion flotte</div>
+            <div class="switch-row"><div class="switch-info"><div class="switch-label">Voir les chauffeurs</div><div class="switch-desc">Liste des chauffeurs (lecture seule)</div></div><label class="switch"><input type="checkbox" id="d-chauffeurs-voir"><span class="sw-slider"></span></label></div>
+            <div class="switch-row"><div class="switch-info"><div class="switch-label">Voir les camions</div><div class="switch-desc">Liste des camions (lecture seule)</div></div><label class="switch"><input type="checkbox" id="d-camions-voir"><span class="sw-slider"></span></label></div>
           </div>
           <div class="perm-group">
             <div class="perm-group-title">Gestion clients</div>
@@ -689,10 +695,11 @@ input:checked+.sw-slider:before{transform:translateX(20px)}
           </div>
         </div>
         <div class="card">
-          <div class="card-title">📱 Chauffeur — Permissions spéciales</div>
-          <div class="switch-row"><div class="switch-info"><div class="switch-label">Autoriser sans immatriculation</div><div class="switch-desc">Par défaut obligatoire</div></div><label class="switch"><input type="checkbox" id="d-sans-immat"><span class="sw-slider"></span></label></div>
-          <div class="switch-row"><div class="switch-info"><div class="switch-label">Autoriser sans photo</div><div class="switch-desc">Par défaut obligatoire</div></div><label class="switch"><input type="checkbox" id="d-sans-photo"><span class="sw-slider"></span></label></div>
-          <div class="switch-row"><div class="switch-info"><div class="switch-label">Autoriser sans embarquement</div><div class="switch-desc">Par défaut obligatoire</div></div><label class="switch"><input type="checkbox" id="d-sans-emb"><span class="sw-slider"></span></label></div>
+          <div class="card-title">📱 Permissions spéciales par chauffeur</div>
+          <p style="font-size:12px;color:var(--gris3);margin-bottom:14px">Chaque permission est définie individuellement par chauffeur — cliquez sur un chauffeur pour configurer ses droits</p>
+          <div id="perm-chauffeurs-list">
+            <div style="color:var(--gris3);font-size:12px">Chargement des chauffeurs...</div>
+          </div>
         </div>
         <div class="card">
           <div class="card-title">💰 Taux de commission chauffeurs</div>
@@ -1024,7 +1031,7 @@ function afficherPage(id){
   if(id==="pg-chauffeurs") chargerChauffeurs();
   if(id==="pg-camions")    chargerCamions();
   if(id==="pg-clients")    chargerClients();
-  if(id==="pg-droits")     chargerDroits();
+  if(id==="pg-droits")     { chargerDroits(); chargerPermChauffeurs(); }
   if(id==="pg-parametres") chargerParametres();
   if(id==="pg-carburant")  chargerCarburant();
   if(id==="pg-hist-mag") chargerHistMag();
@@ -1150,6 +1157,12 @@ function chargerBons(){
     snap.forEach(d=>bons.push({id:d.id,...d.data()}));
     const ch=G("bl-filtre-chauffeur").value;
     const tarif=G("bl-filtre-tarif").value;
+    const debut=G("bl-date-debut").value;
+    const fin=G("bl-date-fin").value;
+    // Convertir DD/MM/YYYY → YYYY-MM-DD pour comparaison
+    function toComp(d){ if(!d) return ""; const p=d.split("/"); return p.length===3?p[2]+"-"+p[1]+"-"+p[0]:""; }
+    if(debut) bons=bons.filter(b=>toComp(b.date_bl)>=debut);
+    if(fin)   bons=bons.filter(b=>toComp(b.date_bl)<=fin);
     if(ch) bons=bons.filter(b=>b.chauffeur_uid===ch);
     if(tarif) bons=bons.filter(b=>b.tarif===tarif);
     let html="";
@@ -1342,6 +1355,7 @@ function afficherClients(list){
       <td>—</td>
       <td><span style="font-weight:700;color:var(--vert)">${fmtMontant(cl.solde)}</span></td>
       <td><div style="display:flex;gap:4px">
+        <button class="btn btn-secondary btn-sm" onclick="ouvrirModifierClient('${cl.id}','${(cl.nom||"").replace(/'/g,"\'")}','${(cl.tel||"").replace(/'/g,"\'")}','${(cl.mode_paiement||"")}')">✏️</button>
         <button class="btn btn-danger btn-sm" onclick="supprimerClient('${cl.id}')">🗑</button>
       </div></td></tr>`;
   });
@@ -1349,6 +1363,19 @@ function afficherClients(list){
 }
 function filtrerClients(){ const q=G("client-search").value.toLowerCase(); afficherClients(clientsList.filter(c=>(c.nom||"").toLowerCase().includes(q))); }
 function ouvrirModalClient(){}
+function ouvrirModifierClient(id,nom,tel,mode){
+  const newNom=prompt("Nom du client :",nom);
+  if(newNom===null) return;
+  const newTel=prompt("Téléphone :",tel);
+  const newMode=prompt("Mode paiement\n(Espèces / CB / Virement / Chèque) :",mode);
+  if(!newNom.trim()){ toast("Nom obligatoire","err"); return; }
+  db.collection("clients").doc(id).update({
+    nom:newNom.trim().charAt(0).toUpperCase()+newNom.trim().slice(1),
+    tel:(newTel||"").trim(),
+    mode_paiement:(newMode||"").trim()
+  }).then(()=>{ toast("Client modifié ✅"); chargerClients(); })
+  .catch(()=>toast("Erreur modification","err"));
+}
 function editerClient(){}
 function supprimerClient(id){ if(!confirm("Supprimer ?")) return; db.collection("clients").doc(id).delete().then(()=>{ toast("Supprimé"); chargerClients(); }); }
 
@@ -2129,7 +2156,7 @@ function genererBL(bon){
   doc.roundedRect(10,confY,190,8,2,2,'FD');
   doc.setTextColor(26,122,64);
   doc.setFont('helvetica','bold'); doc.setFontSize(9);
-  doc.text('✓  PAIEMENT CONFIRMÉ EN ESPÈCES', 105, confY+5.2, {align:'center'});
+  doc.text('PAIEMENT CONFIRME EN ESPECES', 105, confY+5.2, {align:'center'});
   
   pdfPied(doc);
   return doc;
@@ -2229,7 +2256,7 @@ function genererRecu(recu){
   doc.setDrawColor(200,52,26); doc.setLineWidth(0.7);
   doc.roundedRect(10,248,190,8,2,2,'FD');
   doc.setTextColor(200,52,26); doc.setFont('helvetica','bold'); doc.setFontSize(9);
-  doc.text('✓  PAIEMENT CONFIRMÉ EN ESPÈCES', 105, 253.2, {align:'center'});
+  doc.text('PAIEMENT CONFIRME EN ESPECES', 105, 253.2, {align:'center'});
   
   pdfPied(doc);
   return doc;
