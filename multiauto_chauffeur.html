@@ -1036,11 +1036,17 @@ function saisirCarburant(){
     montant,
     kilometrage:    km || null,
     station:        G("fuel-station").value.trim(),
-    timestamp:      firebase.firestore.FieldValue.serverTimestamp()
+    timestamp:      null
   };
 
-  firebase.firestore().collection("carburant").add(payload)
-    .then(() => {
+  // Utiliser la db exposée depuis le module Firebase ES
+  // Utiliser les fonctions Firebase exposées globalement depuis le module ES
+  if(!window._addDoc || !window._collection || !window._db){
+    afficherAlerteFuel("❌ Pas de connexion. Réessayez dans quelques secondes.");
+    loader(false); return;
+  }
+  payload.timestamp = window._serverTimestamp();
+  window._addDoc(window._collection(window._db,"carburant"), payload).then(() => {
       loader(false);
       G("fuel-alert").style.display="none";
       G("fuel-success").classList.add("on");
@@ -1050,11 +1056,10 @@ function saisirCarburant(){
       let detail = litres+" L — "+montant.toFixed(2).replace(".",",")+" €";
       if(km) detail += " — "+km+" km";
       G("fuel-success-detail").textContent = detail;
-    })
-    .catch(e => {
-      loader(false);
-      afficherAlerteFuel("❌ Erreur : "+e.message);
-    });
+  }).catch(e => {
+    loader(false);
+    afficherAlerteFuel("❌ Erreur : "+e.message);
+  });
 }
 
 function afficherAlerteFuel(msg){
@@ -1084,9 +1089,6 @@ window.addEventListener("load",function(){
 </script>
 
 <!-- ══ FIREBASE SDK ══ -->
-<script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-app-compat.js"></script>
-<script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-auth-compat.js"></script>
-<script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-firestore-compat.js"></script>
 <script type="module">
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
 import { getAuth, signInWithEmailAndPassword, signOut, onAuthStateChanged }
@@ -1471,6 +1473,14 @@ initFirestore().catch(console.warn);
 
 // Exposer enregistrer globalement
 window._enregistrerFirebase = window.enregistrer;
+window._db   = db;
+window._auth = auth;
+// Exposer les fonctions Firestore pour le JS non-module (carburant)
+import("https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js").then(m => {
+  window._addDoc          = m.addDoc;
+  window._collection      = m.collection;
+  window._serverTimestamp = m.serverTimestamp;
+});
 </script>
 
 <!-- ══════════ PAGE CARBURANT ══════════ -->
