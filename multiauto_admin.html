@@ -577,6 +577,10 @@ input:checked+.sw-slider:before{transform:translateX(20px)}
         <input class="filtre-inp" type="date" id="stats-fin">
         <select class="filtre-inp" id="stats-chauffeur"><option value="">Tous chauffeurs</option></select>
         <select class="filtre-inp" id="stats-camion"><option value="">Tous camions</option></select>
+        <select class="filtre-inp" id="stats-mode">
+          <option value="montant">📊 Résumé</option>
+          <option value="detail">📋 Avec détails</option>
+        </select>
         <button class="btn btn-primary" onclick="chargerStats()">📊 Calculer</button>
       </div>
       <div class="stats-grid" id="stats-cards"></div>
@@ -1254,6 +1258,40 @@ function chargerStats(){
     mkChart(parCam,"chart-camions"); mkChart(parCh,"chart-chauffeurs");
     mkChart({Normal:parTarif.NORMAL,TN:parTarif.TN,TW:parTarif.TW},"chart-tarifs");
     mkChart(parCl,"chart-clients");
+
+    // Mode détail — ajouter tableau complet sous les graphiques
+    const modeStats = G("stats-mode") ? G("stats-mode").value : "montant";
+    if(modeStats==="detail"){
+      let detailHtml=`<div class="card" style="margin-top:16px">
+        <div class="card-title">📋 Détail complet de tous les BL</div>
+        <div class="table-wrap"><table>
+        <thead><tr><th>N° BL</th><th>Date</th><th>Heure</th><th>Tarif</th><th>Chauffeur</th><th>Client</th><th>Véhicule</th><th>Trajet</th><th>Espèces</th></tr></thead>
+        <tbody>`;
+      bons.forEach(b=>{
+        detailHtml+=`<tr>
+          <td style="font-weight:700;color:var(--bleu);font-size:11px">${b.bon_num||"—"}</td>
+          <td style="font-size:11px">${b.date_bl||"—"}</td>
+          <td style="font-size:11px">${b.heure_bl||"—"}</td>
+          <td><span class="badge ${b.tarif==="NORMAL"?"tarif-normal":b.tarif==="TN"?"tarif-tn":"tarif-tw"}" style="font-size:10px">${b.tarif||"—"}</span></td>
+          <td style="font-size:11px">${b.chauffeur_nom||"—"}</td>
+          <td style="font-size:11px;font-weight:600">${b.nom_client||"—"}</td>
+          <td style="font-size:10px">${b.marque||""} ${b.modele||""}<br>${b.immatriculation||""}</td>
+          <td style="font-size:11px">${b.lieu_embarquement||"—"} → ${b.destination||"—"}</td>
+          <td style="font-weight:700;color:var(--vert);font-size:11px">${b.especes?fmtMontant(b.montant_especes):"—"}</td>
+        </tr>`;
+      });
+      detailHtml+=`</tbody></table></div></div>`;
+      // Insérer après les graphiques
+      const existing=document.getElementById("detail-stats-table");
+      if(existing) existing.remove();
+      const div=document.createElement("div");
+      div.id="detail-stats-table";
+      div.innerHTML=detailHtml;
+      document.getElementById("pg-stats").appendChild(div);
+    } else {
+      const existing=document.getElementById("detail-stats-table");
+      if(existing) existing.remove();
+    }
     loader(false);
   }).catch(()=>loader(false));
 }
@@ -1334,6 +1372,11 @@ function chargerDroits(){
     G("taux-normal-inp").value=p.taux_commission_normal||3;
     G("taux-tntw-inp").value=p.taux_commission_tn_tw||5;
     G("taux-depenses-inp").value=p.taux_depenses_fixes||15;
+    if(G("resp-nom")) G("resp-nom").value=p.resp_nom||"Responsable";
+    if(G("taux-resp-inp")) G("taux-resp-inp").value=p.taux_commission_resp||3;
+    if(G("mag-tarif1")) G("mag-tarif1").value=p.mag_tarif1||20;
+    if(G("mag-tarif2")) G("mag-tarif2").value=p.mag_tarif2||30;
+    if(G("mag-tarif3")) G("mag-tarif3").value=p.mag_tarif3||40;
   });
 }
 function sauvegarderDroits(){
