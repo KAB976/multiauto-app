@@ -693,11 +693,28 @@ input:checked+.sw-slider:before{transform:translateX(20px)}
           <div class="switch-row"><div class="switch-info"><div class="switch-label">Autoriser sans embarquement</div><div class="switch-desc">Par défaut obligatoire</div></div><label class="switch"><input type="checkbox" id="d-sans-emb"><span class="sw-slider"></span></label></div>
         </div>
         <div class="card">
-          <div class="card-title">💰 Taux de commission</div>
+          <div class="card-title">💰 Taux de commission chauffeurs</div>
           <div class="form-grid">
-            <div class="form-group"><span class="fl">Taux Normal (%)</span><input class="inp inp-sm" id="taux-normal-inp" type="number" min="0" max="100" step="0.5" value="3"></div>
-            <div class="form-group"><span class="fl">Taux TN/TW (%)</span><input class="inp inp-sm" id="taux-tntw-inp" type="number" min="0" max="100" step="0.5" value="5"></div>
-            <div class="form-group"><span class="fl">Taux dépenses fixes (%)</span><input class="inp inp-sm" id="taux-depenses-inp" type="number" min="0" max="100" step="0.5" value="15"></div>
+            <div class="form-group"><span class="fl">Taux Normal (%)</span><input class="inp inp-sm" id="taux-normal-inp" type="number" min="0" max="100" step="0.1" value="3"></div>
+            <div class="form-group"><span class="fl">Taux TN/TW (%)</span><input class="inp inp-sm" id="taux-tntw-inp" type="number" min="0" max="100" step="0.1" value="5"></div>
+            <div class="form-group"><span class="fl">Taux dépenses fixes (%)</span><input class="inp inp-sm" id="taux-depenses-inp" type="number" min="0" max="100" step="0.1" value="15"></div>
+          </div>
+        </div>
+        <div class="card">
+          <div class="card-title">👔 Commission responsable (sur CA global)</div>
+          <p style="font-size:12px;color:var(--gris3);margin-bottom:12px">Appliquée sur le total espèces de tous les chauffeurs + sur place, hors magasinage</p>
+          <div class="form-grid">
+            <div class="form-group"><span class="fl">Nom du responsable</span><input class="inp inp-sm" id="resp-nom" placeholder="Ex: Le patron, votre prénom..." value="Responsable"></div>
+            <div class="form-group"><span class="fl">Taux commission (%)</span><input class="inp inp-sm" id="taux-resp-inp" type="number" min="0" max="100" step="0.1" value="3"></div>
+          </div>
+        </div>
+        <div class="card">
+          <div class="card-title">🏠 Tarifs magasinage par défaut (€/jour)</div>
+          <p style="font-size:12px;color:var(--gris3);margin-bottom:12px">Ces tarifs apparaissent dans le menu lors d'un nouveau gardiennage</p>
+          <div class="form-grid-3">
+            <div class="form-group"><span class="fl">Tarif 1</span><input class="inp inp-sm" id="mag-tarif1" type="number" min="0" value="20"></div>
+            <div class="form-group"><span class="fl">Tarif 2</span><input class="inp inp-sm" id="mag-tarif2" type="number" min="0" value="30"></div>
+            <div class="form-group"><span class="fl">Tarif 3</span><input class="inp inp-sm" id="mag-tarif3" type="number" min="0" value="40"></div>
           </div>
         </div>
       </div>
