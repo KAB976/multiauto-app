@@ -296,6 +296,18 @@ self.addEventListener('fetch', e => {
     </div>
   </div>
 
+  <!-- Menu principal chauffeur -->
+  <div style="padding:12px 14px 0;display:flex;gap:10px">
+    <button onclick="afficherMenu('bl')" id="btn-menu-bl"
+      style="flex:1;padding:13px 10px;background:var(--or);color:white;border:none;border-radius:12px;font-size:14px;font-weight:900;cursor:pointer;font-family:inherit;display:flex;align-items:center;justify-content:center;gap:7px">
+      🚛 Bon de livraison
+    </button>
+    <button onclick="afficherMenu('carburant')" id="btn-menu-carb"
+      style="flex:1;padding:13px 10px;background:var(--bl);color:white;border:none;border-radius:12px;font-size:14px;font-weight:900;cursor:pointer;font-family:inherit;display:flex;align-items:center;justify-content:center;gap:7px">
+      ⛽ Carburant
+    </button>
+  </div>
+
   <!-- Numéro BL -->
   <div class="bl-badge" id="bl-badge">
     <div class="bl-left">
@@ -308,7 +320,57 @@ self.addEventListener('fetch', e => {
     </div>
   </div>
 
-  <div class="content">
+  <!-- Section carburant rapide dans pg-app -->
+  <div id="section-carburant-rapide" style="display:none;padding:12px 14px;max-width:500px;margin:0 auto;width:100%;padding-bottom:30px">
+    <div style="background:linear-gradient(135deg,var(--bl) 0%,#2A3F6F 100%);border-radius:16px;padding:18px;color:white;text-align:center;margin-bottom:14px">
+      <div style="font-size:36px;margin-bottom:6px">⛽</div>
+      <div style="font-size:11px;opacity:.6;text-transform:uppercase;letter-spacing:.5px;margin-bottom:2px">Camion</div>
+      <div style="font-size:18px;font-weight:900" id="rapide-camion-nom">—</div>
+      <div style="font-size:12px;opacity:.6;margin-top:2px" id="rapide-camion-immat">—</div>
+    </div>
+
+    <div style="background:white;border-radius:14px;padding:16px;margin-bottom:11px">
+      <div style="display:flex;flex-direction:column;gap:13px">
+        <div>
+          <span class="fl">Date du plein <span class="tag-req">Obligatoire</span></span>
+          <input class="inp" id="rap-date" type="date">
+        </div>
+        <div>
+          <span class="fl">Litres <span class="tag-req">Obligatoire</span></span>
+          <input class="inp" id="rap-litres" type="number" inputmode="decimal" placeholder="Ex : 45.5" step="0.1" min="0" style="font-size:22px;font-weight:900;text-align:center">
+        </div>
+        <div>
+          <span class="fl">Montant (€) <span class="tag-req">Obligatoire</span></span>
+          <input class="inp" id="rap-montant" type="number" inputmode="decimal" placeholder="Ex : 78.50" step="0.01" min="0" style="font-size:22px;font-weight:900;text-align:center;color:var(--re)">
+        </div>
+        <div>
+          <span class="fl">Kilométrage <span class="tag-opt">Facultatif</span></span>
+          <input class="inp" id="rap-km" type="number" inputmode="numeric" placeholder="Ex : 125400" min="0" style="font-size:18px;font-weight:700;text-align:center">
+        </div>
+        <div>
+          <span class="fl">Station <span class="tag-opt">Facultatif</span></span>
+          <input class="inp" id="rap-station" type="text" placeholder="Ex : Total Kaweni">
+        </div>
+      </div>
+    </div>
+
+    <div class="alert" id="rap-alert" style="display:none"></div>
+
+    <!-- Succès -->
+    <div id="rap-success" style="background:var(--gr-lt);border:2px solid var(--gr);border-radius:13px;padding:16px;text-align:center;display:none;margin-bottom:11px">
+      <div style="font-size:36px;margin-bottom:6px">✅</div>
+      <div style="font-size:16px;font-weight:900;color:var(--gr)">Carburant enregistré !</div>
+      <div style="font-size:12px;color:var(--gr);margin-top:4px" id="rap-success-detail">—</div>
+      <button onclick="nouveauPleins()" style="margin-top:12px;padding:10px 20px;background:var(--bl);color:white;border:none;border-radius:10px;font-size:13px;font-weight:800;cursor:pointer;font-family:inherit">➕ Autre plein</button>
+    </div>
+
+    <button onclick="saisirCarburantRapide()" id="btn-rap-valider"
+      style="width:100%;padding:18px;background:var(--bl);color:white;border:none;border-radius:14px;font-size:17px;font-weight:900;cursor:pointer;font-family:inherit;display:flex;align-items:center;justify-content:center;gap:10px">
+      ⛽ Enregistrer le plein
+    </button>
+  </div>
+
+  <div id="section-bl" class="content">
     <div class="alert on" id="form-alert" style="display:none"></div>
 
     <!-- ── ÉTAPE 1 : VÉHICULE ── -->
@@ -480,12 +542,29 @@ self.addEventListener('fetch', e => {
       </div>
     </div>
     <div class="card" style="padding:14px">
-      <canvas class="sig-canvas" id="sig-canvas"></canvas>
-      <div class="sig-btns">
-        <button class="btn-sig-clear" onclick="clearSig()">✕ Effacer</button>
-        <button class="btn-sig-ok" onclick="validerSig()">✓ Signature OK</button>
+      <!-- Zone signature active -->
+      <div id="sig-zone-active">
+        <div style="font-size:11px;color:#aaa;text-align:center;margin-bottom:6px;font-weight:600">
+          👆 Le client signe ici avec son doigt
+        </div>
+        <canvas class="sig-canvas" id="sig-canvas" style="border:2px dashed var(--gy2);border-radius:11px;background:white;display:block;width:100%;height:130px;cursor:crosshair;touch-action:none"></canvas>
+        <div class="sig-btns" style="margin-top:8px">
+          <button class="btn-sig-clear" onclick="clearSig()">✕ Effacer</button>
+          <button class="btn-sig-ok" id="btn-sig-ok" onclick="validerSig()" style="background:var(--gr-lt);color:var(--gr);border:1.5px solid var(--gr)">✓ Valider signature</button>
+        </div>
       </div>
-      <div class="sig-status" id="sig-status">En attente de signature...</div>
+      <!-- Zone signature validée et verrouillée -->
+      <div id="sig-zone-validee" style="display:none">
+        <div style="background:var(--gr-lt);border:2px solid var(--gr);border-radius:11px;padding:12px;text-align:center">
+          <div style="font-size:24px;margin-bottom:4px">✅</div>
+          <div style="font-weight:900;color:var(--gr);font-size:14px">Signature validée et verrouillée</div>
+          <img id="sig-preview" style="max-width:100%;height:80px;object-fit:contain;margin:8px 0;display:block;margin:8px auto" alt="Signature">
+          <button onclick="supprimerSig()" style="padding:7px 14px;background:var(--re-lt);color:var(--re);border:1.5px solid var(--re);border-radius:8px;font-size:11px;font-weight:800;cursor:pointer;font-family:inherit;margin-top:4px">
+            🗑 Supprimer et refaire
+          </button>
+        </div>
+      </div>
+      <div class="sig-status" id="sig-status" style="display:none"></div>
     </div>
 
     <div class="alert" id="form-alert2"></div>
@@ -891,23 +970,132 @@ function onPhoto(inp){
 // ════════════════════════════════════
 var sigDrawing=false, sigCtx=null;
 function initSig(){
-  var canvas=G("sig-canvas");
-  canvas.width=canvas.offsetWidth*window.devicePixelRatio||canvas.offsetWidth;
-  canvas.height=canvas.offsetHeight*window.devicePixelRatio||canvas.offsetHeight;
-  sigCtx=canvas.getContext("2d");
-  sigCtx.scale(window.devicePixelRatio||1,window.devicePixelRatio||1);
-  sigCtx.strokeStyle="#1A2540"; sigCtx.lineWidth=2.5; sigCtx.lineCap="round"; sigCtx.lineJoin="round";
-  canvas.addEventListener("mousedown",sigStart); canvas.addEventListener("mousemove",sigMove); canvas.addEventListener("mouseup",sigEnd);
-  canvas.addEventListener("touchstart",sigStartT,{passive:false}); canvas.addEventListener("touchmove",sigMoveT,{passive:false}); canvas.addEventListener("touchend",sigEnd);
+  var canvas = G("sig-canvas");
+  if(!canvas) return;
+
+  // Dimensionner correctement le canvas
+  function resizeCanvas(){
+    var rect = canvas.getBoundingClientRect();
+    var dpr  = window.devicePixelRatio || 1;
+    canvas.width  = rect.width  * dpr;
+    canvas.height = rect.height * dpr;
+    sigCtx = canvas.getContext("2d");
+    sigCtx.scale(dpr, dpr);
+    sigCtx.strokeStyle = "#1A2540";
+    sigCtx.lineWidth   = 2.5;
+    sigCtx.lineCap     = "round";
+    sigCtx.lineJoin    = "round";
+  }
+
+  // Attendre que le canvas soit visible et dimensionné
+  setTimeout(resizeCanvas, 100);
+  window.addEventListener("resize", resizeCanvas);
+
+  canvas.addEventListener("mousedown",  sigStart);
+  canvas.addEventListener("mousemove",  sigMove);
+  canvas.addEventListener("mouseup",    sigEnd);
+  canvas.addEventListener("mouseleave", sigEnd);
+  canvas.addEventListener("touchstart", sigStartT, {passive:false});
+  canvas.addEventListener("touchmove",  sigMoveT,  {passive:false});
+  canvas.addEventListener("touchend",   sigEnd);
 }
-function sigPos(canvas,x,y){ var r=canvas.getBoundingClientRect(); return {x:x-r.left,y:y-r.top}; }
-function sigStart(e){ sigDrawing=true; var p=sigPos(e.target,e.clientX,e.clientY); sigCtx.beginPath(); sigCtx.moveTo(p.x,p.y); }
-function sigMove(e){ if(!sigDrawing) return; var p=sigPos(e.target,e.clientX,e.clientY); sigCtx.lineTo(p.x,p.y); sigCtx.stroke(); }
-function sigEnd(){ sigDrawing=false; }
-function sigStartT(e){ e.preventDefault(); var t=e.touches[0]; sigDrawing=true; var p=sigPos(e.target,t.clientX,t.clientY); sigCtx.beginPath(); sigCtx.moveTo(p.x,p.y); }
-function sigMoveT(e){ e.preventDefault(); if(!sigDrawing) return; var t=e.touches[0]; var p=sigPos(e.target,t.clientX,t.clientY); sigCtx.lineTo(p.x,p.y); sigCtx.stroke(); }
-function clearSig(){ if(sigCtx){ var c=G("sig-canvas"); sigCtx.clearRect(0,0,c.width,c.height); } sigSigned=false; G("sig-status").textContent="En attente de signature..."; G("sig-status").className="sig-status"; }
-function validerSig(){ sigSigned=true; G("sig-status").textContent="✅ Signature enregistrée"; G("sig-status").className="sig-status ok"; }
+
+function sigPos(canvas, x, y){
+  var r   = canvas.getBoundingClientRect();
+  var dpr = window.devicePixelRatio || 1;
+  return { x:(x - r.left), y:(y - r.top) };
+}
+
+function sigStart(e){
+  if(!sigCtx) return;
+  sigDrawing = true;
+  var p = sigPos(e.target, e.clientX, e.clientY);
+  sigCtx.beginPath();
+  sigCtx.moveTo(p.x, p.y);
+}
+
+function sigMove(e){
+  if(!sigDrawing || !sigCtx) return;
+  var p = sigPos(e.target, e.clientX, e.clientY);
+  sigCtx.lineTo(p.x, p.y);
+  sigCtx.stroke();
+}
+
+function sigEnd(){
+  sigDrawing = false;
+}
+
+function sigStartT(e){
+  e.preventDefault();
+  if(!sigCtx) return;
+  var t = e.touches[0];
+  sigDrawing = true;
+  var p = sigPos(e.target, t.clientX, t.clientY);
+  sigCtx.beginPath();
+  sigCtx.moveTo(p.x, p.y);
+}
+
+function sigMoveT(e){
+  e.preventDefault();
+  if(!sigDrawing || !sigCtx) return;
+  var t = e.touches[0];
+  var p = sigPos(e.target, t.clientX, t.clientY);
+  sigCtx.lineTo(p.x, p.y);
+  sigCtx.stroke();
+}
+
+function clearSig(){
+  if(sigCtx){
+    var cv = G("sig-canvas");
+    sigCtx.clearRect(0, 0, cv.width, cv.height);
+  }
+  sigSigned = false;
+}
+
+function validerSig(){
+  var canvas = G("sig-canvas");
+  // Vérifier que la signature n'est pas vide
+  if(sigCtx){
+    var data = sigCtx.getImageData(0, 0, canvas.width, canvas.height).data;
+    var hasContent = false;
+    for(var i=3; i<data.length; i+=4){
+      if(data[i] > 0){ hasContent = true; break; }
+    }
+    if(!hasContent){
+      afficherAlerte("⚠️ Veuillez d'abord signer sur l'écran");
+      return;
+    }
+  }
+  // Capturer la signature
+  var sigData = canvas.toDataURL("image/png");
+  sigSigned = true;
+
+  // Verrouiller la zone signature
+  G("sig-zone-active").style.display  = "none";
+  G("sig-zone-validee").style.display = "block";
+  G("sig-preview").src = sigData;
+}
+
+function supprimerSig(){
+  // Déverrouiller et remettre à zéro
+  sigSigned = false;
+  G("sig-zone-validee").style.display = "none";
+  G("sig-zone-active").style.display  = "block";
+  if(sigCtx){
+    var cv = G("sig-canvas");
+    sigCtx.clearRect(0, 0, cv.width, cv.height);
+  }
+  // Re-initialiser le canvas après affichage
+  setTimeout(function(){
+    var dpr = window.devicePixelRatio||1;
+    var rect = G("sig-canvas").getBoundingClientRect();
+    G("sig-canvas").width  = rect.width  * dpr;
+    G("sig-canvas").height = rect.height * dpr;
+    sigCtx = G("sig-canvas").getContext("2d");
+    sigCtx.scale(dpr, dpr);
+    sigCtx.strokeStyle="#1A2540"; sigCtx.lineWidth=2.5; sigCtx.lineCap="round"; sigCtx.lineJoin="round";
+  }, 50);
+}
 
 // ════════════════════════════════════
 // ALERTE
@@ -1006,6 +1194,9 @@ function nouveauBon(){
   G("pz-inner").style.display="flex";
   G("photo-zone").classList.remove("ok");
   clearSig();
+  G("sig-zone-active").style.display  = "block";
+  G("sig-zone-validee").style.display = "none";
+  if(G("sig-preview")) G("sig-preview").src="";
   espActif=false; G("esp-switch").classList.remove("on"); G("esp-box").style.display="none";
   G("form-alert").style.display="none"; G("form-alert2").classList.remove("on");
   gpsEmb={lat:"",lng:"",lieu:""}; gpsDest={lat:"",lng:"",lieu:""};
@@ -1101,6 +1292,85 @@ function nouveauPlein(){
   G("btn-fuel-valider").style.display="flex";
   G("btn-fuel-nouveau").style.display="none";
   G("fuel-alert").style.display="none";
+}
+
+
+// ════════════════════════════════════
+// MENU PRINCIPAL CHAUFFEUR
+// ════════════════════════════════════
+function afficherMenu(section){
+  const isBL = section === 'bl';
+  G("section-bl").style.display         = isBL ? "block" : "none";
+  G("bl-badge").style.display           = isBL ? "block" : "none";
+  G("section-carburant-rapide").style.display = isBL ? "none" : "block";
+
+  // Style boutons menu
+  G("btn-menu-bl").style.background   = isBL ? "var(--or)"  : "rgba(200,52,26,.15)";
+  G("btn-menu-bl").style.color        = isBL ? "white"      : "var(--or)";
+  G("btn-menu-carb").style.background = isBL ? "rgba(26,37,64,.15)" : "var(--bl)";
+  G("btn-menu-carb").style.color      = isBL ? "var(--bl)"  : "white";
+
+  if(!isBL){
+    // Init carburant rapide
+    if(user){
+      G("rapide-camion-nom").textContent  = user.camion_temporaire || user.camion || "—";
+      G("rapide-camion-immat").textContent= user.immat_temporaire  || user.immatCam || "—";
+    }
+    G("rap-date").value = new Date().toISOString().split("T")[0];
+    G("rap-alert").style.display="none";
+    G("rap-success").style.display="none";
+    G("btn-rap-valider").style.display="flex";
+  }
+}
+
+function saisirCarburantRapide(){
+  const litres  = parseFloat(G("rap-litres").value);
+  const montant = parseFloat(G("rap-montant").value);
+  const date    = G("rap-date").value;
+
+  if(!date){ G("rap-alert").textContent="⚠️ Sélectionne la date"; G("rap-alert").style.display="block"; return; }
+  if(!litres||litres<=0){ G("rap-alert").textContent="⚠️ Saisis les litres"; G("rap-alert").style.display="block"; return; }
+  if(!montant||montant<=0){ G("rap-alert").textContent="⚠️ Saisis le montant"; G("rap-alert").style.display="block"; return; }
+
+  loader(true,"Enregistrement...");
+  G("rap-alert").style.display="none";
+
+  const payload = {
+    date,
+    chauffeur_uid: user?user.uid:"",
+    chauffeur_nom: user?user.nom:"",
+    camion:        user?(user.camion_temporaire||user.camion||""):"",
+    immat_camion:  user?(user.immat_temporaire||user.immatCam||""):"",
+    litres,
+    montant,
+    kilometrage:   parseFloat(G("rap-km").value)||null,
+    station:       G("rap-station").value.trim(),
+    timestamp:     null
+  };
+
+  if(!window._addDoc||!window._collection||!window._db){
+    loader(false);
+    G("rap-alert").textContent="❌ Pas de connexion Firebase";
+    G("rap-alert").style.display="block";
+    return;
+  }
+  payload.timestamp = window._serverTimestamp();
+  window._addDoc(window._collection(window._db,"carburant"), payload)
+    .then(()=>{
+      loader(false);
+      G("rap-success").style.display="block";
+      G("btn-rap-valider").style.display="none";
+      G("rap-success-detail").textContent = litres+"L — "+montant.toFixed(2).replace(".",",")+" €"+(parseFloat(G("rap-km").value)?" — "+G("rap-km").value+" km":"");
+    })
+    .catch(e=>{ loader(false); G("rap-alert").textContent="❌ Erreur : "+e.message; G("rap-alert").style.display="block"; });
+}
+
+function nouveauPleins(){
+  ["rap-litres","rap-montant","rap-km","rap-station"].forEach(id=>G(id).value="");
+  G("rap-date").value=new Date().toISOString().split("T")[0];
+  G("rap-success").style.display="none";
+  G("btn-rap-valider").style.display="flex";
+  G("rap-alert").style.display="none";
 }
 
 // ════════════════════════════════════
@@ -1395,7 +1665,7 @@ window.enregistrer = async function(){
     especes:         espActif,
     montant_especes: espActif ? (parseFloat(G("inp-montant").value)||0) : 0,
     // Signature (base64)
-    signature:       sigSigned ? G("sig-canvas").toDataURL("image/png") : "",
+    signature:       sigSigned ? (G("sig-preview")&&G("sig-preview").src&&G("sig-preview").src.startsWith("data:") ? G("sig-preview").src : G("sig-canvas").toDataURL("image/png")) : "",
     // Photo (base64 — sera migré vers Google Drive)
     photo_vehicule:  photoData || "",
     // Statut
