@@ -1843,7 +1843,10 @@ function pdfEntete(doc, titre, numero, dateStr, heureStr, chauffeur, camion, tar
   doc.rect(0,0,W,38,'F');
   
   // Logo
-  try{ doc.addImage(LOGO_DATA,'PNG',4,4,48,28,'','FAST'); }catch(e){}
+  try{ doc.setFillColor(255,255,255);
+    doc.roundedRect(3,3,54,32,3,3,'F');
+    doc.addImage(LOGO_DATA,'JPEG',4,4,52,30,'','FAST');
+  }catch(e){}
   
   // Textes header
   doc.setTextColor(...blanc);
@@ -2181,27 +2184,29 @@ function genererRecu(recu){
   y = pdfChamp(doc, y, 'Chauffeur :', recu.chauffeur_nom||'—');
   y += 5;
   
-  // ── CONFIRMATION ──
-  doc.setFillColor(253,236,235);
-  doc.setDrawColor(200,52,26); doc.setLineWidth(0.7);
-  doc.roundedRect(10,y,190,8,2,2,'FD');
-  doc.setTextColor(200,52,26); doc.setFont('helvetica','bold'); doc.setFontSize(9);
-  doc.text('✓  PAIEMENT CONFIRMÉ EN ESPÈCES', 105, y+5.2, {align:'center'});
-  y += 8+8;
+  // ── CACHET — positionné en bas à droite ──
+  const cachetSize=50, cachetX=210-12-cachetSize;
+  const cachetY=248;
+  try{
+    doc.addImage(CACHET_DATA,'PNG',cachetX,cachetY,cachetSize,cachetSize*0.72,'','FAST');
+  }catch(e){}
   
-  // ── CACHET ──
-  const cachetSize=42, cachetX=210-10-cachetSize;
-  try{ doc.addImage(CACHET_DATA,'PNG',cachetX,y,cachetSize,cachetSize*0.72,'','FAST'); }catch(e){}
-  
-  // "Payé le :" en bleu et date en rouge sur le cachet
+  // "Payé le :" en bleu et date en rouge au centre de l'ovale
   const cx = cachetX+cachetSize/2;
-  const cy = y+cachetSize*0.72*0.45;
-  doc.setFont('helvetica','bold'); doc.setFontSize(8);
+  const cy = cachetY+cachetSize*0.72*0.43;
+  doc.setFont('helvetica','bold'); doc.setFontSize(8.5);
   doc.setTextColor(26,37,64); doc.text('Payé le :', cx, cy, {align:'center'});
   const today = new Date();
-  const datePayee = ('0'+today.getDate()).slice(-2)+''+('0'+(today.getMonth()+1)).slice(-2)+'/'+today.getFullYear();
-  doc.setTextColor(200,52,26); doc.setFontSize(9);
-  doc.text(datePayee, cx, cy+5, {align:'center'});
+  const datePayee = ('0'+today.getDate()).slice(-2)+'/'+ ('0'+(today.getMonth()+1)).slice(-2)+'/'+today.getFullYear();
+  doc.setTextColor(200,52,26); doc.setFontSize(10);
+  doc.text(datePayee, cx, cy+5.5, {align:'center'});
+  
+  // ── CONFIRMATION — tout en bas ──
+  doc.setFillColor(253,236,235);
+  doc.setDrawColor(200,52,26); doc.setLineWidth(0.7);
+  doc.roundedRect(10,262,190,8,2,2,'FD');
+  doc.setTextColor(200,52,26); doc.setFont('helvetica','bold'); doc.setFontSize(9);
+  doc.text('✓  PAIEMENT CONFIRMÉ EN ESPÈCES', 105, 267.2, {align:'center'});
   
   pdfPied(doc);
   return doc;
