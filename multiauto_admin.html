@@ -1868,9 +1868,21 @@ function pdfEntete(doc, titre, numero, dateStr, heureStr, chauffeur, camion, tar
   doc.setTextColor(...blanc);
   doc.setFontSize(7);
   doc.setFont('helvetica','normal');
-  const parts = ['Date : '+dateStr, 'Heure : '+heureStr, 'Tarif : '+(tarif||'NORMAL'), 'Chauffeur : '+chauffeur, 'Camion : '+camion];
-  const seg = W/parts.length;
-  parts.forEach((p,i)=> doc.text(p, seg*i+seg/2, 43, {align:'center'}));
+  // 4 infos réparties, tarif encadré à droite
+  const infos4 = ['Date : '+dateStr, 'Heure : '+heureStr, 'Chauffeur : '+chauffeur, 'Camion : '+camion];
+  const seg4 = (W-30)/infos4.length;
+  infos4.forEach((p,i)=> doc.text(p, 4+seg4*i+seg4/2, 43, {align:'center'}));
+  // Badge tarif encadré couleur
+  const t = tarif||'NORMAL';
+  let tFill, tTxt;
+  if(t==='TN'){      tFill=[21,101,192];  tTxt=[255,255,255]; }
+  else if(t==='TW'){ tFill=[107,33,168];  tTxt=[255,255,255]; }
+  else{              tFill=[255,193,7];   tTxt=[26,26,26];    }
+  doc.setFillColor(...tFill);
+  doc.roundedRect(W-27,39,22,7,2,2,'F');
+  doc.setTextColor(...tTxt);
+  doc.setFont('helvetica','bold'); doc.setFontSize(7.5);
+  doc.text(t, W-16, 43.8, {align:'center'});
   
   return 50; // Y après header
 }
@@ -2067,46 +2079,57 @@ function genererBL(bon){
   y = pdfSection(doc, y, 'PHOTO DU VÉHICULE');
   y += 2;
   
-  const photoW=120, sigW=60, photoH=50;
+  // Photo et signature — hauteur dynamique jusqu'à la confirmation
+  const photoW=122, sigW=58;
+  const confY = 257;
+  const photoH = confY - y - 4;
   
-  // Zone photo
+  // Zone photo — cadre arrondi
+  doc.setFillColor(240,240,240);
+  doc.setDrawColor(200,200,200); doc.setLineWidth(0.4);
+  doc.roundedRect(10,y,photoW,photoH,3,3,'FD');
+  
   if(bon.photo_vehicule && bon.photo_vehicule.startsWith('data:')){
-    try{ doc.addImage(bon.photo_vehicule,'JPEG',10,y,photoW,photoH,'','FAST'); }
-    catch(e){
-      doc.setFillColor(240,240,240);
-      doc.rect(10,y,photoW,photoH,'F');
+    try{
+      const pImg = new Image();
+      pImg.src = bon.photo_vehicule;
+      const iw = pImg.naturalWidth  || 1920;
+      const ih = pImg.naturalHeight || 1080;
+      const ratio = iw/ih;
+      const pad=4, maxW=photoW-pad*2, maxH=photoH-pad*2;
+      let dw=maxW, dh=maxW/ratio;
+      if(dh>maxH){ dh=maxH; dw=maxH*ratio; }
+      const ox=10+pad+(maxW-dw)/2, oy=y+pad+(maxH-dh)/2;
+      doc.addImage(bon.photo_vehicule,'JPEG',ox,oy,dw,dh,'','FAST');
+    }catch(e){
       doc.setTextColor(170,170,170); doc.setFontSize(8);
       doc.text('[Photo du véhicule]', 10+photoW/2, y+photoH/2, {align:'center'});
     }
   } else {
-    doc.setFillColor(240,240,240);
-    doc.setDrawColor(238,238,238); doc.setLineWidth(0.3);
-    doc.rect(10,y,photoW,photoH,'FD');
     doc.setTextColor(170,170,170); doc.setFontSize(8);
     doc.text('[Photo du véhicule]', 10+photoW/2, y+photoH/2, {align:'center'});
   }
   
-  // Zone signature
-  const sigX = 10+photoW+5;
+  // Zone signature — cadre arrondi
+  const sigX=10+photoW+5;
   doc.setFillColor(255,255,255);
-  doc.setDrawColor(238,238,238); doc.setLineWidth(0.3);
-  doc.rect(sigX,y,sigW,photoH,'FD');
+  doc.setDrawColor(200,200,200); doc.setLineWidth(0.4);
+  doc.roundedRect(sigX,y,sigW,photoH,3,3,'FD');
   doc.setTextColor(122,90,58); doc.setFont('helvetica','bold'); doc.setFontSize(7);
-  doc.text('SIGNATURE', sigX+sigW/2, y+5, {align:'center'});
+  doc.text('SIGNATURE CLIENT', sigX+sigW/2, y+6, {align:'center'});
   if(bon.signature && bon.signature.startsWith('data:')){
-    try{ doc.addImage(bon.signature,'PNG',sigX+2,y+8,sigW-4,photoH-16,'','FAST'); }catch(e){}
+    try{ doc.addImage(bon.signature,'PNG',sigX+4,y+10,sigW-8,photoH*0.55,'','FAST'); }catch(e){}
   }
-  doc.setDrawColor(200,200,200);
-  doc.line(sigX+3, y+photoH-6, sigX+sigW-3, y+photoH-6);
-  y += photoH+3;
+  doc.setDrawColor(200,200,200); doc.setLineWidth(0.4);
+  doc.line(sigX+4, y+photoH-8, sigX+sigW-4, y+photoH-8);
   
-  // ── CONFIRMATION ──
+  // ── CONFIRMATION — en bas ──
   doc.setFillColor(230,247,237);
   doc.setDrawColor(26,122,64); doc.setLineWidth(0.7);
-  doc.roundedRect(10,y,190,8,2,2,'FD');
+  doc.roundedRect(10,confY,190,8,2,2,'FD');
   doc.setTextColor(26,122,64);
   doc.setFont('helvetica','bold'); doc.setFontSize(9);
-  doc.text('✓  PAIEMENT CONFIRMÉ EN ESPÈCES', 105, y+5.2, {align:'center'});
+  doc.text('✓  PAIEMENT CONFIRMÉ EN ESPÈCES', 105, confY+5.2, {align:'center'});
   
   pdfPied(doc);
   return doc;
@@ -2184,9 +2207,9 @@ function genererRecu(recu){
   y = pdfChamp(doc, y, 'Chauffeur :', recu.chauffeur_nom||'—');
   y += 5;
   
-  // ── CACHET — positionné en bas à droite ──
-  const cachetSize=50, cachetX=210-12-cachetSize;
-  const cachetY=248;
+  // ── CACHET — positionné en bas à droite, au-dessus de la confirmation ──
+  const cachetSize=46, cachetX=210-12-cachetSize;
+  const cachetY=220;
   try{
     doc.addImage(CACHET_DATA,'PNG',cachetX,cachetY,cachetSize,cachetSize*0.72,'','FAST');
   }catch(e){}
@@ -2201,12 +2224,12 @@ function genererRecu(recu){
   doc.setTextColor(200,52,26); doc.setFontSize(10);
   doc.text(datePayee, cx, cy+5.5, {align:'center'});
   
-  // ── CONFIRMATION — tout en bas ──
+  // ── CONFIRMATION — au-dessus du pied de page, sous le cachet ──
   doc.setFillColor(253,236,235);
   doc.setDrawColor(200,52,26); doc.setLineWidth(0.7);
-  doc.roundedRect(10,262,190,8,2,2,'FD');
+  doc.roundedRect(10,248,190,8,2,2,'FD');
   doc.setTextColor(200,52,26); doc.setFont('helvetica','bold'); doc.setFontSize(9);
-  doc.text('✓  PAIEMENT CONFIRMÉ EN ESPÈCES', 105, 267.2, {align:'center'});
+  doc.text('✓  PAIEMENT CONFIRMÉ EN ESPÈCES', 105, 253.2, {align:'center'});
   
   pdfPied(doc);
   return doc;
