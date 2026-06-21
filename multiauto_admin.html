@@ -1125,7 +1125,11 @@ function seConnecter(){
 }
 
 function seDeconnecter(){
-  auth.signOut().then(()=> location.reload());
+  auth.signOut().then(()=>{
+    if(G("inp-id")) G("inp-id").value="";
+    if(G("inp-pw")) G("inp-pw").value="";
+    location.reload();
+  });
 }
 
 // ── CHARGER LISTES ──
@@ -2813,6 +2817,94 @@ function supprimerSelectionRC(){
   loader(true);
   Promise.all(Array.from(cochees).map(cb=>db.collection("recus").doc(cb.dataset.id).delete()))
     .then(()=>{ toast(cochees.length+" reçu(s) supprimé(s) ✅"); chargerRecus(); loader(false); })
+    .catch(()=>{ toast("Erreur","err"); loader(false); });
+}
+
+
+// ════════════════════════════════════
+// DROITS D'ACCÈS
+// ════════════════════════════════════
+function chargerDroits(){
+  db.collection("parametres").doc("societe").get().then(snap=>{
+    const p = snap.data() || {};
+    const d = p.droits || p; // compatibilité ancienne/nouvelle structure
+
+    // BL
+    if(G("d-bl-creer"))       G("d-bl-creer").checked       = d.secretaire_bl_creer       !== false;
+    if(G("d-bl-voir"))        G("d-bl-voir").checked         = d.secretaire_bl_voir        !== false;
+    if(G("d-bl-imprimer"))    G("d-bl-imprimer").checked     = d.secretaire_bl_imprimer    !== false;
+    if(G("d-bl-telecharger")) G("d-bl-telecharger").checked  = d.secretaire_bl_telecharger !== false;
+    // Reçus
+    if(G("d-recu-voir"))        G("d-recu-voir").checked         = d.secretaire_recu_voir        !== false;
+    if(G("d-recu-imprimer"))    G("d-recu-imprimer").checked     = d.secretaire_recu_imprimer    !== false;
+    if(G("d-recu-telecharger")) G("d-recu-telecharger").checked  = d.secretaire_recu_telecharger !== false;
+    // Stats
+    if(G("d-stats"))          G("d-stats").checked           = d.secretaire_stats          === true;
+    // GPS
+    if(G("d-gps"))            G("d-gps").checked             = d.secretaire_gps            === true;
+    // Chauffeurs/Camions
+    if(G("d-chauffeurs-voir")) G("d-chauffeurs-voir").checked = d.secretaire_chauffeurs_voir === true;
+    if(G("d-camions-voir"))   G("d-camions-voir").checked     = d.secretaire_camions_voir   === true;
+    // Clients
+    if(G("d-clients"))        G("d-clients").checked         = d.secretaire_clients        !== false;
+    if(G("d-clients-ajouter"))G("d-clients-ajouter").checked = d.secretaire_clients_ajouter!== false;
+    if(G("d-clients-modifier"))G("d-clients-modifier").checked= d.secretaire_clients_modifier=== true;
+    if(G("d-solde"))          G("d-solde").checked           = d.secretaire_solde          === true;
+    // Taux
+    if(G("d-taux"))           G("d-taux").checked            = d.secretaire_taux           === true;
+    if(G("d-mag-tarifs"))     G("d-mag-tarifs").checked      = d.secretaire_mag_tarifs     === true;
+    // Commissions
+    if(G("taux-normal-inp"))  G("taux-normal-inp").value     = p.taux_commission_normal    || 3;
+    if(G("taux-tntw-inp"))    G("taux-tntw-inp").value       = p.taux_commission_tn_tw     || 5;
+    if(G("taux-depenses-inp"))G("taux-depenses-inp").value   = p.taux_depenses_fixes       || 15;
+    if(G("resp-nom"))         G("resp-nom").value            = p.resp_nom                  || "Responsable";
+    if(G("taux-resp-inp"))    G("taux-resp-inp").value       = p.taux_commission_resp      || 3;
+    if(G("mag-tarif1"))       G("mag-tarif1").value          = p.mag_tarif1                || 20;
+    if(G("mag-tarif2"))       G("mag-tarif2").value          = p.mag_tarif2                || 30;
+    if(G("mag-tarif3"))       G("mag-tarif3").value          = p.mag_tarif3                || 40;
+  }).catch(console.error);
+}
+
+function sauvegarderDroits(){
+  const g = id => G(id) ? G(id).checked : false;
+  const v = id => G(id) ? G(id).value   : "";
+
+  const data = {
+    // Droits secrétaire
+    droits: {
+      secretaire_bl_creer:        g("d-bl-creer"),
+      secretaire_bl_voir:         g("d-bl-voir"),
+      secretaire_bl_imprimer:     g("d-bl-imprimer"),
+      secretaire_bl_telecharger:  g("d-bl-telecharger"),
+      secretaire_recu_voir:       g("d-recu-voir"),
+      secretaire_recu_imprimer:   g("d-recu-imprimer"),
+      secretaire_recu_telecharger:g("d-recu-telecharger"),
+      secretaire_stats:           g("d-stats"),
+      secretaire_gps:             g("d-gps"),
+      secretaire_chauffeurs_voir: g("d-chauffeurs-voir"),
+      secretaire_camions_voir:    g("d-camions-voir"),
+      secretaire_clients:         g("d-clients"),
+      secretaire_clients_ajouter: g("d-clients-ajouter"),
+      secretaire_clients_modifier:g("d-clients-modifier"),
+      secretaire_solde:           g("d-solde"),
+      secretaire_taux:            g("d-taux"),
+      secretaire_mag_tarifs:      g("d-mag-tarifs"),
+    },
+    // Taux commission
+    taux_commission_normal:  parseFloat(v("taux-normal-inp"))  || 3,
+    taux_commission_tn_tw:   parseFloat(v("taux-tntw-inp"))    || 5,
+    taux_depenses_fixes:     parseFloat(v("taux-depenses-inp")) || 15,
+    resp_nom:                v("resp-nom") || "Responsable",
+    taux_commission_resp:    parseFloat(v("taux-resp-inp"))    || 3,
+    mag_tarif1:              parseFloat(v("mag-tarif1"))       || 20,
+    mag_tarif2:              parseFloat(v("mag-tarif2"))       || 30,
+    mag_tarif3:              parseFloat(v("mag-tarif3"))       || 40,
+    updatedAt: firebase.firestore.FieldValue.serverTimestamp()
+  };
+
+  loader(true,"Sauvegarde...");
+  db.collection("parametres").doc("societe").set(data, {merge:true})
+    .then(()=>{ toast("Droits sauvegardés ✅"); loader(false); })
     .catch(()=>{ toast("Erreur","err"); loader(false); });
 }
 
