@@ -1007,7 +1007,7 @@ const firebaseConfig = {
 firebase.initializeApp(firebaseConfig);
 const auth = firebase.auth();
 const db   = firebase.firestore();
-db.enablePersistence().catch(()=>{});
+// Persistence désactivée pour compatibilité multi-onglets
 
 let userAdmin      = null;
 let chauffeursList = [];
