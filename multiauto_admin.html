@@ -579,7 +579,7 @@ input:checked+.sw-slider:before{transform:translateX(20px)}
         </div>
         <div class="table-wrap">
           <table>
-            <thead><tr><th>Date</th><th>Chauffeur</th><th>Camion</th><th>Litres</th><th>Montant</th><th>Kilométrage</th><th>L/100km</th></tr></thead>
+            <thead><tr><th>Date</th><th>Chauffeur</th><th>Camion</th><th>Litres</th><th>Montant</th><th>Kilométrage</th><th>Km parcourus</th><th>L/100km</th><th>Actions</th></tr></thead>
             <tbody id="fuel-tbody"><tr><td colspan="7" style="text-align:center;color:var(--gris3);padding:24px">Chargement...</td></tr></tbody>
           </table>
         </div>
@@ -1467,264 +1467,98 @@ function confirmerReset(){
 
 // ── CARBURANT ──
 function chargerCarburant(){
-  db.collection("carburant").orderBy("timestamp","desc").limit(100).get().then(snap=>{
+  loader(true,"Chargement carburant...");
+  // Remplir select camions si vide
+  const selCam=G("fuel-filtre-camion");
+  if(selCam && selCam.options.length<=1){
+    camionsList.forEach(cam=>{
+      const o=document.createElement("option");
+      o.value=cam.nom; o.textContent=cam.nom+" "+(cam.immat||"");
+      selCam.appendChild(o);
+    });
+  }
+
+  db.collection("carburant").orderBy("kilometrage","asc").get().then(snap=>{
     let list=[]; snap.forEach(d=>list.push({id:d.id,...d.data()}));
-    let parCamion={};
-    list.forEach(f=>{ const c=f.camion||"?"; if(!parCamion[c]) parCamion[c]={litres:0,montant:0}; parCamion[c].litres+=f.litres||0; parCamion[c].montant+=f.montant||0; });
-    G("fuel-stats").innerHTML=Object.entries(parCamion).map(([nom,d])=>`<div class="fuel-card"><div class="fuel-num">${d.litres.toFixed(0)} L</div><div class="fuel-label">${nom}</div><div style="margin-top:8px;font-size:13px;opacity:.8">${fmtMontant(d.montant)}</div></div>`).join("");
+
+    // Appliquer filtres
+    const cam=G("fuel-filtre-camion").value;
+    const debut=G("fuel-date-debut").value;
+    const fin=G("fuel-date-fin").value;
+    if(cam)   list=list.filter(f=>f.camion===cam);
+    if(debut) list=list.filter(f=>f.date>=debut);
+    if(fin)   list=list.filter(f=>f.date<=fin);
+
+    // Calculer km parcourus entre 2 pleins consécutifs par camion
+    const parCamionKm={};
+    list.forEach(f=>{
+      const c2=f.camion||"?";
+      if(!parCamionKm[c2]) parCamionKm[c2]=[];
+      parCamionKm[c2].push(f);
+    });
+    list.forEach(f=>{ f.km_parcourus=null; f.conso=null; });
+    Object.values(parCamionKm).forEach(entries=>{
+      entries.sort((a,b)=>(a.kilometrage||0)-(b.kilometrage||0));
+      for(let i=1;i<entries.length;i++){
+        const dist=(entries[i].kilometrage||0)-(entries[i-1].kilometrage||0);
+        if(dist>0 && dist<5000){
+          entries[i].km_parcourus=dist;
+          if(entries[i].litres) entries[i].conso=(entries[i].litres/dist*100).toFixed(1);
+        }
+      }
+    });
+
+    // Trier par date desc pour affichage
+    list.sort((a,b)=>(b.date||"").localeCompare(a.date||""));
+
+    // Stats par camion
+    const parCamion={};
+    list.forEach(f=>{
+      const c2=f.camion||"?";
+      if(!parCamion[c2]) parCamion[c2]={litres:0,montant:0,km:0};
+      parCamion[c2].litres+=f.litres||0;
+      parCamion[c2].montant+=f.montant||0;
+      parCamion[c2].km+=f.km_parcourus||0;
+    });
+
+    G("fuel-stats").innerHTML=Object.entries(parCamion).map(([nom,d])=>{
+      const conso=d.km>0?(d.litres/d.km*100).toFixed(1)+" L/100":"—";
+      return `<div class="fuel-card">
+        <div class="fuel-num">${d.litres.toFixed(0)} L</div>
+        <div class="fuel-label">${nom}</div>
+        <div style="margin-top:6px;font-size:12px;opacity:.8">${fmtMontant(d.montant)}</div>
+        <div style="margin-top:4px;font-size:12px;color:#4ADE80;font-weight:700">${conso}</div>
+        ${d.km>0?`<div style="font-size:11px;opacity:.6">${d.km} km parcourus</div>`:""}
+      </div>`;
+    }).join("");
+
     let html="";
-    list.forEach(f=>{ html+=`<tr><td>${f.date||"—"}</td><td>${f.chauffeur_nom||"—"}</td><td>${f.camion||"—"}</td><td>${f.litres||"—"} L</td><td>${fmtMontant(f.montant)}</td><td>${f.kilometrage||"—"} km</td><td style="font-weight:700;color:var(--vert)">${f.litres&&f.distance_km?(f.litres/f.distance_km*100).toFixed(1)+" L/100":"—"}</td></tr>`; });
-    G("fuel-tbody").innerHTML=html||`<tr><td colspan="7" style="text-align:center;color:var(--gris3);padding:24px">Aucune saisie</td></tr>`;
-  }).catch(()=>{});
-}
-
-// ── STATS ──
-function chargerStats(){
-  loader(true,"Calcul...");
-  db.collection("bons").orderBy("timestamp","desc").limit(500).get().then(snap=>{
-    let bons=[]; snap.forEach(d=>bons.push({id:d.id,...d.data()}));
-    const ch=G("stats-chauffeur").value;
-    if(ch) bons=bons.filter(b=>b.chauffeur_uid===ch);
-    let totalBL=0,totalEsp=0,parTarif={NORMAL:0,TN:0,TW:0},parCam={},parCh={},parCl={};
-    bons.forEach(b=>{ totalBL++; if(b.especes) totalEsp+=b.montant_especes||0; const t=b.tarif||"NORMAL"; parTarif[t]=(parTarif[t]||0)+1; parCam[b.camion||"—"]=(parCam[b.camion||"—"]||0)+1; parCh[b.chauffeur_nom||"—"]=(parCh[b.chauffeur_nom||"—"]||0)+1; parCl[b.nom_client||"—"]=(parCl[b.nom_client||"—"]||0)+1; });
-    G("stats-cards").innerHTML=`
-      <div class="stat-card"><div class="stat-num">${totalBL}</div><div class="stat-label">Total BL</div></div>
-      <div class="stat-card" style="border-left-color:var(--vert)"><div class="stat-num">${fmtMontant(totalEsp)}</div><div class="stat-label">Total espèces</div></div>
-      <div class="stat-card" style="border-left-color:var(--vert)"><div class="stat-num">${parTarif.NORMAL}</div><div class="stat-label">BL Normal</div></div>
-      <div class="stat-card" style="border-left-color:var(--bleu)"><div class="stat-num">${parTarif.TN}</div><div class="stat-label">BL TN</div></div>
-      <div class="stat-card" style="border-left-color:var(--violet)"><div class="stat-num">${parTarif.TW}</div><div class="stat-label">BL TW</div></div>`;
-    const mkChart=(data,id)=>{ const max=Math.max(...Object.values(data),1); G(id).innerHTML=Object.entries(data).sort((a,b)=>b[1]-a[1]).slice(0,8).map(([k,v])=>`<div class="chart-row"><div class="chart-lbl">${k}</div><div class="chart-bar-bg"><div class="chart-bar-fill" style="width:${Math.round(v/max*100)}%"></div></div><div class="chart-val">${v}</div></div>`).join(""); };
-    mkChart(parCam,"chart-camions"); mkChart(parCh,"chart-chauffeurs");
-    mkChart({Normal:parTarif.NORMAL,TN:parTarif.TN,TW:parTarif.TW},"chart-tarifs");
-    mkChart(parCl,"chart-clients");
-
-    // Mode détail — ajouter tableau complet sous les graphiques
-    const modeStats = G("stats-mode") ? G("stats-mode").value : "montant";
-    if(modeStats==="detail"){
-      let detailHtml=`<div class="card" style="margin-top:16px">
-        <div class="card-title">📋 Détail complet de tous les BL</div>
-        <div class="table-wrap"><table>
-        <thead><tr><th>N° BL</th><th>Date</th><th>Heure</th><th>Tarif</th><th>Chauffeur</th><th>Client</th><th>Véhicule</th><th>Trajet</th><th>Espèces</th></tr></thead>
-        <tbody>`;
-      bons.forEach(b=>{
-        detailHtml+=`<tr>
-          <td style="font-weight:700;color:var(--bleu);font-size:11px">${b.bon_num||"—"}</td>
-          <td style="font-size:11px">${b.date_bl||"—"}</td>
-          <td style="font-size:11px">${b.heure_bl||"—"}</td>
-          <td><span class="badge ${b.tarif==="NORMAL"?"tarif-normal":b.tarif==="TN"?"tarif-tn":"tarif-tw"}" style="font-size:10px">${b.tarif||"—"}</span></td>
-          <td style="font-size:11px">${b.chauffeur_nom||"—"}</td>
-          <td style="font-size:11px;font-weight:600">${b.nom_client||"—"}</td>
-          <td style="font-size:10px">${b.marque||""} ${b.modele||""}<br>${b.immatriculation||""}</td>
-          <td style="font-size:11px">${b.lieu_embarquement||"—"} → ${b.destination||"—"}</td>
-          <td style="font-weight:700;color:var(--vert);font-size:11px">${b.especes?fmtMontant(b.montant_especes):"—"}</td>
-        </tr>`;
-      });
-      detailHtml+=`</tbody></table></div></div>`;
-      // Insérer après les graphiques
-      const existing=document.getElementById("detail-stats-table");
-      if(existing) existing.remove();
-      const div=document.createElement("div");
-      div.id="detail-stats-table";
-      div.innerHTML=detailHtml;
-      document.getElementById("pg-stats").appendChild(div);
-    } else {
-      const existing=document.getElementById("detail-stats-table");
-      if(existing) existing.remove();
-    }
-    loader(false);
-  }).catch(()=>loader(false));
-}
-
-// ── GPS ──
-function chargerGPS(){
-  loader(true);
-  db.collection("bons").orderBy("timestamp","desc").limit(300).get().then(snap=>{
-    let bons=[]; snap.forEach(d=>bons.push({id:d.id,...d.data()}));
-    const ch=G("gps-chauffeur").value;
-    if(ch) bons=bons.filter(b=>b.chauffeur_uid===ch);
-    let html="";
-    bons.forEach(b=>{
-      const min=b.duree_trajet_min||0;
-      const duree=min>0?(min>=60?Math.floor(min/60)+"h"+("0"+(min%60)).slice(-2)+"min":min+"min"):"—";
-      let mapsUrl="";
-      if(b.gps_emb_lat&&b.gps_dest_lat) mapsUrl="https://www.google.com/maps/dir/"+b.gps_emb_lat+","+b.gps_emb_lng+"/"+b.gps_dest_lat+","+b.gps_dest_lng;
-      else if(b.lieu_embarquement&&b.destination) mapsUrl="https://www.google.com/maps/dir/"+encodeURIComponent(b.lieu_embarquement+", Mayotte")+"/"+encodeURIComponent(b.destination+", Mayotte");
+    list.forEach(f=>{
+      const conso=f.conso?f.conso+" L/100":"—";
+      const kmP=f.km_parcourus?f.km_parcourus+" km":"—";
       html+=`<tr>
-        <td><strong>${b.date_bl||"—"}</strong><br><span style="font-size:10px;color:var(--gris3)">${b.heure_bl||""}</span></td>
-        <td>${b.chauffeur_nom||"—"}</td>
-        <td><strong>${b.lieu_embarquement||"—"}</strong>${b.heure_embarquement?`<br><span style="font-size:10px;color:var(--bleu-md)">⏱ ${b.heure_embarquement}</span>`:""}</td>
-        <td><strong>${b.destination||"—"}</strong>${b.heure_arrivee?`<br><span style="font-size:10px;color:var(--bleu-md)">⏱ ${b.heure_arrivee}</span>`:""}</td>
-        <td style="font-weight:700;color:var(--vert)">${duree}</td>
-        <td><span class="badge ${b.tarif==="NORMAL"?"tarif-normal":b.tarif==="TN"?"tarif-tn":"tarif-tw"}">${b.tarif||"—"}</span></td>
-        <td>${mapsUrl?`<a href="${mapsUrl}" target="_blank" class="btn btn-secondary btn-sm" style="text-decoration:none">🗺️ Carte</a>`:`<span style="color:var(--gris3);font-size:11px">—</span>`}</td>
+        <td>${f.date||"—"}</td>
+        <td>${f.chauffeur_nom||"—"}</td>
+        <td><strong>${f.camion||"—"}</strong></td>
+        <td style="font-weight:700;color:var(--bleu)">${f.litres||"—"} L</td>
+        <td style="font-weight:700;color:var(--rouge)">${fmtMontant(f.montant)}</td>
+        <td style="font-family:monospace">${f.kilometrage||"—"} km</td>
+        <td style="font-weight:700;color:var(--bleu)">${kmP}</td>
+        <td style="font-weight:700;color:var(--vert)">${conso}</td>
+        <td><button class="btn btn-danger btn-sm btn-icon" onclick="supprimerCarburantPrincipal('${f.id}')">🗑</button></td>
       </tr>`;
     });
-    // Totaux GPS
-    const dureeTotal=bons.reduce((s,b)=>s+(b.duree_trajet_min||0),0);
-    const dh=Math.floor(dureeTotal/60),dm=dureeTotal%60;
-    const gpsEl=G("gps-totaux");
-    if(gpsEl) gpsEl.innerHTML=`
-      <div class="total-badge"><div class="tb-num">${bons.length}</div><div class="tb-lbl">Trajets</div></div>
-      <div class="total-badge vert"><div class="tb-num">${dh}h${("0"+dm).slice(-2)}</div><div class="tb-lbl">Durée totale</div></div>`;
-    G("gps-tbody").innerHTML=html||`<tr><td colspan="7" style="text-align:center;color:var(--gris3);padding:24px">Aucun trajet</td></tr>`;
+    G("fuel-tbody").innerHTML=html||`<tr><td colspan="9" style="text-align:center;color:var(--gris3);padding:24px">Aucune saisie — utilisez le filtre</td></tr>`;
     loader(false);
-  }).catch(()=>loader(false));
+  }).catch(e=>{ console.error(e); loader(false); });
 }
 
-// ── COMMISSIONS ──
-function chargerCommissions(){
-  loader(true);
-  db.collection("parametres").doc("societe").get().then(snap=>{
-    const p=snap.data()||{};
-    const txN=p.taux_commission_normal||3, txTW=p.taux_commission_tn_tw||5;
-    G("taux-normal").textContent=txN+"%"; G("taux-tntw").textContent=txTW+"%";
-    return db.collection("bons").orderBy("timestamp","desc").limit(500).get().then(snap2=>{
-      let bons=[]; snap2.forEach(d=>bons.push({id:d.id,...d.data()}));
-      const ch=G("comm-chauffeur").value;
-      if(ch) bons=bons.filter(b=>b.chauffeur_uid===ch);
-      let parCh={};
-      bons.forEach(b=>{ const k=b.chauffeur_nom||"—"; if(!parCh[k]) parCh[k]={blN:0,montN:0,blTW:0,montTW:0}; const m=b.montant_especes||0; if(b.tarif==="NORMAL"){ parCh[k].blN++; parCh[k].montN+=m; } else { parCh[k].blTW++; parCh[k].montTW+=m; } });
-      let html="",total=0;
-      Object.entries(parCh).sort((a,b)=>a[0].localeCompare(b[0])).forEach(([nom,d])=>{
-        const cN=d.montN*txN/100, cTW=d.montTW*txTW/100, t=cN+cTW; total+=t;
-        html+=`<tr><td><strong>${nom}</strong></td><td>${d.blN}</td><td>${fmtMontant(d.montN)}</td><td style="color:var(--vert);font-weight:700">${fmtMontant(cN)}</td><td>${d.blTW}</td><td>${fmtMontant(d.montTW)}</td><td style="color:var(--violet);font-weight:700">${fmtMontant(cTW)}</td><td style="font-weight:900;color:var(--rouge)">${fmtMontant(t)}</td></tr>`;
-      });
-      html+=`<tr style="background:var(--gris)"><td colspan="7" style="text-align:right;font-weight:800">TOTAL</td><td style="font-size:16px;font-weight:900;color:var(--rouge)">${fmtMontant(total)}</td></tr>`;
-      G("comm-tbody").innerHTML=html||`<tr><td colspan="8" style="text-align:center;color:var(--gris3);padding:24px">Aucune donnée</td></tr>`;
-      loader(false);
-    });
-  }).catch(()=>loader(false));
+function supprimerCarburantPrincipal(id){
+  if(!confirm("Supprimer cette saisie ?")) return;
+  db.collection("carburant").doc(id).delete()
+    .then(()=>{ toast("Supprimé ✅"); chargerCarburant(); })
+    .catch(()=>toast("Erreur","err"));
 }
-
-// ── DROITS ──
-function chargerDroits(){
-  db.collection("parametres").doc("societe").get().then(snap=>{
-    const d=snap.data()?.droits||{}, p=snap.data()||{};
-    G("d-bl-creer").checked=d.secretaire_bl_creer!==false;
-    G("d-bl-voir").checked=d.secretaire_bl_voir!==false;
-    G("d-bl-imprimer").checked=d.secretaire_bl_imprimer!==false;
-    G("d-bl-telecharger").checked=d.secretaire_bl_telecharger!==false;
-    G("d-rc-voir").checked=d.secretaire_recu_voir!==false;
-    G("d-rc-imprimer").checked=d.secretaire_recu_imprimer!==false;
-    G("d-rc-telecharger").checked=d.secretaire_recu_telecharger!==false;
-    G("d-stats").checked=d.secretaire_stats===true;
-    G("d-clients").checked=d.secretaire_clients!==false;
-    G("d-clients-ajouter").checked=d.secretaire_clients_ajouter!==false;
-    G("d-clients-modifier").checked=d.secretaire_clients_modifier===true;
-    G("d-solde").checked=d.secretaire_solde===true;
-    G("d-sans-immat").checked=d.chauffeur_sans_immat===true;
-    G("d-sans-photo").checked=d.chauffeur_sans_photo===true;
-    G("d-sans-emb").checked=d.chauffeur_sans_embarquement===true;
-    G("taux-normal-inp").value=p.taux_commission_normal||3;
-    G("taux-tntw-inp").value=p.taux_commission_tn_tw||5;
-    G("taux-depenses-inp").value=p.taux_depenses_fixes||15;
-    if(G("resp-nom")) G("resp-nom").value=p.resp_nom||"Responsable";
-    if(G("taux-resp-inp")) G("taux-resp-inp").value=p.taux_commission_resp||3;
-    if(G("mag-tarif1")) G("mag-tarif1").value=p.mag_tarif1||20;
-    if(G("mag-tarif2")) G("mag-tarif2").value=p.mag_tarif2||30;
-    if(G("mag-tarif3")) G("mag-tarif3").value=p.mag_tarif3||40;
-  });
-}
-function sauvegarderDroits(){
-  loader(true);
-  db.collection("parametres").doc("societe").update({
-    droits:{
-      secretaire_bl_creer:G("d-bl-creer").checked,
-      secretaire_bl_voir:G("d-bl-voir").checked,
-      secretaire_bl_imprimer:G("d-bl-imprimer").checked,
-      secretaire_bl_telecharger:G("d-bl-telecharger").checked,
-      secretaire_recu_voir:G("d-rc-voir").checked,
-      secretaire_recu_imprimer:G("d-rc-imprimer").checked,
-      secretaire_recu_telecharger:G("d-rc-telecharger").checked,
-      secretaire_stats:G("d-stats").checked,
-      secretaire_clients:G("d-clients").checked,
-      secretaire_clients_ajouter:G("d-clients-ajouter").checked,
-      secretaire_clients_modifier:G("d-clients-modifier").checked,
-      secretaire_solde:G("d-solde").checked,
-      chauffeur_sans_immat:G("d-sans-immat").checked,
-      chauffeur_sans_photo:G("d-sans-photo").checked,
-      chauffeur_sans_embarquement:G("d-sans-emb").checked
-    },
-    taux_commission_normal:parseFloat(G("taux-normal-inp").value)||3,
-    taux_commission_tn_tw:parseFloat(G("taux-tntw-inp").value)||5,
-    taux_depenses_fixes:parseFloat(G("taux-depenses-inp").value)||15,
-    updatedAt:firebase.firestore.FieldValue.serverTimestamp()
-  }).then(()=>{ toast("Droits enregistrés ✅"); loader(false); }).catch(()=>{ toast("Erreur","err"); loader(false); });
-}
-
-// ── PARAMÈTRES ──
-function chargerParametres(){
-  db.collection("parametres").doc("societe").get().then(snap=>{
-    const p=snap.data()||{};
-    G("soc-nom").value=p.nom||""; G("soc-adresse").value=p.adresse||"";
-    G("soc-tel").value=p.telephone||""; G("soc-email").value=p.email||"";
-  });
-}
-function sauvegarderParametres(){
-  loader(true);
-  db.collection("parametres").doc("societe").update({
-    nom:G("soc-nom").value.trim(), adresse:G("soc-adresse").value.trim(),
-    telephone:G("soc-tel").value.trim(), email:G("soc-email").value.trim(),
-    updatedAt:firebase.firestore.FieldValue.serverTimestamp()
-  }).then(()=>{ toast("Enregistré ✅"); loader(false); }).catch(()=>{ toast("Erreur","err"); loader(false); });
-}
-
-// ── PURGE PHOTOS ──
-function purgerPhotos(){
-  const mois=parseInt(G("purge-mois").value);
-  if(!confirm("Purger les photos de plus de "+mois+" mois ?")) return;
-  loader(true,"Purge...");
-  const limite=new Date(); limite.setMonth(limite.getMonth()-mois);
-  db.collection("bons").get().then(snap=>{
-    let count=0; const batch=db.batch();
-    snap.forEach(d=>{ const b=d.data(); const ts=b.timestamp?.toDate?b.timestamp.toDate():null; if(ts&&ts<limite&&b.photo_vehicule){ batch.update(d.ref,{photo_vehicule:""}); count++; } });
-    return batch.commit().then(()=>{ G("purge-result").textContent="✅ "+count+" photo(s) purgée(s)"; toast(count+" photo(s) purgée(s)"); loader(false); });
-  }).catch(()=>{ toast("Erreur","err"); loader(false); });
-}
-
-// ── CHANGER MDP ──
-function changerMDP(){
-  const m1=G("new-mdp").value, m2=G("new-mdp2").value;
-  if(!m1||m1!==m2){ toast("Mots de passe différents","err"); return; }
-  if(m1.length<6){ toast("Minimum 6 caractères","err"); return; }
-  auth.currentUser.updatePassword(m1).then(()=>{ toast("Mot de passe modifié ✅"); G("new-mdp").value=""; G("new-mdp2").value=""; }).catch(e=>toast("Erreur: "+e.message,"err"));
-}
-
-// ── EXPORTS ──
-// [supprimé - doublon]
-// [doublon voirBL supprimé]
-// [doublon telechargerBL supprimé]
-// [doublon exporterBonsPDF supprimé]
-// [doublon exporterRecusPDF supprimé]
-// [supprimé - doublon]
-// [supprimé - doublon]
-
-// ── MODALS ──
-// [supprimé - doublon]
-
-// ════════════════════════════════════
-// UTILITAIRES HISTORIQUES
-// ════════════════════════════════════
-function toutSelectionnerHist(cls){
-  const allId = cls+'-all';
-  const checked = document.getElementById(allId)?.checked;
-  document.querySelectorAll('.'+cls).forEach(cb=>cb.checked=checked);
-}
-
-function supprimerSelectionHist(collection, cls){
-  const ids = Array.from(document.querySelectorAll('.'+cls+':checked')).map(c=>c.dataset.id);
-  if(!ids.length){ toast("Sélectionnez au moins un élément","err"); return; }
-  if(!confirm("Supprimer "+ids.length+" élément(s) ?")) return;
-  loader(true,"Suppression...");
-  Promise.all(ids.map(id=>db.collection(collection).doc(id).delete()))
-    .then(()=>{ toast(ids.length+" supprimé(s) ✅"); loader(false);
-      if(collection==="magasinage") chargerHistMag();
-      else if(collection==="prises_en_charge") chargerHistPC();
-      else chargerHistCarburant();
-    }).catch(()=>{ toast("Erreur","err"); loader(false); });
-}
-
-function imprimerPage(){ window.print(); }
 
 function chargerHistMag(){
   loader(true);
