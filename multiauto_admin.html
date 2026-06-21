@@ -179,6 +179,17 @@ input:checked+.sw-slider:before{transform:translateX(20px)}
 }
 .menu-toggle{display:none;position:fixed;top:14px;left:14px;z-index:200;background:var(--bleu);color:var(--blanc);border:none;border-radius:8px;padding:8px 10px;font-size:18px;cursor:pointer}
 
+
+/* ══ TOTAUX FILTRES ══ */
+.totaux-bar{display:flex;gap:10px;flex-wrap:wrap;margin-bottom:14px}
+.total-badge{background:var(--blanc);border:1.5px solid var(--gris2);border-radius:8px;padding:8px 14px;display:flex;align-items:center;gap:8px;font-size:13px;box-shadow:var(--shadow)}
+.total-badge .tb-num{font-size:18px;font-weight:900;color:var(--bleu)}
+.total-badge .tb-lbl{font-size:11px;color:var(--gris3);font-weight:600;text-transform:uppercase;letter-spacing:.3px}
+.total-badge.rouge{border-color:var(--rouge)}.total-badge.rouge .tb-num{color:var(--rouge)}
+.total-badge.vert{border-color:var(--vert)}.total-badge.vert .tb-num{color:var(--vert)}
+.total-badge.violet{border-color:var(--violet)}.total-badge.violet .tb-num{color:var(--violet)}
+.total-badge.jaune{border-color:var(--jaune)}.total-badge.jaune .tb-num{color:var(--jaune)}
+
 /* ══ GRAPHIQUES ══ */
 .chart-bar-wrap{margin-top:10px}
 .chart-row{display:flex;align-items:center;gap:10px;margin-bottom:8px}
@@ -452,6 +463,7 @@ input:checked+.sw-slider:before{transform:translateX(20px)}
         <div><div class="page-title">📋 Bons de livraison</div><div class="page-sub">Consulter, filtrer, exporter</div></div>
       </div>
       <div class="card">
+        <div class="totaux-bar" id="bl-totaux"></div>
         <div class="filtres">
           <input class="filtre-inp" type="date" id="bl-date-debut" placeholder="Date début">
           <input class="filtre-inp" type="date" id="bl-date-fin" placeholder="Date fin">
@@ -479,6 +491,7 @@ input:checked+.sw-slider:before{transform:translateX(20px)}
         <div><div class="page-title">💵 Reçus espèces</div><div class="page-sub">Paiements en espèces reçus</div></div>
       </div>
       <div class="card">
+        <div class="totaux-bar" id="rc-totaux"></div>
         <div class="filtres">
           <input class="filtre-inp" type="date" id="rc-date-debut">
           <input class="filtre-inp" type="date" id="rc-date-fin">
@@ -604,6 +617,8 @@ input:checked+.sw-slider:before{transform:translateX(20px)}
       <div class="page-header">
         <div><div class="page-title">🗺️ GPS & Trajets</div><div class="page-sub">Embarquements, destinations, durées</div></div>
       </div>
+      <div class="totaux-bar" id="gps-totaux"></div>
+      <div class="totaux-bar" id="gps-totaux"></div>
       <div class="filtres">
         <input class="filtre-inp" type="date" id="gps-debut">
         <input class="filtre-inp" type="date" id="gps-fin">
@@ -1159,12 +1174,32 @@ function chargerBons(){
     const tarif=G("bl-filtre-tarif").value;
     const debut=G("bl-date-debut").value;
     const fin=G("bl-date-fin").value;
-    // Convertir DD/MM/YYYY → YYYY-MM-DD pour comparaison
-    function toComp(d){ if(!d) return ""; const p=d.split("/"); return p.length===3?p[2]+"-"+p[1]+"-"+p[0]:""; }
+    // Convertir date BL en YYYY-MM-DD pour comparaison (gère DD/MM/YYYY et YYYY-MM-DD)
+    function toComp(d){
+      if(!d) return "";
+      if(d.includes("-") && d.indexOf("-")===4) return d; // déjà YYYY-MM-DD
+      const p=d.split("/");
+      return p.length===3 ? p[2]+"-"+p[1]+"-"+p[0] : d;
+    }
     if(debut) bons=bons.filter(b=>toComp(b.date_bl)>=debut);
     if(fin)   bons=bons.filter(b=>toComp(b.date_bl)<=fin);
     if(ch) bons=bons.filter(b=>b.chauffeur_uid===ch);
     if(tarif) bons=bons.filter(b=>b.tarif===tarif);
+    // Calculer totaux
+    const totalBL = bons.length;
+    const totalEsp = bons.filter(b=>b.especes).reduce((s,b)=>s+(b.montant_especes||0),0);
+    const chauffeursUniq = [...new Set(bons.map(b=>b.chauffeur_nom).filter(Boolean))];
+    const blNormal = bons.filter(b=>b.tarif==="NORMAL").length;
+    const blTN = bons.filter(b=>b.tarif==="TN").length;
+    const blTW = bons.filter(b=>b.tarif==="TW").length;
+    if(G("bl-totaux")) G("bl-totaux").innerHTML=`
+      <div class="total-badge"><div class="tb-num">${totalBL}</div><div class="tb-lbl">Total BL</div></div>
+      <div class="total-badge vert"><div class="tb-num">${totalEsp.toFixed(2).replace(".",",")} €</div><div class="tb-lbl">Espèces</div></div>
+      <div class="total-badge"><div class="tb-num">${chauffeursUniq.length}</div><div class="tb-lbl">Chauffeurs</div></div>
+      <div class="total-badge"><div class="tb-num">${blNormal}</div><div class="tb-lbl">Normal</div></div>
+      <div class="total-badge violet"><div class="tb-num">${blTN}</div><div class="tb-lbl">TN</div></div>
+      <div class="total-badge rouge"><div class="tb-num">${blTW}</div><div class="tb-lbl">TW</div></div>`;
+
     let html="";
     bons.forEach(b=>{
       html+=`<tr>
@@ -1202,6 +1237,15 @@ function chargerRecus(){
     snap.forEach(d=>recus.push({id:d.id,...d.data()}));
     const ch=G("rc-filtre-chauffeur").value;
     if(ch) recus=recus.filter(r=>r.chauffeur_uid===ch);
+    // Totaux reçus
+    const totalRC = recus.length;
+    const totalMontant = recus.reduce((s,r)=>s+(r.montant||0),0);
+    const rcChauffeursUniq = [...new Set(recus.map(r=>r.chauffeur_nom).filter(Boolean))];
+    if(G("rc-totaux")) G("rc-totaux").innerHTML=`
+      <div class="total-badge"><div class="tb-num">${totalRC}</div><div class="tb-lbl">Total reçus</div></div>
+      <div class="total-badge vert"><div class="tb-num">${totalMontant.toFixed(2).replace(".",",")} €</div><div class="tb-lbl">Total espèces</div></div>
+      <div class="total-badge"><div class="tb-num">${rcChauffeursUniq.length}</div><div class="tb-lbl">Chauffeurs</div></div>`;
+
     let html="";
     recus.forEach(r=>{
       html+=`<tr>
@@ -1509,6 +1553,13 @@ function chargerGPS(){
         <td>${mapsUrl?`<a href="${mapsUrl}" target="_blank" class="btn btn-secondary btn-sm" style="text-decoration:none">🗺️ Carte</a>`:`<span style="color:var(--gris3);font-size:11px">—</span>`}</td>
       </tr>`;
     });
+    // Totaux GPS
+    const dureeTotal=bons.reduce((s,b)=>s+(b.duree_trajet_min||0),0);
+    const dh=Math.floor(dureeTotal/60),dm=dureeTotal%60;
+    const gpsEl=G("gps-totaux");
+    if(gpsEl) gpsEl.innerHTML=`
+      <div class="total-badge"><div class="tb-num">${bons.length}</div><div class="tb-lbl">Trajets</div></div>
+      <div class="total-badge vert"><div class="tb-num">${dh}h${("0"+dm).slice(-2)}</div><div class="tb-lbl">Durée totale</div></div>`;
     G("gps-tbody").innerHTML=html||`<tr><td colspan="7" style="text-align:center;color:var(--gris3);padding:24px">Aucun trajet</td></tr>`;
     loader(false);
   }).catch(()=>loader(false));
