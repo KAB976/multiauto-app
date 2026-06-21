@@ -1337,7 +1337,12 @@ function chargerCamions(){
     list.sort((a,b)=>a.nom.localeCompare(b.nom));
     let html="";
     list.forEach(cam=>{
-      const ch=chauffeursList.find(c=>c.identifiant===cam.chauffeur_defaut);
+      // Chercher par UID, identifiant ou nom
+      const ch=chauffeursList.find(c=>
+        c.id===cam.chauffeur_defaut ||
+        c.identifiant===cam.chauffeur_defaut ||
+        c.nom===cam.chauffeur_defaut
+      );
       html+=`<tr>
         <td><strong>${cam.nom||"—"}</strong></td>
         <td style="font-family:monospace;font-size:12px">${cam.immat||"<span style='color:var(--gris3)'>À renseigner</span>"}</td>
@@ -1370,10 +1375,14 @@ function editerCamion(id){
 function sauvegarderCamion(){
   const nom=G("cam-nom").value.trim(), immat=G("cam-immat").value.trim().toUpperCase();
   const marque=G("cam-marque").value.trim(), modele=G("cam-modele").value.trim();
-  const annee=G("cam-annee").value, ch=G("cam-chauffeur").value;
+  const annee=G("cam-annee").value;
+  const chVal=G("cam-chauffeur").value;
+  // Stocker le nom du chauffeur (pas l'UID)
+  const chObj=chauffeursList.find(c=>c.id===chVal||c.nom===chVal);
+  const ch=chObj?chObj.nom:chVal;
   if(!nom){ toast("Nom obligatoire","err"); return; }
   loader(true);
-  const data={nom,immat,marque,modele,annee,chauffeur_defaut:ch,actif:true};
+  const data={nom,immat,marque,modele,annee,chauffeur_defaut:ch,actif:true,chauffeur_defaut_uid:chVal||''};
   const p=editingId ? db.collection("vehicules").doc(editingId).update(data) : db.collection("vehicules").add({...data,createdAt:firebase.firestore.FieldValue.serverTimestamp()});
   p.then(()=>{ toast(editingId?"Modifié ✅":"Ajouté ✅"); fermerModal("modal-camion"); chargerCamions(); chargerListeCamions(); loader(false); })
    .catch(()=>{ toast("Erreur","err"); loader(false); });
