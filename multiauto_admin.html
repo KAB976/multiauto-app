@@ -4,6 +4,8 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Multi Auto — Administration</title>
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.8.2/jspdf.plugin.autotable.min.js"></script>
 <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-app-compat.js"></script>
@@ -190,6 +192,9 @@ input:checked+.sw-slider:before{transform:translateX(20px)}
 .total-badge.violet{border-color:var(--violet)}.total-badge.violet .tb-num{color:var(--violet)}
 .total-badge.jaune{border-color:var(--jaune)}.total-badge.jaune .tb-num{color:var(--jaune)}
 
+
+.btn:disabled, .btn[disabled]{opacity:.4;cursor:not-allowed;pointer-events:none}
+
 /* ══ GRAPHIQUES ══ */
 .chart-bar-wrap{margin-top:10px}
 .chart-row{display:flex;align-items:center;gap:10px;margin-bottom:8px}
@@ -281,6 +286,20 @@ input:checked+.sw-slider:before{transform:translateX(20px)}
     <button class="btn btn-secondary" onclick="fermerModal('modal-pc')">Annuler</button>
     <button class="btn btn-danger btn-sm" onclick="annulerPC()" id="btn-annuler-pc" style="display:none">✕ Annuler mission</button>
     <button class="btn btn-primary" onclick="sauvegarderPC()">💾 Enregistrer</button>
+  </div>
+</div>
+</div>
+
+
+<!-- MODAL CARTE GPS -->
+<div class="modal-bg" id="modal-gps-carte">
+<div class="modal" style="max-width:700px;width:95%">
+  <div class="modal-title" id="gps-carte-titre">🗺️ Trajet</div>
+  <div style="background:var(--gris2);border-radius:8px;padding:10px;font-size:12px;margin-bottom:10px" id="gps-carte-info"></div>
+  <div id="gps-map" style="height:380px;border-radius:10px;border:1px solid var(--gris2)"></div>
+  <div class="modal-footer">
+    <button class="btn btn-secondary" onclick="fermerModal('modal-gps-carte')">Fermer</button>
+    <button class="btn btn-primary" id="btn-gmaps" onclick="" target="_blank">🗺️ Ouvrir Google Maps</button>
   </div>
 </div>
 </div>
@@ -470,8 +489,12 @@ input:checked+.sw-slider:before{transform:translateX(20px)}
           <select class="filtre-inp" id="bl-filtre-chauffeur"><option value="">Tous les chauffeurs</option></select>
           <select class="filtre-inp" id="bl-filtre-tarif"><option value="">Tous tarifs</option><option value="NORMAL">Normal</option><option value="TN">TN</option><option value="TW">TW</option></select>
           <button class="btn btn-primary" onclick="chargerBons()">🔍 Filtrer</button>
-          <button class="btn btn-secondary" onclick="exporterBonsPDF()">⬇ Export PDF</button>
-          <button class="btn btn-danger" onclick="supprimerSelection('bons')">🗑 Supprimer sélection</button>
+          <span id="selection-bl-lbl" style="font-size:12px;font-weight:700;color:var(--rouge)"></span>
+          <button class="btn btn-secondary btn-sm" id="btn-voir-bl-sel" onclick="voirSelectionBL()" disabled>👁 Voir</button>
+          <button class="btn btn-secondary btn-sm" id="btn-imprimer-bl-sel" onclick="imprimerSelectionBL()" disabled>🖨 Imprimer</button>
+          <button class="btn btn-secondary btn-sm" id="btn-telecharger-bl-sel" onclick="telechargerSelectionBL()" disabled>⬇ Télécharger</button>
+          <button class="btn btn-danger btn-sm" id="btn-supprimer-bl-sel" onclick="supprimerSelectionBL()" disabled>🗑 Supprimer</button>
+          <button class="btn btn-secondary btn-sm" onclick="exporterBonsPDF()">⬇ Tout exporter</button>
         </div>
         <div class="table-wrap">
           <table>
@@ -497,8 +520,12 @@ input:checked+.sw-slider:before{transform:translateX(20px)}
           <input class="filtre-inp" type="date" id="rc-date-fin">
           <select class="filtre-inp" id="rc-filtre-chauffeur"><option value="">Tous les chauffeurs</option></select>
           <button class="btn btn-primary" onclick="chargerRecus()">🔍 Filtrer</button>
-          <button class="btn btn-secondary" onclick="exporterRecusPDF()">⬇ Export PDF</button>
-          <button class="btn btn-danger" onclick="supprimerSelection('recus')">🗑 Supprimer sélection</button>
+          <span id="selection-rc-lbl" style="font-size:12px;font-weight:700;color:var(--rouge)"></span>
+          <button class="btn btn-secondary btn-sm" id="btn-voir-rc-sel" onclick="voirSelectionRC()" disabled>👁 Voir</button>
+          <button class="btn btn-secondary btn-sm" id="btn-imprimer-rc-sel" onclick="imprimerSelectionRC()" disabled>🖨 Imprimer</button>
+          <button class="btn btn-secondary btn-sm" id="btn-telecharger-rc-sel" onclick="telechargerSelectionRC()" disabled>⬇ Télécharger</button>
+          <button class="btn btn-danger btn-sm" id="btn-supprimer-rc-sel" onclick="supprimerSelectionRC()" disabled>🗑 Supprimer</button>
+          <button class="btn btn-secondary btn-sm" onclick="exporterRecusPDF()" title="Exporter tout">⬇ Tout exporter</button>
         </div>
         <div class="table-wrap">
           <table>
@@ -619,11 +646,13 @@ input:checked+.sw-slider:before{transform:translateX(20px)}
       </div>
       <div class="totaux-bar" id="gps-totaux"></div>
       <div class="totaux-bar" id="gps-totaux"></div>
+      <div class="totaux-bar" id="gps-totaux-admin"></div>
       <div class="filtres">
         <input class="filtre-inp" type="date" id="gps-debut">
         <input class="filtre-inp" type="date" id="gps-fin">
         <select class="filtre-inp" id="gps-chauffeur"><option value="">Tous chauffeurs</option></select>
         <button class="btn btn-primary" onclick="chargerGPS()">🔍 Filtrer</button>
+        <button class="btn btn-secondary" onclick="exporterGPSPDF()">⬇ Export PDF</button>
       </div>
       <div class="card">
         <div class="table-wrap">
@@ -1079,7 +1108,14 @@ function seConnecter(){
       G("sb-role").textContent = userAdmin.role==="admin" ? "Administrateur" : "Secrétaire";
       return Promise.all([chargerListeChauffeurs(), chargerListeCamions()]);
     })
-    .then(()=>{ chargerDashboard(); chargerBons(); chargerRecus(); })
+    .then(()=>{
+      chargerDashboard(); chargerBons(); chargerRecus();
+      // Remplir selects GPS
+      const selGPS=G("gps-chauffeur");
+      if(selGPS && selGPS.options.length<=1){
+        chauffeursList.forEach(ch=>{const o=document.createElement("option");o.value=ch.id;o.textContent=ch.nom;selGPS.appendChild(o);});
+      }
+    })
     .catch(e=>{
       loader(false);
       G("login-err").textContent = e.message==="Accès non autorisé" ? "Accès non autorisé" : "Identifiant ou mot de passe incorrect";
@@ -1200,7 +1236,7 @@ function chargerBons(){
     let html="";
     bons.forEach(b=>{
       html+=`<tr>
-        <td><input type="checkbox" class="bl-check" data-id="${b.id}"></td>
+        <td><input type="checkbox" class="bl-check" data-id="${b.id}" onchange="majBoutonsSelection('bl')"></td>
         <td><span style="font-weight:700;color:var(--bleu);font-size:12px">${b.bon_num||"—"}</span></td>
         <td>${b.date_bl||"—"}</td><td>${b.heure_bl||"—"}</td>
         <td><span class="badge ${b.tarif==="NORMAL"?"tarif-normal":b.tarif==="TN"?"tarif-tn":"tarif-tw"}">${b.tarif||"—"}</span></td>
@@ -1246,7 +1282,7 @@ function chargerRecus(){
     let html="";
     recus.forEach(r=>{
       html+=`<tr>
-        <td><input type="checkbox" class="rc-check" data-id="${r.id}"></td>
+        <td><input type="checkbox" class="rc-check" data-id="${r.id}" onchange="majBoutonsSelection('rc')"></td>
         <td><span style="font-weight:700;color:var(--vert);font-size:12px">${r.recu_num||"—"}</span></td>
         <td>${r.date||"—"}</td><td>${r.chauffeur_nom||"—"}</td>
         <td style="font-weight:600">${r.nom_client||"—"}</td>
@@ -1755,6 +1791,34 @@ function chargerHistCarburant(){
 function supprimerCarburant(id){ if(!confirm("Supprimer ?")) return; db.collection("carburant").doc(id).delete().then(()=>{ toast("Supprimé ✅"); chargerHistCarburant(); }); }
 function exporterHistMagPDF(){ toast("Export PDF — prochaine étape 📄"); }
 function exporterHistPCPDF(){ toast("Export PDF — prochaine étape 📄"); }
+function exporterGPSPDF(){
+  loader(true,"Export GPS...");
+  const {jsPDF}=window.jspdf;
+  const doc=new jsPDF('landscape','mm','a4');
+  doc.setFont('helvetica','bold'); doc.setFontSize(14);
+  doc.setTextColor(200,52,26);
+  doc.text('GPS & TRAJETS — '+SOC.nom, 148, 15, {align:'center'});
+  doc.setFontSize(9); doc.setTextColor(100,100,100);
+  doc.text('Généré le '+new Date().toLocaleDateString('fr-FR'), 148, 21, {align:'center'});
+  const rows=[];
+  document.querySelectorAll('#gps-tbody tr').forEach(tr=>{
+    const cells=[]; tr.querySelectorAll('td').forEach(td=>cells.push(td.textContent.trim().replace(/\s+/g,' ')));
+    if(cells.length>2) rows.push(cells.slice(0,7));
+  });
+  doc.autoTable({
+    startY:26,
+    head:[['Date','Chauffeur','Embarquement','Destination','Durée','Tarif','Carte']],
+    body:rows,
+    headStyles:{fillColor:[26,37,64],textColor:255,fontStyle:'bold',fontSize:7},
+    bodyStyles:{fontSize:7},
+    alternateRowStyles:{fillColor:[246,246,246]},
+    margin:{left:10,right:10}
+  });
+  pdfPied(doc);
+  doc.save('trajets-gps.pdf');
+  loader(false); toast("GPS exporté ✅");
+}
+
 function exporterHistCarburantPDF(){
   loader(true,"Export carburant...");
   const {jsPDF}=window.jspdf;
@@ -2289,72 +2353,79 @@ function imprimerRecu(id){
 
 // Export PDF liste BL
 function exporterBonsPDF(){
-  loader(true,"Export liste BL...");
-  db.collection("bons").orderBy("timestamp","desc").limit(300).get().then(snap=>{
-    const { jsPDF } = window.jspdf;
-    const doc = new jsPDF('landscape','mm','a4');
-    doc.setFont('helvetica','bold');
-    doc.setFontSize(14);
-    doc.setTextColor(200,52,26);
-    doc.text('LISTE DES BONS DE LIVRAISON — '+SOC.nom, 148, 15, {align:'center'});
-    doc.setFontSize(9); doc.setTextColor(100,100,100);
-    doc.text('Généré le '+new Date().toLocaleDateString('fr-FR'), 148, 21, {align:'center'});
-    
-    const rows=[];
-    snap.forEach(d=>{
-      const b=d.data();
-      rows.push([b.bon_num||'—',b.date_bl||'—',b.heure_bl||'—',b.tarif||'—',b.chauffeur_nom||'—',b.nom_client||'—',b.marque+' '+b.modele,b.lieu_embarquement+' → '+b.destination,b.especes?(b.montant_especes||0).toFixed(2)+' €':'—']);
+  loader(true,"Export BL...");
+  const {jsPDF}=window.jspdf;
+  const doc=new jsPDF('landscape','mm','a4');
+  doc.setFont('helvetica','bold'); doc.setFontSize(14);
+  doc.setTextColor(200,52,26);
+  doc.text('LISTE DES BONS DE LIVRAISON — '+SOC.nom, 148, 15, {align:'center'});
+  doc.setFontSize(9); doc.setTextColor(100,100,100);
+  doc.text('Généré le '+new Date().toLocaleDateString('fr-FR'), 148, 21, {align:'center'});
+
+  // Vérifier si des cases sont cochées
+  const cochees = document.querySelectorAll('.bl-check:checked');
+  const rows=[];
+
+  if(cochees.length > 0){
+    // Exporter uniquement les lignes sélectionnées
+    doc.text('Sélection : '+cochees.length+' bon(s)', 148, 26, {align:'center'});
+    cochees.forEach(cb=>{
+      const tr=cb.closest('tr');
+      const cells=[]; 
+      tr.querySelectorAll('td').forEach((td,i)=>{ if(i>0 && i<11) cells.push(td.textContent.trim()); });
+      if(cells.length>1) rows.push(cells.slice(0,9));
     });
-    
-    doc.autoTable({
-      startY:26,
-      head:[['N° BL','Date','Heure','Tarif','Chauffeur','Client','Véhicule','Trajet','Espèces']],
-      body:rows,
-      headStyles:{fillColor:[26,37,64],textColor:255,fontStyle:'bold',fontSize:7},
-      bodyStyles:{fontSize:7},
-      alternateRowStyles:{fillColor:[246,246,246]},
-      margin:{left:10,right:10}
+  } else {
+    // Exporter tout ce qui est affiché dans le tableau
+    document.querySelectorAll('#bons-tbody tr').forEach(tr=>{
+      const cells=[];
+      tr.querySelectorAll('td').forEach((td,i)=>{ if(i>0 && i<11) cells.push(td.textContent.trim()); });
+      if(cells.length>1) rows.push(cells.slice(0,9));
     });
-    
-    pdfPied(doc);
-    doc.save('liste-bons-livraison.pdf');
-    loader(false); toast("Liste BL exportée ✅");
-  }).catch(()=>{ loader(false); toast("Erreur","err"); });
+  }
+
+  doc.autoTable({
+    startY:30,
+    head:[['N° BL','Date','Heure','Tarif','Chauffeur','Client','Véhicule','Trajet','Espèces']],
+    body:rows,
+    headStyles:{fillColor:[26,37,64],textColor:255,fontStyle:'bold',fontSize:7},
+    bodyStyles:{fontSize:7},
+    alternateRowStyles:{fillColor:[246,246,246]},
+    margin:{left:10,right:10}
+  });
+  pdfPied(doc);
+  doc.save('bons-livraison'+(cochees.length>0?'-selection':'')+'.pdf');
+  loader(false); toast(cochees.length>0?cochees.length+" BL exportés ✅":"Liste BL exportée ✅");
 }
 
 function exporterRecusPDF(){
-  loader(true,"Export liste reçus...");
-  db.collection("recus").orderBy("timestamp","desc").limit(200).get().then(snap=>{
-    const { jsPDF } = window.jspdf;
-    const doc = new jsPDF('landscape','mm','a4');
-    doc.setFont('helvetica','bold'); doc.setFontSize(14);
-    doc.setTextColor(200,52,26);
-    doc.text('LISTE DES REÇUS ESPÈCES — '+SOC.nom, 148, 15, {align:'center'});
-    doc.setFontSize(9); doc.setTextColor(100,100,100);
-    doc.text('Généré le '+new Date().toLocaleDateString('fr-FR'), 148, 21, {align:'center'});
-    
-    let total=0;
-    const rows=[];
-    snap.forEach(d=>{
-      const r=d.data(); total+=r.montant||0;
-      rows.push([r.recu_num||'—',r.date||'—',r.chauffeur_nom||'—',r.nom_client||'—',r.marque+' '+r.modele,r.mission||'—',(r.montant||0).toFixed(2)+' €',r.bon_num||'—']);
-    });
-    rows.push(['','','','','','TOTAL',total.toFixed(2)+' €','']);
-    
-    doc.autoTable({
-      startY:26,
-      head:[['N° Reçu','Date','Chauffeur','Client','Véhicule','Mission','Montant','N° BL']],
-      body:rows,
-      headStyles:{fillColor:[26,37,64],textColor:255,fontStyle:'bold',fontSize:7},
-      bodyStyles:{fontSize:7},
-      alternateRowStyles:{fillColor:[246,246,246]},
-      margin:{left:10,right:10}
-    });
-    
-    pdfPied(doc);
-    doc.save('liste-recus-especes.pdf');
-    loader(false); toast("Liste reçus exportée ✅");
-  }).catch(()=>{ loader(false); toast("Erreur","err"); });
+  loader(true,"Export reçus...");
+  const {jsPDF}=window.jspdf;
+  const doc=new jsPDF('landscape','mm','a4');
+  doc.setFont('helvetica','bold'); doc.setFontSize(14);
+  doc.setTextColor(200,52,26);
+  doc.text('LISTE DES REÇUS ESPÈCES — '+SOC.nom, 148, 15, {align:'center'});
+  doc.setFontSize(9); doc.setTextColor(100,100,100);
+  doc.text('Généré le '+new Date().toLocaleDateString('fr-FR'), 148, 21, {align:'center'});
+  const cochees=document.querySelectorAll('.rc-check:checked');
+  const rows=[]; let total=0;
+  const source = cochees.length>0 ? Array.from(cochees).map(cb=>cb.closest('tr')) : Array.from(document.querySelectorAll('#recus-tbody tr'));
+  if(cochees.length>0) doc.text('Sélection : '+cochees.length+' reçu(s)', 148, 26, {align:'center'});
+  source.forEach(tr=>{
+    const cells=[];
+    tr.querySelectorAll('td').forEach((td,i)=>{ if(i>0 && i<10) cells.push(td.textContent.trim()); });
+    if(cells.length>1){
+      const m=parseFloat((cells[6]||'0').replace(',','.').replace(/[€ \s]/g,''))||0;
+      total+=m; rows.push(cells.slice(0,8));
+    }
+  });
+  rows.push(['','','','','','TOTAL',total.toFixed(2).replace('.',',')+' €','']);
+  doc.autoTable({startY:30,head:[['N° Reçu','Date','Chauffeur','Client','Véhicule','Mission','Montant','N° BL']],body:rows,
+    headStyles:{fillColor:[26,37,64],textColor:255,fontStyle:'bold',fontSize:7},bodyStyles:{fontSize:7},
+    alternateRowStyles:{fillColor:[246,246,246]},margin:{left:10,right:10}});
+  pdfPied(doc);
+  doc.save('recus'+(cochees.length>0?'-selection':'')+'.pdf');
+  loader(false); toast(cochees.length>0?cochees.length+' reçu(s) exportés ✅':'Liste reçus exportée ✅');
 }
 
 function exporterStatsPDF(){
@@ -2480,6 +2551,271 @@ setTimeout(initPDFSociete, 2000);
 document.addEventListener("keydown", function(e){
   if(e.key==="Enter") seConnecter();
 });
+
+
+
+// ════════════════════════════════════
+// GPS ADMIN
+// ════════════════════════════════════
+function chargerGPS(){
+  loader(true,"Chargement GPS...");
+  // Remplir select chauffeurs
+  const selCh=G("gps-chauffeur");
+  if(selCh && selCh.options.length<=1){
+    chauffeursList.forEach(ch=>{
+      const o=document.createElement("option");
+      o.value=ch.id; o.textContent=ch.nom;
+      selCh.appendChild(o);
+    });
+  }
+  
+  db.collection("bons").orderBy("timestamp","desc").limit(300).get().then(snap=>{
+    let bons=[]; snap.forEach(d=>bons.push({id:d.id,...d.data()}));
+    
+    // Filtres
+    const ch=G("gps-chauffeur").value;
+    const debut=G("gps-debut").value;
+    const fin=G("gps-fin").value;
+    function toComp(d){ if(!d) return ""; const p=d.split("/"); return p.length===3?p[2]+"-"+p[1]+"-"+p[0]:d; }
+    if(ch)    bons=bons.filter(b=>b.chauffeur_uid===ch);
+    if(debut) bons=bons.filter(b=>toComp(b.date_bl)>=debut);
+    if(fin)   bons=bons.filter(b=>toComp(b.date_bl)<=fin);
+    // Garder seulement les BL avec embarquement et destination
+    bons=bons.filter(b=>b.lieu_embarquement||b.destination);
+    
+    // Totaux
+    const dureeTotal=bons.reduce((s,b)=>s+(b.duree_trajet_min||0),0);
+    const dh=Math.floor(dureeTotal/60), dm=dureeTotal%60;
+    const gpsEl=G("gps-totaux-admin")||G("gps-totaux");
+    if(gpsEl) gpsEl.innerHTML=`
+      <div class="total-badge"><div class="tb-num">${bons.length}</div><div class="tb-lbl">Trajets</div></div>
+      <div class="total-badge vert"><div class="tb-num">${dh}h${("0"+dm).slice(-2)}</div><div class="tb-lbl">Durée totale</div></div>
+      <div class="total-badge"><div class="tb-num">${chauffeursList.length}</div><div class="tb-lbl">Chauffeurs</div></div>`;
+    
+    let html="";
+    bons.forEach(b=>{
+      const min=b.duree_trajet_min||0;
+      const duree=min>0?(min>=60?Math.floor(min/60)+"h"+("0"+(min%60)).slice(-2)+"min":min+"min"):"—";
+      
+      // URL Google Maps
+      let mapsUrl="";
+      if(b.gps_emb_lat&&b.gps_dest_lat)
+        mapsUrl="https://www.google.com/maps/dir/"+b.gps_emb_lat+","+b.gps_emb_lng+"/"+b.gps_dest_lat+","+b.gps_dest_lng;
+      else if(b.lieu_embarquement&&b.destination)
+        mapsUrl="https://www.google.com/maps/dir/"+encodeURIComponent(b.lieu_embarquement+", Mayotte")+"/"+encodeURIComponent(b.destination+", Mayotte");
+      
+      // Données pour carte
+      const bonData=JSON.stringify({
+        lieu_embarquement:b.lieu_embarquement||"",
+        destination:b.destination||"",
+        chauffeur_nom:b.chauffeur_nom||"",
+        date_bl:b.date_bl||"",
+        heure_bl:b.heure_bl||"",
+        tarif:b.tarif||"",
+        duree_trajet_min:b.duree_trajet_min||0,
+        gps_emb_lat:b.gps_emb_lat||null,
+        gps_emb_lng:b.gps_emb_lng||null,
+        gps_dest_lat:b.gps_dest_lat||null,
+        gps_dest_lng:b.gps_dest_lng||null
+      }).replace(/'/g,"\'");
+      
+      html+=`<tr>
+        <td><strong>${b.date_bl||"—"}</strong><br><span style="font-size:10px;color:var(--gris3)">${b.heure_bl||""}</span></td>
+        <td>${b.chauffeur_nom||"—"}</td>
+        <td><strong>${b.lieu_embarquement||"—"}</strong>${b.heure_embarquement?`<br><span style="font-size:10px;color:var(--bleu)">⏱ ${b.heure_embarquement}</span>`:""}</td>
+        <td><strong>${b.destination||"—"}</strong>${b.heure_arrivee?`<br><span style="font-size:10px;color:var(--bleu)">⏱ ${b.heure_arrivee}</span>`:""}</td>
+        <td style="font-weight:700;color:var(--vert)">${duree}</td>
+        <td><span class="badge ${b.tarif==="NORMAL"?"tarif-normal":b.tarif==="TN"?"tarif-tn":"tarif-tw"}">${b.tarif||"—"}</span></td>
+        <td><div style="display:flex;gap:4px;flex-wrap:wrap">
+          <button class="btn btn-primary btn-sm" onclick='ouvrirCarteGPS(${bonData})'>🗺️ Carte</button>
+          ${mapsUrl?`<a href="${mapsUrl}" target="_blank" class="btn btn-secondary btn-sm" style="text-decoration:none">📍 GMaps</a>`:""}
+        </div></td>
+      </tr>`;
+    });
+    
+    G("gps-tbody").innerHTML=html||`<tr><td colspan="7" style="text-align:center;color:var(--gris3);padding:24px">Aucun trajet trouvé — cliquez sur Filtrer</td></tr>`;
+    loader(false);
+  }).catch(e=>{ console.error(e); loader(false); toast("Erreur GPS","err"); });
+}
+
+// ════════════════════════════════════
+// CARTE GPS LEAFLET
+// ════════════════════════════════════
+let leafletMap = null;
+
+function ouvrirCarteGPS(bon){
+  G("gps-carte-titre").textContent = "🗺️ " + (bon.lieu_embarquement||"—") + " → " + (bon.destination||"—");
+  G("gps-carte-info").innerHTML = `
+    <strong>${bon.chauffeur_nom||"—"}</strong> — ${bon.date_bl||"—"} ${bon.heure_bl||""} — 
+    <span class="badge ${bon.tarif==="NORMAL"?"tarif-normal":bon.tarif==="TN"?"tarif-tn":"tarif-tw"}">${bon.tarif||""}</span>
+    ${bon.duree_trajet_min?` — ⏱ ${Math.floor(bon.duree_trajet_min/60)}h${("0"+(bon.duree_trajet_min%60)).slice(-2)}min`:""}
+  `;
+  
+  G("modal-gps-carte").classList.add("on");
+  
+  // Détruire ancienne carte
+  if(leafletMap){ leafletMap.remove(); leafletMap=null; }
+  
+  setTimeout(()=>{
+    const hasCoords = bon.gps_emb_lat && bon.gps_dest_lat;
+    
+    if(hasCoords){
+      // Créer la carte avec vraies coordonnées
+      leafletMap = L.map("gps-map");
+      L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png",{
+        attribution:"© OpenStreetMap"
+      }).addTo(leafletMap);
+      
+      // Marqueur embarquement (rouge)
+      const embIcon = L.divIcon({html:'<div style="background:#C8341A;color:white;border-radius:50%;width:28px;height:28px;display:flex;align-items:center;justify-content:center;font-size:14px;font-weight:900;border:2px solid white;box-shadow:0 2px 6px rgba(0,0,0,.4)">A</div>',iconSize:[28,28],className:""});
+      const destIcon = L.divIcon({html:'<div style="background:#1A7A40;color:white;border-radius:50%;width:28px;height:28px;display:flex;align-items:center;justify-content:center;font-size:14px;font-weight:900;border:2px solid white;box-shadow:0 2px 6px rgba(0,0,0,.4)">B</div>',iconSize:[28,28],className:""});
+      
+      const embLatLng = [bon.gps_emb_lat, bon.gps_emb_lng];
+      const destLatLng = [bon.gps_dest_lat, bon.gps_dest_lng];
+      
+      L.marker(embLatLng, {icon:embIcon}).addTo(leafletMap)
+        .bindPopup("<strong>Départ :</strong> "+bon.lieu_embarquement);
+      L.marker(destLatLng, {icon:destIcon}).addTo(leafletMap)
+        .bindPopup("<strong>Arrivée :</strong> "+bon.destination);
+      
+      // Ligne entre les deux points
+      L.polyline([embLatLng, destLatLng], {color:"#C8341A",weight:3,dashArray:"8 4"}).addTo(leafletMap);
+      
+      // Ajuster la vue
+      leafletMap.fitBounds([embLatLng, destLatLng], {padding:[30,30]});
+      
+      // Bouton Google Maps avec vraies coords
+      const gmapsUrl = "https://www.google.com/maps/dir/"+bon.gps_emb_lat+","+bon.gps_emb_lng+"/"+bon.gps_dest_lat+","+bon.gps_dest_lng;
+      G("btn-gmaps").onclick = ()=>window.open(gmapsUrl,"_blank");
+      
+    } else {
+      // Pas de coordonnées GPS — chercher par nom de lieu
+      leafletMap = L.map("gps-map").setView([-12.78, 45.23], 11); // Mayotte
+      L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png",{
+        attribution:"© OpenStreetMap"
+      }).addTo(leafletMap);
+      
+      // Message
+      L.popup().setLatLng([-12.78, 45.23]).setContent(
+        "<div style='text-align:center;padding:8px'><strong>Coordonnées GPS non disponibles</strong><br>Utilisez Google Maps pour voir le trajet</div>"
+      ).openOn(leafletMap);
+      
+      // Bouton Google Maps avec noms de lieux
+      const gmapsUrl = "https://www.google.com/maps/dir/"+
+        encodeURIComponent((bon.lieu_embarquement||"")+", Mayotte")+"/"+
+        encodeURIComponent((bon.destination||"")+", Mayotte");
+      G("btn-gmaps").onclick = ()=>window.open(gmapsUrl,"_blank");
+    }
+  }, 200);
+}
+
+// ════════════════════════════════════
+// GESTION SÉLECTION — activer/désactiver boutons
+// ════════════════════════════════════
+function majBoutonsSelection(type){
+  const checks = document.querySelectorAll('.'+type+'-check:checked');
+  const nb = checks.length;
+  
+  if(type==='bl'){
+    const btnExp = G('btn-export-bl-sel');
+    const btnImp = G('btn-imprimer-bl-sel');
+    const btnDl  = G('btn-telecharger-bl-sel');
+    const btnDel = G('btn-supprimer-bl-sel');
+    if(btnExp) btnExp.disabled = nb===0;
+    if(btnImp) btnImp.disabled = nb===0;
+    if(btnDl)  btnDl.disabled  = nb===0;
+    if(btnDel) btnDel.disabled = nb===0;
+    // Mettre à jour le label
+    const lbl = G('selection-bl-lbl');
+    if(lbl) lbl.textContent = nb>0 ? nb+' sélectionné(s)' : '';
+  }
+  if(type==='rc'){
+    const btnExp = G('btn-export-rc-sel');
+    const btnImp = G('btn-imprimer-rc-sel');
+    const btnDl  = G('btn-telecharger-rc-sel');
+    const btnDel = G('btn-supprimer-rc-sel');
+    if(btnExp) btnExp.disabled = nb===0;
+    if(btnImp) btnImp.disabled = nb===0;
+    if(btnDl)  btnDl.disabled  = nb===0;
+    if(btnDel) btnDel.disabled = nb===0;
+    const lbl = G('selection-rc-lbl');
+    if(lbl) lbl.textContent = nb>0 ? nb+' sélectionné(s)' : '';
+  }
+}
+
+function toutCocher(prefix){
+  const allCb = G(prefix+'-check-all') || G(prefix+'-all');
+  const isChecked = allCb ? allCb.checked : false;
+  document.querySelectorAll('.'+prefix+'-check').forEach(cb=>cb.checked=isChecked);
+  majBoutonsSelection(prefix);
+}
+
+// Imprimer la sélection BL
+function imprimerSelectionBL(){
+  const cochees = document.querySelectorAll('.bl-check:checked');
+  if(!cochees.length){ toast("Sélectionnez au moins un BL","err"); return; }
+  const ids = Array.from(cochees).map(cb=>cb.dataset.id);
+  if(ids.length===1){
+    imprimerBL(ids[0]);
+  } else {
+    toast("Impression multiple — Export PDF recommandé","info");
+    exporterBonsPDF();
+  }
+}
+
+// Télécharger la sélection BL
+function telechargerSelectionBL(){
+  const cochees = document.querySelectorAll('.bl-check:checked');
+  if(!cochees.length){ toast("Sélectionnez au moins un BL","err"); return; }
+  exporterBonsPDF(); // Exporte uniquement la sélection
+}
+
+// Voir la sélection BL (ouvre le premier)
+function voirSelectionBL(){
+  const cochees = document.querySelectorAll('.bl-check:checked');
+  if(!cochees.length){ toast("Sélectionnez un BL","err"); return; }
+  voirBL(cochees[0].dataset.id);
+  if(cochees.length>1) toast("Aperçu du 1er BL sélectionné — "+cochees.length+" sélectionnés au total");
+}
+
+// Supprimer la sélection BL
+function supprimerSelectionBL(){
+  const cochees = document.querySelectorAll('.bl-check:checked');
+  if(!cochees.length){ toast("Sélectionnez au moins un BL","err"); return; }
+  if(!confirm("Supprimer "+cochees.length+" bon(s) ? Action irréversible.")) return;
+  loader(true,"Suppression...");
+  Promise.all(Array.from(cochees).map(cb=>db.collection("bons").doc(cb.dataset.id).delete()))
+    .then(()=>{ toast(cochees.length+" BL supprimé(s) ✅"); chargerBons(); loader(false); })
+    .catch(()=>{ toast("Erreur","err"); loader(false); });
+}
+
+// Pareil pour reçus
+function imprimerSelectionRC(){
+  const cochees = document.querySelectorAll('.rc-check:checked');
+  if(!cochees.length){ toast("Sélectionnez au moins un reçu","err"); return; }
+  if(cochees.length===1) imprimerRecu(cochees[0].dataset.id);
+  else exporterRecusPDF();
+}
+function telechargerSelectionRC(){
+  const cochees = document.querySelectorAll('.rc-check:checked');
+  if(!cochees.length){ toast("Sélectionnez au moins un reçu","err"); return; }
+  exporterRecusPDF();
+}
+function voirSelectionRC(){
+  const cochees = document.querySelectorAll('.rc-check:checked');
+  if(!cochees.length){ toast("Sélectionnez un reçu","err"); return; }
+  voirRecu(cochees[0].dataset.id);
+}
+function supprimerSelectionRC(){
+  const cochees = document.querySelectorAll('.rc-check:checked');
+  if(!cochees.length){ toast("Sélectionnez au moins un reçu","err"); return; }
+  if(!confirm("Supprimer "+cochees.length+" reçu(s) ?")) return;
+  loader(true);
+  Promise.all(Array.from(cochees).map(cb=>db.collection("recus").doc(cb.dataset.id).delete()))
+    .then(()=>{ toast(cochees.length+" reçu(s) supprimé(s) ✅"); chargerRecus(); loader(false); })
+    .catch(()=>{ toast("Erreur","err"); loader(false); });
+}
+
 </script>
 </body>
 </html>
