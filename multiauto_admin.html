@@ -1694,20 +1694,16 @@ function changerMDP(){
 }
 
 // ── EXPORTS ──
-function imprimerBL(){ window.print(); }
-function voirBL(){ toast("PDF — prochaine étape"); }
-function telechargerBL(){ toast("PDF — prochaine étape"); }
-function exporterBonsPDF(){ toast("PDF — prochaine étape"); }
-function exporterRecusPDF(){ toast("PDF — prochaine étape"); }
-function exporterStatsPDF(){ toast("PDF — prochaine étape"); }
-function exporterCommissionsPDF(){ toast("PDF — prochaine étape"); }
+// [supprimé - doublon]
+// [doublon voirBL supprimé]
+// [doublon telechargerBL supprimé]
+// [doublon exporterBonsPDF supprimé]
+// [doublon exporterRecusPDF supprimé]
+// [supprimé - doublon]
+// [supprimé - doublon]
 
 // ── MODALS ──
-function fermerModal(id){ G(id).classList.remove("on"); }
-document.querySelectorAll(".modal-bg").forEach(m=>m.addEventListener("click",e=>{if(e.target===m)m.classList.remove("on");}));
-document.addEventListener("keydown",e=>{ if(e.key==="Enter" && G("pg-login").style.display!=="none") seConnecter(); });
-document.getElementById("btn-login").addEventListener("click", seConnecter);
-document.getElementById("btn-logout").addEventListener("click", seDeconnecter);
+// [supprimé - doublon]
 
 // ════════════════════════════════════
 // UTILITAIRES HISTORIQUES
@@ -2533,73 +2529,82 @@ function exporterRecusPDF(){
 function exporterStatsPDF(){
   loader(true,"Export stats...");
   const {jsPDF}=window.jspdf;
-  const doc=new jsPDF('landscape','mm','a4');
-  doc.setFont('helvetica','bold'); doc.setFontSize(14);
+  const doc=new jsPDF("landscape","mm","a4");
+  doc.setFont("helvetica","bold"); doc.setFontSize(14);
   doc.setTextColor(200,52,26);
-  doc.text('STATISTIQUES — '+SOC.nom, 148, 15, {align:'center'});
+  doc.text("STATISTIQUES — "+SOC.nom, 148, 15, {align:"center"});
   doc.setFontSize(9); doc.setTextColor(100,100,100);
-  doc.text('Généré le '+new Date().toLocaleDateString('fr-FR'), 148, 21, {align:'center'});
+  doc.text("Généré le "+new Date().toLocaleDateString("fr-FR"), 148, 21, {align:"center"});
 
   let y=28;
   // Cartes stats
-  const cards=document.querySelectorAll('#stats-cards .stat-card');
+  const cards=document.querySelectorAll("#stats-cards .stat-card");
   if(cards.length){
-    const row=[];
-    cards.forEach(card=>{
-      const num=card.querySelector('.stat-num')?.textContent||'';
-      const lbl=card.querySelector('.stat-label')?.textContent||'';
-      row.push(num+'
-'+lbl);
+    const headRow=[], bodyRow=[];
+    cards.forEach((card,i)=>{
+      const num=card.querySelector(".stat-num")?.textContent||"";
+      const lbl=card.querySelector(".stat-label")?.textContent||"";
+      headRow.push(lbl);
+      bodyRow.push(num);
     });
-    doc.autoTable({startY:y,head:[row.map((_,i)=>'Indicateur '+(i+1))],body:[row],
-      headStyles:{fillColor:[26,37,64],textColor:255,fontSize:7},bodyStyles:{fontSize:9,fontStyle:'bold'},margin:{left:10,right:10}});
-    y=doc.lastAutoTable.finalY+6;
+    doc.autoTable({startY:y,head:[headRow],body:[bodyRow],
+      headStyles:{fillColor:[26,37,64],textColor:255,fontSize:7},
+      bodyStyles:{fontSize:11,fontStyle:"bold",halign:"center"},
+      margin:{left:10,right:10}});
+    y=doc.lastAutoTable.finalY+8;
   }
 
-  // Graphiques → tableaux
+  // Graphiques en tableaux
   const charts=[
-    {id:'chart-camions',title:'BL par camion'},
-    {id:'chart-chauffeurs',title:'BL par chauffeur'},
-    {id:'chart-tarifs',title:'Répartition tarifs'},
-    {id:'chart-clients',title:'Top clients'}
+    {id:"chart-camions",title:"BL par camion"},
+    {id:"chart-chauffeurs",title:"BL par chauffeur"},
+    {id:"chart-tarifs",title:"Répartition tarifs"},
+    {id:"chart-clients",title:"Top clients"}
   ];
-  charts.forEach(ch=>{
+  let xPos=10;
+  charts.forEach((ch,ci)=>{
     const el=G(ch.id); if(!el) return;
     const rows=[];
-    el.querySelectorAll('.chart-row').forEach(row=>{
-      const lbl=row.querySelector('.chart-lbl')?.textContent||'';
-      const val=row.querySelector('.chart-val')?.textContent||'';
+    el.querySelectorAll(".chart-row").forEach(row=>{
+      const lbl=row.querySelector(".chart-lbl")?.textContent||"";
+      const val=row.querySelector(".chart-val")?.textContent||"";
       rows.push([lbl,val]);
     });
     if(rows.length){
-      doc.autoTable({startY:y,head:[[ch.title,'Nombre']],body:rows,
-        headStyles:{fillColor:[200,52,26],textColor:255,fontSize:8},
-        bodyStyles:{fontSize:8},margin:{left:10,right:10},tableWidth:80});
-      y=doc.lastAutoTable.finalY+6;
-      if(y>170){doc.addPage();y=20;}
+      doc.autoTable({startY:y,head:[[ch.title,"Nb"]],body:rows,
+        headStyles:{fillColor:[200,52,26],textColor:255,fontSize:7},
+        bodyStyles:{fontSize:7},
+        margin:{left:xPos,right:10},
+        tableWidth:65});
+      if(ci%2===1){ y=doc.lastAutoTable.finalY+6; xPos=10; }
+      else { xPos=85; }
     }
   });
 
   // Mode détail — tableau BL
-  const detailTable=document.getElementById('detail-stats-table');
+  const detailTable=document.getElementById("detail-stats-table");
   if(detailTable){
     const rows=[];
-    detailTable.querySelectorAll('tbody tr').forEach(tr=>{
-      const cells=[]; tr.querySelectorAll('td').forEach(td=>cells.push(td.textContent.trim()));
+    detailTable.querySelectorAll("tbody tr").forEach(tr=>{
+      const cells=[]; tr.querySelectorAll("td").forEach(td=>cells.push(td.textContent.trim()));
       if(cells.length>1) rows.push(cells);
     });
     if(rows.length){
       doc.addPage();
+      doc.setFont("helvetica","bold"); doc.setFontSize(11);
+      doc.setTextColor(200,52,26);
+      doc.text("DÉTAIL DES BONS DE LIVRAISON", 148, 15, {align:"center"});
       doc.autoTable({startY:20,
-        head:[['N° BL','Date','Heure','Tarif','Chauffeur','Client','Véhicule','Trajet','Espèces']],
+        head:[["N° BL","Date","Heure","Tarif","Chauffeur","Client","Véhicule","Trajet","Espèces"]],
         body:rows,
         headStyles:{fillColor:[26,37,64],textColor:255,fontSize:6},
-        bodyStyles:{fontSize:6},margin:{left:10,right:10}});
+        bodyStyles:{fontSize:6},
+        margin:{left:10,right:10}});
     }
   }
 
   pdfPied(doc);
-  doc.save('statistiques.pdf');
+  doc.save("statistiques.pdf");
   loader(false); toast("Stats exportées ✅");
 }
 
