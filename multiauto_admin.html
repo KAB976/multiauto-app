@@ -378,7 +378,7 @@ input:checked+.sw-slider:before{transform:translateX(20px)}
     <input class="inp" id="inp-id" type="text" placeholder="admin ou secretaire" autocomplete="off">
     <span class="fl">Mot de passe</span>
     <input class="inp" id="inp-pw" type="password" placeholder="••••••••">
-    <button class="btn-login" id="btn-login">Se connecter</button>
+    <button class="btn-login" id="btn-login" onclick="seConnecter()">Se connecter</button>
     <div class="login-err" id="login-err">Identifiant ou mot de passe incorrect</div>
   </div>
 </div>
@@ -2643,6 +2643,9 @@ function exporterCommissionsPDF(){
 setTimeout(initPDFSociete, 2000);
 
 
+document.addEventListener("keydown", function(e){
+  if(e.key==="Enter") seConnecter();
+});
 </script>
 </body>
 </html>
