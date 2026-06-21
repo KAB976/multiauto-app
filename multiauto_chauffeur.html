@@ -1361,16 +1361,24 @@ function saisirCarburantRapide(){
       G("rap-success").style.display="block";
       G("btn-rap-valider").style.display="none";
       G("rap-success-detail").textContent = litres+"L — "+montant.toFixed(2).replace(".",",")+" €"+(parseFloat(G("rap-km").value)?" — "+G("rap-km").value+" km":"");
+      // Auto-reset après 4 secondes
+      setTimeout(()=>nouveauPleins(), 4000);
     })
     .catch(e=>{ loader(false); G("rap-alert").textContent="❌ Erreur : "+e.message; G("rap-alert").style.display="block"; });
 }
 
 function nouveauPleins(){
-  ["rap-litres","rap-montant","rap-km","rap-station"].forEach(id=>G(id).value="");
+  // Remettre tout à zéro
+  G("rap-litres").value="";
+  G("rap-montant").value="";
+  G("rap-km").value="";
+  G("rap-station").value="";
   G("rap-date").value=new Date().toISOString().split("T")[0];
   G("rap-success").style.display="none";
   G("btn-rap-valider").style.display="flex";
   G("rap-alert").style.display="none";
+  // Focus sur litres pour saisie rapide
+  setTimeout(()=>G("rap-litres").focus(), 100);
 }
 
 // ════════════════════════════════════

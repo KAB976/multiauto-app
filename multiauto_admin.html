@@ -981,7 +981,7 @@ input:checked+.sw-slider:before{transform:translateX(20px)}
             <thead><tr>
               <th><input type="checkbox" id="hc-check-all" onclick="toutSelectionnerHist('hc-check')"></th>
               <th>Date</th><th>Chauffeur</th><th>Camion</th>
-              <th>Litres</th><th>Montant</th><th>Kilométrage</th><th>L/100km</th><th>Actions</th>
+              <th>Litres</th><th>Montant</th><th>Kilométrage</th><th>Km parcourus</th><th>L/100km</th><th>Actions</th>
             </tr></thead>
             <tbody id="hc-tbody"><tr><td colspan="9" style="text-align:center;color:var(--gris3);padding:24px">Cliquez sur Filtrer</td></tr></tbody>
           </table>
@@ -1848,19 +1848,54 @@ function chargerHistCarburant(){
   loader(true);
   const selCam=G("hc-camion");
   if(selCam && selCam.options.length<=1){ camionsList.forEach(cam=>{ const o=document.createElement("option"); o.value=cam.nom; o.textContent=cam.nom+" "+(cam.immat||""); selCam.appendChild(o); }); }
-  db.collection("carburant").orderBy("timestamp","desc").limit(500).get().then(snap=>{
+  db.collection("carburant").orderBy("kilometrage","asc").get().then(snap=>{
     let list=[]; snap.forEach(d=>list.push({id:d.id,...d.data()}));
     const cam=G("hc-camion").value, mode=G("hc-mode").value;
     if(cam) list=list.filter(f=>f.camion===cam);
+
+    // Calculer km parcourus entre 2 pleins consécutifs par camion
+    // Trier par camion puis kilométrage croissant
+    const parCamion={};
+    list.forEach(f=>{
+      const c2=f.camion||"?";
+      if(!parCamion[c2]) parCamion[c2]=[];
+      parCamion[c2].push(f);
+    });
+    // Calculer km_parcourus pour chaque entrée
+    list.forEach(f=>{ f.km_parcourus=null; f.conso=null; });
+    Object.values(parCamion).forEach(entries=>{
+      entries.sort((a,b)=>(a.kilometrage||0)-(b.kilometrage||0));
+      for(let i=1;i<entries.length;i++){
+        const km1=entries[i-1].kilometrage||0;
+        const km2=entries[i].kilometrage||0;
+        const dist=km2-km1;
+        if(dist>0 && dist<5000){ // Filtre anti-aberrant
+          entries[i].km_parcourus=dist;
+          if(entries[i].litres && dist>0)
+            entries[i].conso=(entries[i].litres/dist*100).toFixed(1);
+        }
+      }
+    });
+
+    // Trier par date desc pour affichage
+    list.sort((a,b)=>(b.date||"").localeCompare(a.date||""));
+
     const totalL=list.reduce((s,f)=>s+(f.litres||0),0);
     const totalM=list.reduce((s,f)=>s+(f.montant||0),0);
+    const totalKm=list.reduce((s,f)=>s+(f.km_parcourus||0),0);
+    const consoMoy=totalKm>0?(totalL/totalKm*100).toFixed(1)+"L/100":"—";
+
     G("hc-stats").innerHTML=`
       <div class="stat-card"><div class="stat-num">${list.length}</div><div class="stat-label">Pleins</div></div>
       <div class="stat-card" style="border-left-color:var(--jaune)"><div class="stat-num">${totalL.toFixed(0)} L</div><div class="stat-label">Total litres</div></div>
-      <div class="stat-card" style="border-left-color:var(--rouge)"><div class="stat-num">${fmtMontant(totalM)}</div><div class="stat-label">Total dépenses</div></div>`;
+      <div class="stat-card" style="border-left-color:var(--rouge)"><div class="stat-num">${fmtMontant(totalM)}</div><div class="stat-label">Total dépenses</div></div>
+      <div class="stat-card" style="border-left-color:var(--bleu)"><div class="stat-num">${totalKm} km</div><div class="stat-label">Km parcourus</div></div>
+      <div class="stat-card" style="border-left-color:var(--vert)"><div class="stat-num">${consoMoy}</div><div class="stat-label">Conso moyenne</div></div>`;
+
     let html="";
     list.forEach(f=>{
-      const conso=(f.litres&&f.distance_km)?(f.litres/f.distance_km*100).toFixed(1)+" L/100":"—";
+      const conso=f.conso?f.conso+" L/100":"—";
+      const kmP=f.km_parcourus?f.km_parcourus+" km":"—";
       html+=`<tr>
         <td><input type="checkbox" class="hc-check" data-id="${f.id}"></td>
         <td>${f.date||"—"}</td><td>${f.chauffeur_nom||"—"}</td>
@@ -1868,6 +1903,7 @@ function chargerHistCarburant(){
         <td style="font-weight:700;color:var(--bleu)">${f.litres||"—"} L</td>
         <td style="font-weight:700;color:var(--rouge)">${fmtMontant(f.montant)}</td>
         <td style="font-family:monospace">${f.kilometrage||"—"} km</td>
+        <td style="font-weight:700;color:var(--bleu)">${kmP}</td>
         <td style="font-weight:700;color:var(--vert)">${conso}</td>
         <td><div style="display:flex;gap:4px">
           <button class="btn btn-secondary btn-sm btn-icon" onclick="imprimerPage()">🖨</button>
@@ -1875,7 +1911,7 @@ function chargerHistCarburant(){
         </div></td>
       </tr>`;
     });
-    G("hc-tbody").innerHTML=html||`<tr><td colspan="9" style="text-align:center;color:var(--gris3);padding:24px">Aucune saisie</td></tr>`;
+    G("hc-tbody").innerHTML=html||`<tr><td colspan="10" style="text-align:center;color:var(--gris3);padding:24px">Aucune saisie</td></tr>`;
 
     if(mode==="detail"){
       let parCam={};
@@ -1892,7 +1928,33 @@ function chargerHistCarburant(){
 function supprimerCarburant(id){ if(!confirm("Supprimer ?")) return; db.collection("carburant").doc(id).delete().then(()=>{ toast("Supprimé ✅"); chargerHistCarburant(); }); }
 function exporterHistMagPDF(){ toast("Export PDF — prochaine étape 📄"); }
 function exporterHistPCPDF(){ toast("Export PDF — prochaine étape 📄"); }
-function exporterHistCarburantPDF(){ toast("Export PDF — prochaine étape 📄"); }
+function exporterHistCarburantPDF(){
+  loader(true,"Export carburant...");
+  const {jsPDF}=window.jspdf;
+  const doc=new jsPDF('landscape','mm','a4');
+  doc.setFont('helvetica','bold'); doc.setFontSize(14);
+  doc.setTextColor(200,52,26);
+  doc.text('HISTORIQUE CARBURANT — '+SOC.nom, 148, 15, {align:'center'});
+  doc.setFontSize(9); doc.setTextColor(100,100,100);
+  doc.text('Généré le '+new Date().toLocaleDateString('fr-FR'), 148, 21, {align:'center'});
+  const rows=[];
+  document.querySelectorAll('#hc-tbody tr').forEach(tr=>{
+    const cells=[]; tr.querySelectorAll('td').forEach((td,i)=>{ if(i>0) cells.push(td.textContent.trim()); });
+    if(cells.length>1) rows.push(cells);
+  });
+  doc.autoTable({
+    startY:26,
+    head:[['Date','Chauffeur','Camion','Litres','Montant','Kilométrage','Km parcourus','L/100km']],
+    body:rows,
+    headStyles:{fillColor:[26,37,64],textColor:255,fontStyle:'bold',fontSize:7},
+    bodyStyles:{fontSize:7},
+    alternateRowStyles:{fillColor:[246,246,246]},
+    margin:{left:10,right:10}
+  });
+  pdfPied(doc);
+  doc.save('historique-carburant.pdf');
+  loader(false); toast("Export carburant ✅");
+}
 
 
 
@@ -2470,13 +2532,72 @@ function exporterRecusPDF(){
 
 function exporterStatsPDF(){
   loader(true,"Export stats...");
-  const { jsPDF } = window.jspdf;
-  const doc = new jsPDF('portrait','mm','a4');
+  const {jsPDF}=window.jspdf;
+  const doc=new jsPDF('landscape','mm','a4');
   doc.setFont('helvetica','bold'); doc.setFontSize(14);
   doc.setTextColor(200,52,26);
-  doc.text('STATISTIQUES — '+SOC.nom, 105, 20, {align:'center'});
+  doc.text('STATISTIQUES — '+SOC.nom, 148, 15, {align:'center'});
   doc.setFontSize(9); doc.setTextColor(100,100,100);
-  doc.text('Généré le '+new Date().toLocaleDateString('fr-FR'), 105, 27, {align:'center'});
+  doc.text('Généré le '+new Date().toLocaleDateString('fr-FR'), 148, 21, {align:'center'});
+
+  let y=28;
+  // Cartes stats
+  const cards=document.querySelectorAll('#stats-cards .stat-card');
+  if(cards.length){
+    const row=[];
+    cards.forEach(card=>{
+      const num=card.querySelector('.stat-num')?.textContent||'';
+      const lbl=card.querySelector('.stat-label')?.textContent||'';
+      row.push(num+'
+'+lbl);
+    });
+    doc.autoTable({startY:y,head:[row.map((_,i)=>'Indicateur '+(i+1))],body:[row],
+      headStyles:{fillColor:[26,37,64],textColor:255,fontSize:7},bodyStyles:{fontSize:9,fontStyle:'bold'},margin:{left:10,right:10}});
+    y=doc.lastAutoTable.finalY+6;
+  }
+
+  // Graphiques → tableaux
+  const charts=[
+    {id:'chart-camions',title:'BL par camion'},
+    {id:'chart-chauffeurs',title:'BL par chauffeur'},
+    {id:'chart-tarifs',title:'Répartition tarifs'},
+    {id:'chart-clients',title:'Top clients'}
+  ];
+  charts.forEach(ch=>{
+    const el=G(ch.id); if(!el) return;
+    const rows=[];
+    el.querySelectorAll('.chart-row').forEach(row=>{
+      const lbl=row.querySelector('.chart-lbl')?.textContent||'';
+      const val=row.querySelector('.chart-val')?.textContent||'';
+      rows.push([lbl,val]);
+    });
+    if(rows.length){
+      doc.autoTable({startY:y,head:[[ch.title,'Nombre']],body:rows,
+        headStyles:{fillColor:[200,52,26],textColor:255,fontSize:8},
+        bodyStyles:{fontSize:8},margin:{left:10,right:10},tableWidth:80});
+      y=doc.lastAutoTable.finalY+6;
+      if(y>170){doc.addPage();y=20;}
+    }
+  });
+
+  // Mode détail — tableau BL
+  const detailTable=document.getElementById('detail-stats-table');
+  if(detailTable){
+    const rows=[];
+    detailTable.querySelectorAll('tbody tr').forEach(tr=>{
+      const cells=[]; tr.querySelectorAll('td').forEach(td=>cells.push(td.textContent.trim()));
+      if(cells.length>1) rows.push(cells);
+    });
+    if(rows.length){
+      doc.addPage();
+      doc.autoTable({startY:20,
+        head:[['N° BL','Date','Heure','Tarif','Chauffeur','Client','Véhicule','Trajet','Espèces']],
+        body:rows,
+        headStyles:{fillColor:[26,37,64],textColor:255,fontSize:6},
+        bodyStyles:{fontSize:6},margin:{left:10,right:10}});
+    }
+  }
+
   pdfPied(doc);
   doc.save('statistiques.pdf');
   loader(false); toast("Stats exportées ✅");
