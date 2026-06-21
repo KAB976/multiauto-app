@@ -1082,7 +1082,7 @@ function seConnecter(){
       G("sb-role").textContent = userAdmin.role==="admin" ? "Administrateur" : "Secrétaire";
       return Promise.all([chargerListeChauffeurs(), chargerListeCamions()]);
     })
-    .then(()=> chargerDashboard())
+    .then(()=>{ chargerDashboard(); chargerBons(); chargerRecus(); })
     .catch(e=>{
       loader(false);
       G("login-err").textContent = e.message==="Accès non autorisé" ? "Accès non autorisé" : "Identifiant ou mot de passe incorrect";
