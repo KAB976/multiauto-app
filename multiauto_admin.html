@@ -2835,9 +2835,9 @@ function chargerDroits(){
     if(G("d-bl-imprimer"))    G("d-bl-imprimer").checked     = d.secretaire_bl_imprimer    !== false;
     if(G("d-bl-telecharger")) G("d-bl-telecharger").checked  = d.secretaire_bl_telecharger !== false;
     // Reçus
-    if(G("d-recu-voir"))        G("d-recu-voir").checked         = d.secretaire_recu_voir        !== false;
-    if(G("d-recu-imprimer"))    G("d-recu-imprimer").checked     = d.secretaire_recu_imprimer    !== false;
-    if(G("d-recu-telecharger")) G("d-recu-telecharger").checked  = d.secretaire_recu_telecharger !== false;
+    if(G("d-rc-voir"))          G("d-rc-voir").checked           = d.secretaire_recu_voir        !== false;
+    if(G("d-rc-imprimer"))      G("d-rc-imprimer").checked       = d.secretaire_recu_imprimer    !== false;
+    if(G("d-rc-telecharger"))   G("d-rc-telecharger").checked    = d.secretaire_recu_telecharger !== false;
     // Stats
     if(G("d-stats"))          G("d-stats").checked           = d.secretaire_stats          === true;
     // GPS
@@ -2876,9 +2876,9 @@ function sauvegarderDroits(){
       secretaire_bl_voir:         g("d-bl-voir"),
       secretaire_bl_imprimer:     g("d-bl-imprimer"),
       secretaire_bl_telecharger:  g("d-bl-telecharger"),
-      secretaire_recu_voir:       g("d-recu-voir"),
-      secretaire_recu_imprimer:   g("d-recu-imprimer"),
-      secretaire_recu_telecharger:g("d-recu-telecharger"),
+      secretaire_recu_voir:       g("d-rc-voir"),
+      secretaire_recu_imprimer:   g("d-rc-imprimer"),
+      secretaire_recu_telecharger:g("d-rc-telecharger"),
       secretaire_stats:           g("d-stats"),
       secretaire_gps:             g("d-gps"),
       secretaire_chauffeurs_voir: g("d-chauffeurs-voir"),
