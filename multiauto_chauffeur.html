@@ -1491,8 +1491,8 @@ window.seConnecter = async function(){
 
   loader(true, "Connexion...");
   try {
-    // L'email Firebase = identifiant@multiauto.fr
-    const email = id.toLowerCase() + "@multiauto.fr";
+    // L'email Firebase = somalan2000+identifiant@gmail.com
+    const email = "somalan2000+" + id.toLowerCase() + "@gmail.com";
     const cred  = await signInWithEmailAndPassword(auth, email, pw);
     const uid   = cred.user.uid;
 
