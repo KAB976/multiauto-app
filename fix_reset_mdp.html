@@ -1,0 +1,333 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<title>Multi Auto — Reset Mot de Passe</title>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Arial,sans-serif;background:linear-gradient(135deg,#1A2540 0%,#0D1829 100%);min-height:100vh;display:flex;align-items:center;justify-content:center;padding:20px}
+.card{background:white;border-radius:20px;padding:32px;width:100%;max-width:440px;box-shadow:0 8px 32px rgba(0,0,0,.3)}
+.logo{text-align:center;margin-bottom:20px}
+.logo h1{color:#1A2540;font-size:18px;font-weight:800;margin-top:8px}
+.logo p{color:#9AA3B2;font-size:12px;margin-top:4px}
+.step{display:none}.step.on{display:block}
+.fl{font-size:11px;font-weight:700;color:#5A6478;text-transform:uppercase;letter-spacing:.5px;display:block;margin-bottom:5px;margin-top:14px}
+.inp{width:100%;padding:12px 14px;border:2px solid #E2E6EE;border-radius:8px;font-size:14px;font-family:inherit;color:#1A1C22;background:#F4F6FA;transition:border-color .15s}
+.inp:focus{outline:none;border-color:#C8341A;background:white}
+.btn{width:100%;padding:14px;border:none;border-radius:8px;font-size:15px;font-weight:800;cursor:pointer;font-family:inherit;margin-top:16px;transition:all .15s}
+.btn-primary{background:#C8341A;color:white}.btn-primary:hover{background:#9E2510}
+.btn-secondary{background:#F4F6FA;color:#1A2540;border:1.5px solid #E2E6EE}.btn-secondary:hover{background:#E2E6EE}
+.btn:disabled{opacity:.5;cursor:not-allowed}
+.msg{padding:12px 14px;border-radius:8px;font-size:13px;margin-top:14px;font-weight:600;display:none}
+.msg.ok{background:#E6F7ED;color:#1A7A40;border:1.5px solid #b7e4c7}
+.msg.err{background:#FFF0EB;color:#C8341A;border:1.5px solid #ffcdd2}
+.msg.on{display:block}
+.user-card{background:#F4F6FA;border-radius:10px;padding:12px;margin-top:12px;display:none}
+.user-card.on{display:block}
+.user-name{font-size:16px;font-weight:800;color:#1A2540}
+.user-info{font-size:12px;color:#9AA3B2;margin-top:3px}
+.badge{display:inline-flex;padding:3px 9px;border-radius:20px;font-size:11px;font-weight:700;margin-top:6px}
+.badge-bleu{background:#EAF1FF;color:#1A2540}
+.badge-rouge{background:#FFF0EB;color:#C8341A}
+.badge-vert{background:#E6F7ED;color:#1A7A40}
+.sep{border:none;border-top:1px solid #E2E6EE;margin:20px 0}
+.loader{text-align:center;padding:20px;color:#9AA3B2;font-size:13px;display:none}
+.loader.on{display:block}
+.spin{display:inline-block;width:20px;height:20px;border:3px solid #E2E6EE;border-top-color:#C8341A;border-radius:50%;animation:sp .7s linear infinite;vertical-align:middle;margin-right:8px}
+@keyframes sp{to{transform:rotate(360deg)}}
+.mdp-toggle{position:relative}
+.mdp-toggle .toggle-eye{position:absolute;right:12px;top:50%;transform:translateY(-50%);cursor:pointer;font-size:16px;color:#9AA3B2;background:none;border:none;padding:0}
+.warning{background:#FFFBEA;border:1.5px solid #E8C040;border-radius:8px;padding:12px;font-size:12px;color:#C49000;margin-top:14px;line-height:1.6}
+</style>
+</head>
+<body>
+<div class="card">
+  <div class="logo">
+    <div style="font-size:40px">🔑</div>
+    <h1>Réinitialisation mot de passe</h1>
+    <p>Multi Auto Dépannage — Administration</p>
+  </div>
+
+  <!-- ÉTAPE 1 : Connexion admin -->
+  <div class="step on" id="step-login">
+    <p style="font-size:13px;color:#9AA3B2;margin-bottom:16px;text-align:center">Connectez-vous en tant qu'administrateur pour continuer</p>
+    <span class="fl">Identifiant admin</span>
+    <input class="inp" id="admin-id" type="text" placeholder="admin" autocomplete="off" autocapitalize="none">
+    <span class="fl">Mot de passe admin</span>
+    <div class="mdp-toggle">
+      <input class="inp" id="admin-mdp" type="password" placeholder="••••••••">
+      <button class="toggle-eye" onclick="toggleVoir('admin-mdp',this)">👁</button>
+    </div>
+    <button class="btn btn-primary" onclick="seConnecter()">Se connecter</button>
+    <div class="loader" id="loader-login"><span class="spin"></span>Connexion...</div>
+    <div class="msg err" id="msg-login"></div>
+  </div>
+
+  <!-- ÉTAPE 2 : Choisir utilisateur + nouveau mot de passe -->
+  <div class="step" id="step-reset">
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px">
+      <span style="font-size:13px;color:#1A7A40;font-weight:700">✅ Connecté en tant qu'admin</span>
+      <button onclick="deconnecter()" style="font-size:11px;color:#C8341A;background:none;border:none;cursor:pointer;font-weight:700">Déconnexion</button>
+    </div>
+    <hr class="sep" style="margin:0 0 16px 0">
+
+    <span class="fl">Choisir l'utilisateur</span>
+    <select class="inp" id="sel-user" onchange="selectionnerUser()">
+      <option value="">— Sélectionner un utilisateur —</option>
+    </select>
+
+    <div class="user-card" id="user-card">
+      <div class="user-name" id="user-nom-display">—</div>
+      <div class="user-info" id="user-email-display">—</div>
+      <div id="user-badge-display"></div>
+    </div>
+
+    <div id="section-mdp" style="display:none">
+      <span class="fl">Nouveau mot de passe</span>
+      <div class="mdp-toggle">
+        <input class="inp" id="nouveau-mdp" type="password" placeholder="Minimum 6 caractères" oninput="validerMdp()">
+        <button class="toggle-eye" onclick="toggleVoir('nouveau-mdp',this)">👁</button>
+      </div>
+      <span class="fl">Confirmer le mot de passe</span>
+      <div class="mdp-toggle">
+        <input class="inp" id="confirm-mdp" type="password" placeholder="Répéter le mot de passe" oninput="validerMdp()">
+        <button class="toggle-eye" onclick="toggleVoir('confirm-mdp',this)">👁</button>
+      </div>
+      <div class="msg err" id="msg-mdp-err"></div>
+
+      <div class="warning">
+        ⚠️ <strong>Important :</strong> Pour changer le mot de passe d'un autre utilisateur,
+        Firebase va vous déconnecter temporairement puis vous reconnecter automatiquement.
+        Ayez votre mot de passe admin à portée de main.
+      </div>
+
+      <button class="btn btn-primary" id="btn-changer" onclick="changerMotDePasse()" disabled>🔑 Changer le mot de passe</button>
+    </div>
+
+    <div class="msg ok" id="msg-ok"></div>
+    <div class="msg err" id="msg-err"></div>
+    <div class="loader" id="loader-reset"><span class="spin"></span><span id="loader-txt">Changement en cours...</span></div>
+  </div>
+</div>
+
+<script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-auth-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-firestore-compat.js"></script>
+<script>
+firebase.initializeApp({
+  apiKey:"AIzaSyB0pp8ZysKVomkmmx3uYWJZHtiFpvSPJi4",
+  authDomain:"multiauto-depannage.firebaseapp.com",
+  projectId:"multiauto-depannage",
+  storageBucket:"multiauto-depannage.firebasestorage.app",
+  messagingSenderId:"389555321846",
+  appId:"1:389555321846:web:da201dce0fee10e32fe5d7"
+});
+const auth=firebase.auth();
+const db=firebase.firestore();
+
+let adminEmail="", adminMdp="", utilisateurs=[];
+
+function G(id){ return document.getElementById(id); }
+
+function toggleVoir(id, btn){
+  const inp=G(id);
+  if(inp.type==="password"){ inp.type="text"; btn.textContent="🙈"; }
+  else { inp.type="password"; btn.textContent="👁"; }
+}
+
+function afficherMsg(id, msg){
+  const el=G(id); el.textContent=msg; el.classList.add("on");
+}
+function cacherMsg(id){ G(id).classList.remove("on"); }
+
+// ── ÉTAPE 1 : Connexion admin ──
+function seConnecter(){
+  const id=G("admin-id").value.trim().toLowerCase();
+  const mdp=G("admin-mdp").value;
+  if(!id||!mdp){ afficherMsg("msg-login","Identifiant et mot de passe obligatoires"); return; }
+
+  cacherMsg("msg-login");
+  G("loader-login").classList.add("on");
+  G("admin-id").disabled=true; G("admin-mdp").disabled=true;
+
+  adminEmail=id+"@multiauto.fr";
+  adminMdp=mdp;
+
+  auth.signInWithEmailAndPassword(adminEmail, mdp)
+    .then(cred=>db.collection("users").doc(cred.user.uid).get())
+    .then(snap=>{
+      G("loader-login").classList.remove("on");
+      if(!snap.exists||snap.data().role!=="admin"){
+        auth.signOut();
+        G("admin-id").disabled=false; G("admin-mdp").disabled=false;
+        afficherMsg("msg-login","Accès réservé à l'administrateur");
+        return;
+      }
+      // Charger la liste des utilisateurs
+      chargerUtilisateurs();
+    })
+    .catch(e=>{
+      G("loader-login").classList.remove("on");
+      G("admin-id").disabled=false; G("admin-mdp").disabled=false;
+      afficherMsg("msg-login","Identifiant ou mot de passe incorrect");
+    });
+}
+
+function chargerUtilisateurs(){
+  db.collection("users").get().then(snap=>{
+    utilisateurs=[];
+    snap.forEach(d=>{
+      const u=d.data();
+      if(u.role!=="admin") utilisateurs.push({uid:d.id,...u});
+    });
+    utilisateurs.sort((a,b)=>{
+      if(a.role!==b.role) return a.role==="secretaire"?-1:1;
+      return (a.nom||"").localeCompare(b.nom||"");
+    });
+
+    // Remplir le select
+    const sel=G("sel-user");
+    sel.innerHTML="<option value=''>— Sélectionner un utilisateur —</option>";
+
+    let lastRole="";
+    utilisateurs.forEach(u=>{
+      if(u.role!==lastRole){
+        const grp=document.createElement("optgroup");
+        grp.label=u.role==="secretaire"?"📋 Secrétaires":"🚛 Chauffeurs";
+        sel.appendChild(grp);
+        lastRole=u.role;
+      }
+      const o=document.createElement("option");
+      o.value=u.uid;
+      o.textContent=u.nom+" ("+u.identifiant+")";
+      sel.appendChild(o);
+    });
+
+    // Afficher étape 2
+    G("step-login").classList.remove("on");
+    G("step-reset").classList.add("on");
+  });
+}
+
+function selectionnerUser(){
+  const uid=G("sel-user").value;
+  G("section-mdp").style.display="none";
+  G("user-card").classList.remove("on");
+  cacherMsg("msg-ok"); cacherMsg("msg-err");
+  G("nouveau-mdp").value=""; G("confirm-mdp").value="";
+  G("btn-changer").disabled=true;
+
+  if(!uid) return;
+
+  const u=utilisateurs.find(x=>x.uid===uid);
+  if(!u) return;
+
+  G("user-nom-display").textContent=u.nom||"—";
+  G("user-email-display").textContent=(u.identifiant||"")+"@multiauto.fr";
+  const roleLabel=u.role==="secretaire"?"📋 Secrétaire":"🚛 Chauffeur";
+  const roleClass=u.role==="secretaire"?"badge-bleu":"badge-vert";
+  const actifBadge=u.actif!==false?'<span class="badge badge-vert">Actif</span>':'<span class="badge badge-rouge">Inactif</span>';
+  G("user-badge-display").innerHTML=`<span class="badge ${roleClass}">${roleLabel}</span> ${actifBadge}`;
+  G("user-card").classList.add("on");
+  G("section-mdp").style.display="block";
+}
+
+function validerMdp(){
+  const mdp=G("nouveau-mdp").value;
+  const conf=G("confirm-mdp").value;
+  cacherMsg("msg-mdp-err");
+  if(mdp.length>0&&mdp.length<6){
+    afficherMsg("msg-mdp-err","Minimum 6 caractères");
+    G("btn-changer").disabled=true; return;
+  }
+  if(conf.length>0&&mdp!==conf){
+    afficherMsg("msg-mdp-err","Les mots de passe ne correspondent pas");
+    G("btn-changer").disabled=true; return;
+  }
+  G("btn-changer").disabled=!(mdp.length>=6&&mdp===conf);
+}
+
+function changerMotDePasse(){
+  const uid=G("sel-user").value;
+  const nouveauMdp=G("nouveau-mdp").value;
+  const u=utilisateurs.find(x=>x.uid===uid);
+  if(!u||!nouveauMdp) return;
+
+  cacherMsg("msg-ok"); cacherMsg("msg-err");
+  G("loader-reset").classList.add("on");
+  G("btn-changer").disabled=true;
+  G("loader-txt").textContent="Connexion au compte "+u.nom+"...";
+
+  const emailUser=(u.identifiant||u.uid)+"@multiauto.fr";
+
+  // 1. Se connecter avec le compte de l'utilisateur (impossible sans son mdp actuel)
+  // Solution : utiliser createUserWithEmailAndPassword si le compte n'existe pas
+  // OU utiliser updatePassword après signIn
+
+  // La vraie solution : se connecter en tant que l'utilisateur avec son ancien mdp
+  // On ne connait pas son mdp → on utilise l'email link ou on demande à l'admin de saisir l'ancien mdp
+
+  // Solution pratique : demander l'ancien mot de passe de l'utilisateur
+  const ancienMdp=prompt(
+    "Pour changer le mot de passe de "+u.nom+",\n"+
+    "saisissez son MOT DE PASSE ACTUEL :\n"+
+    "(Vous devez le connaître — c'est kz0810 par défaut)"
+  );
+  if(!ancienMdp){ G("loader-reset").classList.remove("on"); G("btn-changer").disabled=false; return; }
+
+  G("loader-txt").textContent="Connexion au compte "+u.nom+"...";
+
+  // Sauvegarder credentials admin
+  const savedAdminEmail=adminEmail, savedAdminMdp=adminMdp;
+
+  // Se connecter en tant que l'utilisateur
+  auth.signInWithEmailAndPassword(emailUser, ancienMdp)
+    .then(cred=>{
+      G("loader-txt").textContent="Changement du mot de passe...";
+      return cred.user.updatePassword(nouveauMdp);
+    })
+    .then(()=>{
+      G("loader-txt").textContent="Reconnexion admin...";
+      // Se reconnecter en tant qu'admin
+      return auth.signInWithEmailAndPassword(savedAdminEmail, savedAdminMdp);
+    })
+    .then(()=>{
+      G("loader-reset").classList.remove("on");
+      G("btn-changer").disabled=false;
+      G("nouveau-mdp").value=""; G("confirm-mdp").value="";
+      afficherMsg("msg-ok","✅ Mot de passe de "+u.nom+" changé avec succès !\nNouveau mot de passe : "+nouveauMdp);
+      // Reset sélection
+      G("sel-user").value="";
+      G("user-card").classList.remove("on");
+      G("section-mdp").style.display="none";
+    })
+    .catch(e=>{
+      G("loader-reset").classList.remove("on");
+      G("btn-changer").disabled=false;
+      // Reconnecter l'admin quand même
+      auth.signInWithEmailAndPassword(savedAdminEmail, savedAdminMdp).catch(()=>{});
+      if(e.code==="auth/wrong-password"||e.code==="auth/invalid-credential"){
+        afficherMsg("msg-err","❌ Ancien mot de passe incorrect. Vérifiez et réessayez.");
+      } else {
+        afficherMsg("msg-err","❌ Erreur : "+e.message);
+      }
+    });
+}
+
+function deconnecter(){
+  auth.signOut().then(()=>{
+    G("step-reset").classList.remove("on");
+    G("step-login").classList.add("on");
+    G("admin-id").value=""; G("admin-mdp").value="";
+    G("admin-id").disabled=false; G("admin-mdp").disabled=false;
+    cacherMsg("msg-login");
+  });
+}
+
+// Touche Entrée pour se connecter
+document.addEventListener("keydown",e=>{
+  if(e.key==="Enter"&&G("step-login").classList.contains("on")) seConnecter();
+});
+</script>
+</body>
+</html>
