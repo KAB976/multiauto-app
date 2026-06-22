@@ -1,0 +1,121 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<title>Multi Auto — Créer profils Firestore</title>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Arial,sans-serif;background:linear-gradient(135deg,#1A2540 0%,#0D1829 100%);min-height:100vh;display:flex;align-items:center;justify-content:center;padding:20px}
+.card{background:white;border-radius:20px;padding:28px;width:100%;max-width:500px;box-shadow:0 8px 32px rgba(0,0,0,.3)}
+h1{color:#1A2540;font-size:18px;font-weight:800;text-align:center;margin-bottom:4px}
+.sub{color:#9AA3B2;font-size:12px;text-align:center;margin-bottom:20px}
+.btn{width:100%;padding:14px;border:none;border-radius:8px;font-size:15px;font-weight:800;cursor:pointer;font-family:inherit;background:#C8341A;color:white;margin-top:14px}
+.btn:hover{background:#9E2510}
+.btn:disabled{opacity:.4;cursor:not-allowed}
+.log{background:#1A1C22;border-radius:10px;padding:16px;font-size:12px;font-family:monospace;margin-top:16px;line-height:2.2;max-height:400px;overflow-y:auto;display:none}
+.ok{color:#4ADE80}.err{color:#F87171}.info{color:#93C5FD}.warn{color:#FCD34D}
+</style>
+</head>
+<body>
+<div class="card">
+  <div style="text-align:center;font-size:36px;margin-bottom:10px">👥</div>
+  <h1>Créer les profils Firestore</h1>
+  <p class="sub">Sans toucher aux comptes Firebase Auth</p>
+  <button class="btn" id="btn" onclick="demarrer()">🚀 Créer les profils</button>
+  <div class="log" id="log"></div>
+</div>
+
+<script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-auth-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-firestore-compat.js"></script>
+<script>
+firebase.initializeApp({
+  apiKey:"AIzaSyB0pp8ZysKVomkmmx3uYWJZHtiFpvSPJi4",
+  authDomain:"multiauto-depannage.firebaseapp.com",
+  projectId:"multiauto-depannage",
+  storageBucket:"multiauto-depannage.firebasestorage.app",
+  messagingSenderId:"389555321846",
+  appId:"1:389555321846:web:da201dce0fee10e32fe5d7"
+});
+const auth=firebase.auth();
+const db=firebase.firestore();
+const BASE="somalan2000";
+const MDP="kz0810";
+
+const USERS=[
+  {identifiant:"secretaire", nom:"Secrétaire",   role:"secretaire"},
+  {identifiant:"abd", nom:"Abdou",      role:"chauffeur", prefixe:"ABD", camion:"Iveco Daily",    immat:"ZA-260-DV"},
+  {identifiant:"amd", nom:"Ahmed",      role:"chauffeur", prefixe:"AMD", camion:"Renault Master", immat:"CX-426-CY"},
+  {identifiant:"fre", nom:"Fredi",      role:"chauffeur", prefixe:"FRE", camion:"Ford Ranger",    immat:"GB-213-ZP"},
+  {identifiant:"toi", nom:"Toibibo",    role:"chauffeur", prefixe:"TOI", camion:"Mercedes Atego", immat:"DA-252-ZA"},
+  {identifiant:"nas", nom:"Nassir",     role:"chauffeur", prefixe:"NAS", camion:"Ford Ranger",    immat:""},
+  {identifiant:"pap", nom:"Papa Ahmed", role:"chauffeur", prefixe:"PAP", camion:"Iveco Daily",    immat:""},
+  {identifiant:"sp",  nom:"Sur Place",  role:"chauffeur", prefixe:"SP",  camion:"",               immat:""},
+];
+
+function log(msg,type="info"){
+  const el=document.getElementById("log");
+  el.style.display="block";
+  el.innerHTML+=`<div class="${type}">${msg}</div>`;
+  el.scrollTop=el.scrollHeight;
+}
+function pause(ms){return new Promise(r=>setTimeout(r,ms));}
+
+async function demarrer(){
+  document.getElementById("btn").disabled=true;
+
+  log("🔐 Connexion admin...","info");
+  try{
+    await auth.signInWithEmailAndPassword("admin@multiauto.fr", MDP);
+    log("✅ Admin connecté","ok");
+
+    for(const u of USERS){
+      const email=`${BASE}+${u.identifiant}@gmail.com`;
+      log(`\n👤 ${u.nom} (${email})...`,"info");
+
+      try{
+        // Se connecter avec ce compte pour obtenir son UID
+        await auth.signInWithEmailAndPassword(email, MDP);
+        const uid=auth.currentUser.uid;
+        log(`   UID: ${uid.slice(0,8)}...`,"info");
+
+        // Créer le profil Firestore
+        const profil={
+          uid, nom:u.nom, identifiant:u.identifiant,
+          email, role:u.role, actif:true,
+          createdAt:firebase.firestore.FieldValue.serverTimestamp()
+        };
+        if(u.role==="chauffeur"){
+          profil.prefixe_bl=u.prefixe;
+          profil.prefixe_recu=u.prefixe;
+          profil.camion=u.camion||"";
+          profil.immat_camion=u.immat||"";
+          profil.bl_compteur=1;
+          profil.recu_compteur=1;
+        }
+
+        await db.collection("users").doc(uid).set(profil);
+        log(`   ✅ Profil créé !`,"ok");
+
+        // Reconnecter admin
+        await auth.signInWithEmailAndPassword("admin@multiauto.fr", MDP);
+
+      }catch(e){
+        log(`   ❌ ${e.message}`,"err");
+        try{ await auth.signInWithEmailAndPassword("admin@multiauto.fr", MDP); }catch(_){}
+      }
+
+      await pause(600);
+    }
+
+    log("\n═══════════════════════════════","info");
+    log("✅ TERMINÉ ! Testez la connexion chauffeur.","ok");
+
+  }catch(e){
+    log("❌ Erreur : "+e.message,"err");
+    document.getElementById("btn").disabled=false;
+  }
+}
+</script>
+</body>
+</html>
