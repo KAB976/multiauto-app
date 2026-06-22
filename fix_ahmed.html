@@ -1,0 +1,147 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<title>Fix Ahmed</title>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Arial,sans-serif;background:linear-gradient(135deg,#1A2540 0%,#0D1829 100%);min-height:100vh;display:flex;align-items:center;justify-content:center;padding:20px}
+.card{background:white;border-radius:20px;padding:28px;width:100%;max-width:440px;box-shadow:0 8px 32px rgba(0,0,0,.3)}
+h1{color:#1A2540;font-size:18px;font-weight:800;text-align:center;margin-bottom:20px}
+.fl{font-size:11px;font-weight:700;color:#5A6478;text-transform:uppercase;display:block;margin-bottom:5px;margin-top:12px}
+.inp{width:100%;padding:11px 13px;border:2px solid #E2E6EE;border-radius:8px;font-size:14px;font-family:inherit;background:#F4F6FA}
+.inp:focus{outline:none;border-color:#C8341A;background:white}
+.btn{width:100%;padding:14px;border:none;border-radius:8px;font-size:15px;font-weight:800;cursor:pointer;font-family:inherit;background:#C8341A;color:white;margin-top:16px}
+.log{background:#1A1C22;border-radius:10px;padding:14px;font-size:12px;font-family:monospace;margin-top:14px;line-height:2;max-height:300px;overflow-y:auto;display:none}
+.ok{color:#4ADE80}.err{color:#F87171}.info{color:#93C5FD}
+</style>
+</head>
+<body>
+<div class="card">
+  <div style="text-align:center;font-size:36px;margin-bottom:10px">🚛</div>
+  <h1>Créer compte Ahmed</h1>
+
+  <span class="fl">Nom</span>
+  <input class="inp" id="nom" value="Ahmed">
+
+  <span class="fl">Identifiant (login)</span>
+  <input class="inp" id="identifiant" value="amd" oninput="this.value=this.value.toLowerCase().replace(/\s/g,'')">
+
+  <span class="fl">Mot de passe</span>
+  <input class="inp" id="mdp" type="password" value="kz0810">
+
+  <span class="fl">Préfixe BL</span>
+  <input class="inp" id="prefixe" value="AMD" oninput="this.value=this.value.toUpperCase()">
+
+  <span class="fl">Camion</span>
+  <input class="inp" id="camion" value="Renault Master">
+
+  <span class="fl">Immatriculation camion</span>
+  <input class="inp" id="immat" value="CX-426-CY" oninput="this.value=this.value.toUpperCase()">
+
+  <div style="margin-top:10px;font-size:11px;color:#9AA3B2">
+    Email Firebase : somalan2000+<strong id="email-preview">amd</strong>@gmail.com
+  </div>
+
+  <button class="btn" id="btn" onclick="creer()">✅ Créer le compte</button>
+  <div class="log" id="log"></div>
+</div>
+
+<script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-auth-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-firestore-compat.js"></script>
+<script>
+firebase.initializeApp({
+  apiKey:"AIzaSyB0pp8ZysKVomkmmx3uYWJZHtiFpvSPJi4",
+  authDomain:"multiauto-depannage.firebaseapp.com",
+  projectId:"multiauto-depannage",
+  storageBucket:"multiauto-depannage.firebasestorage.app",
+  messagingSenderId:"389555321846",
+  appId:"1:389555321846:web:da201dce0fee10e32fe5d7"
+});
+const auth=firebase.auth();
+const db=firebase.firestore();
+
+document.getElementById("identifiant").addEventListener("input",function(){
+  document.getElementById("email-preview").textContent=this.value||"...";
+});
+
+function log(msg,type="info"){
+  const el=document.getElementById("log");
+  el.style.display="block";
+  el.innerHTML+=`<div class="${type}">${msg}</div>`;
+  el.scrollTop=el.scrollHeight;
+}
+
+async function creer(){
+  const nom=document.getElementById("nom").value.trim();
+  const id=document.getElementById("identifiant").value.trim().toLowerCase();
+  const mdp=document.getElementById("mdp").value;
+  const prefixe=document.getElementById("prefixe").value.trim().toUpperCase();
+  const camion=document.getElementById("camion").value.trim();
+  const immat=document.getElementById("immat").value.trim().toUpperCase();
+
+  if(!nom||!id||mdp.length<6){
+    alert("Remplissez tous les champs (mot de passe min. 6 caractères)");
+    return;
+  }
+
+  const email=`somalan2000+${id}@gmail.com`;
+  document.getElementById("btn").disabled=true;
+  document.getElementById("log").innerHTML="";
+
+  log(`📧 Email : ${email}`,"info");
+  log(`🔑 Mot de passe : ${mdp}`,"info");
+
+  try{
+    // 1. Connexion admin
+    log("🔐 Connexion admin...","info");
+    await auth.signInWithEmailAndPassword("admin@multiauto.fr","kz0810");
+    log("✅ Admin connecté","ok");
+
+    // 2. Créer le compte Firebase Auth
+    log("👤 Création du compte...","info");
+    let uid;
+    try{
+      const cred=await auth.createUserWithEmailAndPassword(email, mdp);
+      uid=cred.user.uid;
+      log("✅ Compte Auth créé : "+uid.slice(0,8)+"...","ok");
+    }catch(e){
+      if(e.code==="auth/email-already-in-use"){
+        log("⚠️ Email déjà existant — connexion pour récupérer l'UID...","info");
+        const cred=await auth.signInWithEmailAndPassword(email, mdp);
+        uid=cred.user.uid;
+        log("✅ UID récupéré : "+uid.slice(0,8)+"...","ok");
+      } else {
+        throw e;
+      }
+    }
+
+    // 3. Reconnecter admin
+    await auth.signInWithEmailAndPassword("admin@multiauto.fr","kz0810");
+
+    // 4. Créer profil Firestore
+    log("📝 Création profil Firestore...","info");
+    await db.collection("users").doc(uid).set({
+      uid, nom, identifiant:id, email,
+      role:"chauffeur", actif:true,
+      prefixe_bl:prefixe, prefixe_recu:prefixe,
+      camion, immat_camion:immat,
+      bl_compteur:1, recu_compteur:1,
+      createdAt:firebase.firestore.FieldValue.serverTimestamp()
+    });
+    log("✅ Profil Firestore créé !","ok");
+    log("","info");
+    log("🎉 TERMINÉ ! Connectez-vous avec :","ok");
+    log(`   Identifiant : ${id}`,"ok");
+    log(`   Mot de passe : ${mdp}`,"ok");
+
+  }catch(e){
+    log("❌ Erreur : "+e.message,"err");
+    document.getElementById("btn").disabled=false;
+    try{ await auth.signInWithEmailAndPassword("admin@multiauto.fr","kz0810"); }catch(_){}
+  }
+}
+</script>
+</body>
+</html>
