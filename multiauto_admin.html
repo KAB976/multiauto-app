@@ -847,6 +847,21 @@ tr:hover td{background:var(--gris)}
         </div>
         <div id="purge-result" style="font-size:12px;color:var(--gris3)"></div>
       </div>
+
+      <div class="card" style="max-width:600px;margin-top:16px;border:2px solid var(--rouge)">
+        <div class="card-title" style="color:var(--rouge)">⚠️ Purge complète avant démarrage réel</div>
+        <p style="font-size:13px;color:var(--gris4);margin-bottom:14px;line-height:1.6">
+          Supprime <strong>toutes les données de test</strong> (BL, reçus, carburant, clients, magasinage, prises en charge)
+          et remet tous les compteurs BL/reçus à zéro.<br>
+          <strong style="color:var(--rouge)">À utiliser une seule fois avant le vrai démarrage !</strong>
+        </p>
+        <div style="background:var(--rouge-lt);border-radius:8px;padding:10px;font-size:12px;color:var(--rouge);margin-bottom:14px">
+          ✅ Ce qui sera conservé : camions, paramètres société, comptes utilisateurs<br>
+          ❌ Ce qui sera supprimé : BL, reçus, carburant, clients, magasinage, PC
+        </div>
+        <button class="btn btn-danger" onclick="purgeCompleteDemarrage()">🚀 Purge complète et remise à zéro</button>
+        <div id="purge-complete-result" style="font-size:12px;margin-top:10px"></div>
+      </div>
     </div>
 
   </div><!-- /main -->
@@ -2866,6 +2881,70 @@ function afficherModalResetMDP(nom, emailUser, mdpSouhaite, adminEmail){
     </div>`;
   div.addEventListener("click", e=>{ if(e.target===div) div.remove(); });
   document.body.appendChild(div);
+}
+
+
+// ── PURGE COMPLÈTE AVANT DÉMARRAGE ──
+async function purgeCompleteDemarrage(){
+  if(!confirm("⚠️ PURGE COMPLÈTE\n\nToutes les données de test seront supprimées :\n• Bons de livraison\n• Reçus\n• Carburant\n• Clients\n• Magasinage\n• Prises en charge\n\nLes compteurs BL seront remis à 1.\n\nCette action est IRRÉVERSIBLE !\n\nContinuer ?")) return;
+  if(!confirm("Dernière confirmation :\nToutes les données seront perdues.\n\nÊtes-vous sûr ?")) return;
+
+  const resultEl=G("purge-complete-result");
+  resultEl.innerHTML="<span style='color:var(--rouge)'>⏳ Purge en cours...</span>";
+  loader(true,"Purge complète en cours...");
+
+  try{
+    const collections=["bons","recus","carburant","clients","magasinage","prises_en_charge"];
+    let totalDel=0;
+
+    for(const col of collections){
+      loader(true,"Suppression "+col+"...");
+      const snap=await db.collection(col).get();
+      if(!snap.empty){
+        // Supprimer par batch de 500
+        const batches=[];
+        let batch=db.batch();
+        let count=0;
+        snap.forEach(d=>{
+          batch.delete(d.ref);
+          count++;
+          if(count===500){
+            batches.push(batch.commit());
+            batch=db.batch();
+            count=0;
+          }
+        });
+        if(count>0) batches.push(batch.commit());
+        await Promise.all(batches);
+        totalDel+=snap.size;
+      }
+    }
+
+    // Remettre compteurs à zéro
+    loader(true,"Remise à zéro des compteurs...");
+    const usersSnap=await db.collection("users").where("role","==","chauffeur").get();
+    const batchCompteurs=db.batch();
+    usersSnap.forEach(d=>{
+      batchCompteurs.update(d.ref,{bl_compteur:1,recu_compteur:1});
+    });
+    await batchCompteurs.commit();
+
+    loader(false);
+    resultEl.innerHTML=`<div style="background:var(--vert-lt);border:1.5px solid var(--vert);border-radius:8px;padding:12px;color:var(--vert);font-weight:700;font-size:13px;line-height:1.8">
+      ✅ Purge terminée !<br>
+      🗑 ${totalDel} document(s) supprimé(s)<br>
+      🔄 Compteurs remis à 1<br><br>
+      🚀 Votre application est prête pour le démarrage réel !
+    </div>`;
+
+    // Recharger les listes
+    chargerBons();
+    chargerRecus();
+
+  }catch(e){
+    loader(false);
+    resultEl.innerHTML=`<div style="color:var(--rouge);font-size:13px">❌ Erreur : ${e.message}</div>`;
+  }
 }
 
 // ── MODALS ──
