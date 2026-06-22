@@ -2,83 +2,36 @@
 <html lang="fr">
 <head>
 <meta charset="UTF-8">
-<title>Multi Auto — Guide mise à jour emails</title>
+<title>Multi Auto — Mise à jour emails</title>
 <style>
 *{box-sizing:border-box;margin:0;padding:0}
-body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Arial,sans-serif;background:linear-gradient(135deg,#1A2540 0%,#0D1829 100%);min-height:100vh;padding:20px}
-.card{background:white;border-radius:20px;padding:28px;width:100%;max-width:600px;margin:0 auto;box-shadow:0 8px 32px rgba(0,0,0,.3)}
-h1{color:#1A2540;font-size:18px;font-weight:800;margin-bottom:4px}
-.sub{color:#9AA3B2;font-size:12px;margin-bottom:20px}
-.step{background:#F4F6FA;border-radius:10px;padding:14px;margin-bottom:12px;border-left:4px solid #C8341A}
-.step-num{font-size:11px;font-weight:800;color:#C8341A;text-transform:uppercase;margin-bottom:6px}
-.step-txt{font-size:13px;color:#1A2540;line-height:1.7}
-.table-wrap{overflow-x:auto;margin-top:16px}
-table{width:100%;border-collapse:collapse;font-size:12px}
-th{background:#1A2540;color:white;padding:8px 10px;text-align:left;font-size:11px;text-transform:uppercase}
-td{padding:9px 10px;border-bottom:1px solid #E2E6EE;color:#1A1C22}
-tr:hover td{background:#F4F6FA}
-.alias{font-family:monospace;background:#EAF1FF;color:#1A2540;padding:2px 6px;border-radius:4px;font-size:12px;font-weight:700}
-.btn{display:block;width:100%;padding:13px;border:none;border-radius:8px;font-size:14px;font-weight:800;cursor:pointer;font-family:inherit;margin-top:14px;background:#C8341A;color:white;text-decoration:none;text-align:center}
+body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Arial,sans-serif;background:linear-gradient(135deg,#1A2540 0%,#0D1829 100%);min-height:100vh;display:flex;align-items:center;justify-content:center;padding:20px}
+.card{background:white;border-radius:20px;padding:28px;width:100%;max-width:500px;box-shadow:0 8px 32px rgba(0,0,0,.3)}
+h1{color:#1A2540;font-size:18px;font-weight:800;text-align:center;margin-bottom:4px}
+.sub{color:#9AA3B2;font-size:12px;text-align:center;margin-bottom:20px}
+.info-box{background:#EAF1FF;border:1.5px solid #90b8f8;border-radius:8px;padding:12px;font-size:12px;color:#1A2540;margin-bottom:16px;line-height:1.8}
+.btn{width:100%;padding:14px;border:none;border-radius:8px;font-size:15px;font-weight:800;cursor:pointer;font-family:inherit;background:#C8341A;color:white;margin-top:14px}
 .btn:hover{background:#9E2510}
-.info-box{background:#E6F7ED;border:1.5px solid #b7e4c7;border-radius:8px;padding:12px;font-size:12px;color:#1A7A40;margin-top:14px;line-height:1.7;font-weight:600}
-.warn-box{background:#FFFBEA;border:1.5px solid #E8C040;border-radius:8px;padding:12px;font-size:12px;color:#C49000;margin-top:12px;line-height:1.7}
-.log{background:#1A2540;border-radius:10px;padding:16px;font-size:12px;font-family:monospace;margin-top:16px;line-height:2;max-height:300px;overflow-y:auto;color:#4ADE80;display:none}
+.btn:disabled{opacity:.4;cursor:not-allowed}
+.log{background:#1A1C22;border-radius:10px;padding:16px;font-size:12px;font-family:monospace;margin-top:16px;line-height:2.2;max-height:380px;overflow-y:auto;display:none}
+.ok{color:#4ADE80}.err{color:#F87171}.info{color:#93C5FD}.warn{color:#FCD34D}
 </style>
 </head>
 <body>
 <div class="card">
   <div style="text-align:center;font-size:36px;margin-bottom:10px">📧</div>
-  <h1>Mise à jour des emails Firebase</h1>
-  <p class="sub">Tous les liens de réinitialisation → somalan2000@gmail.com</p>
-
-  <div class="step">
-    <div class="step-num">Comment ça fonctionne</div>
-    <div class="step-txt">
-      On utilise des <strong>alias Gmail</strong> — le signe <strong>+</strong> dans une adresse Gmail.<br>
-      Exemple : <span class="alias">somalan2000+abdou@gmail.com</span> arrive dans votre boîte <strong>somalan2000@gmail.com</strong><br>
-      Firebase les considère comme des adresses différentes ✅
-    </div>
-  </div>
-
-  <div class="step" style="border-left-color:#1A7A40">
-    <div class="step-num" style="color:#1A7A40">Étapes à suivre dans Firebase Console</div>
-    <div class="step-txt">
-      1. Allez sur <strong>console.firebase.google.com</strong><br>
-      2. Projet <strong>multiauto-depannage</strong> → <strong>Authentication</strong> → <strong>Users</strong><br>
-      3. Pour chaque utilisateur : cliquez les <strong>3 points ···</strong><br>
-      4. Cherchez <strong>"Modifier l'email"</strong> ou modifiez directement<br>
-      5. Mettez l'alias correspondant dans le tableau ci-dessous
-    </div>
-  </div>
-
-  <div class="table-wrap">
-    <table id="users-table">
-      <thead>
-        <tr><th>Nom</th><th>Rôle</th><th>Nouvel email à mettre</th><th>Statut</th></tr>
-      </thead>
-      <tbody id="users-tbody">
-        <tr><td colspan="4" style="text-align:center;color:#9AA3B2;padding:20px">Chargement...</td></tr>
-      </tbody>
-    </table>
-  </div>
+  <h1>Mise à jour des emails</h1>
+  <p class="sub">Multi Auto Dépannage</p>
 
   <div class="info-box">
-    ✅ Une fois les emails mis à jour dans Firebase Console :<br>
-    → Allez dans Authentication → 3 points → <strong>Réinitialiser le mot de passe</strong><br>
-    → Le lien arrive sur <strong>somalan2000@gmail.com</strong><br>
-    → Cliquez le lien → Saisissez le nouveau mot de passe → Communiquez à l'utilisateur
+    Ce script va connecter chaque utilisateur avec le mot de passe <strong>kz0810</strong> et mettre à jour son email vers un alias de <strong>somalan2000@gmail.com</strong><br><br>
+    Exemple :<br>
+    • abd@multiauto.fr → <strong>somalan2000+abd@gmail.com</strong><br>
+    • amd@multiauto.fr → <strong>somalan2000+amd@gmail.com</strong><br><br>
+    ⚠️ Tous les utilisateurs doivent encore avoir le mot de passe <strong>kz0810</strong>
   </div>
 
-  <div class="warn-box">
-    ⚠️ Si vous ne trouvez pas "Modifier l'email" dans la console Firebase,
-    vous devrez supprimer et recréer le compte avec le nouvel email.
-    Utilisez le fichier <strong>fix_reset_mdp.html</strong> pour recréer facilement.
-  </div>
-
-  <a class="btn" href="https://console.firebase.google.com/project/multiauto-depannage/authentication/users" target="_blank">
-    🔗 Ouvrir Firebase Console → Authentication
-  </a>
-
+  <button class="btn" id="btn" onclick="demarrer()">🚀 Démarrer la mise à jour</button>
   <div class="log" id="log"></div>
 </div>
 
@@ -96,48 +49,119 @@ firebase.initializeApp({
 });
 const auth=firebase.auth();
 const db=firebase.firestore();
-const BASE="somalan2000";
 
-// Charger les utilisateurs et générer le tableau
-auth.signInWithEmailAndPassword("admin@multiauto.fr","kz0810")
-  .then(()=>db.collection("users").get())
-  .then(snap=>{
+const MDP_ACTUEL="kz0810";
+const BASE_EMAIL="somalan2000";
+const ADMIN_EMAIL="admin@multiauto.fr";
+const ADMIN_MDP="kz0810";
+
+function log(msg,type="info"){
+  const el=document.getElementById("log");
+  el.style.display="block";
+  el.innerHTML+=`<div class="${type}">${msg}</div>`;
+  el.scrollTop=el.scrollHeight;
+}
+
+function pause(ms){ return new Promise(r=>setTimeout(r,ms)); }
+
+async function demarrer(){
+  document.getElementById("btn").disabled=true;
+  document.getElementById("log").innerHTML="";
+
+  log("🔐 Connexion admin...","info");
+
+  try{
+    // 1. Connexion admin pour lire les utilisateurs
+    await auth.signInWithEmailAndPassword(ADMIN_EMAIL, ADMIN_MDP);
+    log("✅ Admin connecté","ok");
+
+    // 2. Charger tous les utilisateurs sauf admin
+    const snap=await db.collection("users").get();
     const users=[];
     snap.forEach(d=>{
       const u=d.data();
       if(u.role!=="admin") users.push({uid:d.id,...u});
     });
-    users.sort((a,b)=>{
-      if(a.role!==b.role)return a.role==="secretaire"?-1:1;
-      return(a.nom||"").localeCompare(b.nom||"");
-    });
+    users.sort((a,b)=>a.nom?.localeCompare(b.nom||"")||0);
+    log(`📋 ${users.length} utilisateur(s) à traiter`,"info");
+    log("","info");
 
-    let html="";
-    users.forEach(u=>{
+    let ok=0, echec=0;
+
+    // 3. Traiter chaque utilisateur
+    for(const u of users){
       const alias=(u.identifiant||u.uid.slice(0,6)).toLowerCase().replace(/[^a-z0-9]/g,"");
-      const email=`${BASE}+${alias}@gmail.com`;
-      const roleLabel=u.role==="secretaire"?"📋 Secrétaire":"🚛 Chauffeur";
-      html+=`<tr>
-        <td><strong>${u.nom||"—"}</strong></td>
-        <td>${roleLabel}</td>
-        <td><span class="alias">${email}</span>
-          <button onclick="copier('${email}',this)" style="background:none;border:none;cursor:pointer;font-size:12px;color:#1A2540;margin-left:6px" title="Copier">📋</button>
-        </td>
-        <td style="color:#9AA3B2;font-size:11px">À faire</td>
-      </tr>`;
-    });
-    document.getElementById("users-tbody").innerHTML=html||
-      '<tr><td colspan="4" style="text-align:center;color:#9AA3B2;padding:20px">Aucun utilisateur</td></tr>';
-  })
-  .catch(()=>{
-    document.getElementById("users-tbody").innerHTML=
-      '<tr><td colspan="4" style="text-align:center;color:#C8341A;padding:20px">Erreur de connexion</td></tr>';
-  });
+      const ancienEmail=(u.identifiant||"")+"@multiauto.fr";
+      const nouvelEmail=`${BASE_EMAIL}+${alias}@gmail.com`;
+      const role=u.role==="secretaire"?"📋":"🚛";
 
-function copier(txt,btn){
-  navigator.clipboard.writeText(txt).then(()=>{
-    btn.textContent="✅"; setTimeout(()=>btn.textContent="📋",2000);
-  });
+      log(`${role} ${u.nom||u.identifiant}...`,"info");
+      log(`   ${ancienEmail} → ${nouvelEmail}`,"warn");
+
+      try{
+        // Se connecter en tant que cet utilisateur
+        await auth.signInWithEmailAndPassword(ancienEmail, MDP_ACTUEL);
+
+        // Changer son email
+        await auth.currentUser.updateEmail(nouvelEmail);
+
+        // Mettre à jour Firestore aussi
+        await db.collection("users").doc(u.uid).update({
+          email: nouvelEmail,
+          email_contact: nouvelEmail
+        });
+
+        log(`   ✅ Email mis à jour !`,"ok");
+        ok++;
+
+      } catch(e){
+        if(e.code==="auth/requires-recent-login"){
+          log(`   ⚠️ Session expirée — on ré-essaie...`,"warn");
+          try{
+            await auth.signInWithEmailAndPassword(ancienEmail, MDP_ACTUEL);
+            await auth.currentUser.updateEmail(nouvelEmail);
+            await db.collection("users").doc(u.uid).update({email:nouvelEmail, email_contact:nouvelEmail});
+            log(`   ✅ Email mis à jour !`,"ok");
+            ok++;
+          } catch(e2){
+            log(`   ❌ Échec : ${e2.message}`,"err");
+            echec++;
+          }
+        } else if(e.code==="auth/wrong-password"||e.code==="auth/invalid-credential"){
+          log(`   ❌ Mot de passe différent de kz0810 — à faire manuellement`,"err");
+          echec++;
+        } else if(e.code==="auth/email-already-in-use"){
+          log(`   ✅ Email déjà mis à jour !`,"ok");
+          ok++;
+        } else {
+          log(`   ❌ ${e.message}`,"err");
+          echec++;
+        }
+      }
+
+      // Pause entre chaque utilisateur
+      await pause(800);
+    }
+
+    // 4. Reconnecter l'admin
+    log("","info");
+    log("🔐 Reconnexion admin...","info");
+    await auth.signInWithEmailAndPassword(ADMIN_EMAIL, ADMIN_MDP);
+    log("✅ Admin reconnecté","ok");
+    log("","info");
+    log("━━━━━━━━━━━━━━━━━━━━━━━━━━━━","info");
+    log(`✅ ${ok} email(s) mis à jour`,"ok");
+    if(echec>0) log(`❌ ${echec} échec(s) — à faire manuellement`,"err");
+    log("","info");
+    log("🎉 Maintenant pour réinitialiser un mot de passe :","ok");
+    log("   Firebase Console → Authentication","info");
+    log("   → 3 points → Réinitialiser le mot de passe","info");
+    log("   → Email reçu sur somalan2000@gmail.com 📩","ok");
+
+  } catch(e){
+    log("❌ Erreur : "+e.message,"err");
+    document.getElementById("btn").disabled=false;
+  }
 }
 </script>
 </body>
