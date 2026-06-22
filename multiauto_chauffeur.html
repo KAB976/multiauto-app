@@ -891,8 +891,19 @@ function enregistrerEmbarquement(){
   }
   embarquementFait=true;
   heureEmb=new Date();
-  // GPS en arrière-plan
-  captureGPS(function(g){ gpsEmb=g; });
+
+  // GPS en arrière-plan — capture IMMÉDIATE et sauvegarde dès réception
+  captureGPS(function(g){
+    gpsEmb=g;
+    // Sauvegarder les coords dans une variable persistante localStorage
+    try{
+      localStorage.setItem('gps_emb_pending', JSON.stringify({
+        lat:g.lat, lng:g.lng, lieu:g.lieu,
+        heure: heureEmb ? heureEmb.toISOString() : new Date().toISOString()
+      }));
+    }catch(e){}
+  });
+
   // UI
   G("btn-je-pars").style.display="none";
   G("zv-emb").style.display="flex";
@@ -902,7 +913,7 @@ function enregistrerEmbarquement(){
   G("section-dest").style.opacity="1";
   G("section-dest").style.pointerEvents="auto";
   G("btn-arrive").style.display="flex";
-  // Chrono silencieux — tourne en arrière-plan, non affiché
+  // Chrono silencieux
   chronoInterval=setInterval(function(){ /* durée calculée à l'arrivée */ },1000);
 }
 
@@ -1143,7 +1154,8 @@ function soumettre(){
       nom_client:G("sel-client").value, tel_client:G("inp-tel").value.trim(),
       lieu_embarquement:G("inp-emb").value.trim(),
       destination:G("inp-dest").value.trim(),
-      gps_emb_lat:gpsEmb.lat, gps_emb_lng:gpsEmb.lng,
+      gps_emb_lat:gpsEmb.lat||(function(){ try{ return JSON.parse(localStorage.getItem('gps_emb_pending')||'{}').lat||""; }catch(e){ return ""; } })(),
+      gps_emb_lng:gpsEmb.lng||(function(){ try{ return JSON.parse(localStorage.getItem('gps_emb_pending')||'{}').lng||""; }catch(e){ return ""; } })(),
       gps_dest_lat:gpsDest.lat, gps_dest_lng:gpsDest.lng,
       especes:espActif,
       montant_especes:espActif?(parseFloat(G("inp-montant").value)||0):0
@@ -1663,9 +1675,10 @@ window.enregistrer = async function(){
     heure_arrivee:       heureArrivee ? fmtHeure(heureArrivee) : "",
     duree_trajet_min:    Math.round(dureeMs / 60000),
     // GPS — invisibles pour le chauffeur
-    gps_emb_lat:  gpsEmb.lat,
-    gps_emb_lng:  gpsEmb.lng,
-    gps_emb_lieu: gpsEmb.lieu,
+    // Récupérer GPS embarquement depuis localStorage si pas encore reçu
+    gps_emb_lat:  gpsEmb.lat || (function(){ try{ var p=JSON.parse(localStorage.getItem('gps_emb_pending')||'{}'); return p.lat||""; }catch(e){ return ""; } })(),
+    gps_emb_lng:  gpsEmb.lng || (function(){ try{ var p=JSON.parse(localStorage.getItem('gps_emb_pending')||'{}'); return p.lng||""; }catch(e){ return ""; } })(),
+    gps_emb_lieu: gpsEmb.lieu || (function(){ try{ var p=JSON.parse(localStorage.getItem('gps_emb_pending')||'{}'); return p.lieu||""; }catch(e){ return ""; } })(),
     gps_dest_lat:  gpsDest.lat,
     gps_dest_lng:  gpsDest.lng,
     gps_dest_lieu: gpsDest.lieu,
