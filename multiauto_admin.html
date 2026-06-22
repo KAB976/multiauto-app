@@ -1055,7 +1055,14 @@ function chargerBons(){
         <td style="font-weight:600">${b.nom_client||"—"}</td>
         <td style="font-size:11px">${b.marque||""} ${b.modele||""}<br><span style="color:var(--gris3);font-size:10px">${b.immatriculation||""}</span></td>
         <td style="font-size:11px">${b.lieu_embarquement||"—"} → ${b.destination||"—"}</td>
-        <td>${b.especes?`<span class="badge badge-vert">${fmtMontant(b.montant_especes)}</span>`:'<span class="badge badge-gris">—</span>'}</td>
+        <td>${
+          b.especes?`<span class="badge badge-vert">${fmtMontant(b.montant_especes)}</span>`:
+          b.en_compte?`<span class="badge badge-jaune">📋 Compte</span>`:
+          b.montant_cb?`<span class="badge badge-bleu">💳 CB ${fmtMontant(b.montant_cb)}</span>`:
+          b.montant_virement?`<span class="badge badge-violet">🏦 Vir. ${fmtMontant(b.montant_virement)}</span>`:
+          b.montant_cheque?`<span class="badge badge-gris">📄 Chq ${fmtMontant(b.montant_cheque)}</span>`:
+          '<span class="badge badge-gris">—</span>'
+        }</td>
         <td><div style="display:flex;gap:3px">
           <button class="btn btn-secondary btn-sm btn-icon" onclick="voirBL('${b.id}')">👁</button>
           <button class="btn btn-secondary btn-sm btn-icon" onclick="imprimerBL('${b.id}')">🖨</button>
@@ -1302,7 +1309,8 @@ function afficherClients(list){
       <td><span class="badge badge-gris">${cl.mode_paiement||"—"}</span></td>
       <td style="font-weight:700;color:var(--vert)">${fmtMontant(cl.solde)}</td>
       <td><div style="display:flex;gap:4px">
-        <button class="btn btn-secondary btn-sm" onclick="ouvrirModifierClient('${cl.id}','${(cl.nom||"").replace(/'/g,"\'")}',${JSON.stringify(cl.tel||"")},\'${cl.mode_paiement||""}\')">✏️ Modifier</button>
+        <button class="btn btn-secondary btn-sm" onclick="ouvrirModifierClient('${cl.id}','${(cl.nom||"").replace(/'/g,"\'")}',${JSON.stringify(cl.tel||"")},\'${cl.mode_paiement||""}\')">✏️</button>
+        ${(cl.solde||0)>0?`<button class="btn btn-success btn-sm" onclick="encaisserClient('${cl.id}','${(cl.nom||"").replace(/'/g,"\'")}',${cl.solde||0})">💵 Encaisser</button>`:""}
         <button class="btn btn-danger btn-sm" onclick="supprimerClient('${cl.id}')">🗑</button>
       </div></td></tr>`;
   });
@@ -2350,6 +2358,155 @@ function exporterRecusPDF(){
   pdfPied(doc);
   doc.save('recus'+(cochees.length>0?'-selection':'')+'.pdf');
   loader(false);toast(cochees.length>0?cochees.length+" reçu(s) exportés ✅":"Liste reçus exportée ✅");
+}
+
+
+// ── ENCAISSEMENT CLIENT EN COMPTE ──
+function encaisserClient(id, nom, solde){
+  const montant = parseFloat(prompt(
+    nom + "\nSolde en compte : " + fmtMontant(solde) + "\n\nMontant encaissé (€) :",
+    solde.toFixed(2)
+  ));
+  if(isNaN(montant) || montant <= 0) return;
+  const reste = Math.max(0, solde - montant);
+  if(!confirm("Encaisser " + fmtMontant(montant) + " pour " + nom + " ?\nSolde restant : " + fmtMontant(reste))) return;
+  loader(true);
+  const now = new Date();
+  const dateStr = ("0"+now.getDate()).slice(-2)+"/"+("0"+(now.getMonth()+1)).slice(-2)+"/"+now.getFullYear();
+  const heureStr = ("0"+now.getHours()).slice(-2)+"h"+("0"+now.getMinutes()).slice(-2);
+  const recuNum = "ENC-"+("0"+now.getDate()).slice(-2)+("0"+(now.getMonth()+1)).slice(-2)+now.getFullYear()+"-"+Date.now().toString().slice(-4);
+
+  // Mettre à jour le solde client
+  db.collection("clients").doc(id).update({
+    solde: reste,
+    dernierPaiement: firebase.firestore.FieldValue.serverTimestamp()
+  }).then(()=>{
+    return db.collection("recus").add({
+      recu_num: recuNum,
+      nom_client: nom,
+      montant: montant,
+      mission: "Règlement compte client — Solde restant : "+fmtMontant(reste),
+      date: dateStr,
+      heure: heureStr,
+      type_encaissement: true,
+      timestamp: firebase.firestore.FieldValue.serverTimestamp()
+    });
+  }).then(()=>{
+    loader(false);
+    toast("Encaissement enregistré ✅ — Reste : " + fmtMontant(reste));
+    chargerClients();
+    // Proposer le reçu PDF
+    afficherModalReçuEncaissement({
+      recu_num: recuNum,
+      nom_client: nom,
+      montant: montant,
+      mission: "Règlement compte client",
+      solde_avant: solde,
+      solde_apres: reste,
+      date: dateStr,
+      heure: heureStr
+    });
+  }).catch(()=>{ toast("Erreur","err"); loader(false); });
+}
+
+function afficherModalReçuEncaissement(data){
+  // Créer modal temporaire
+  const existing = document.getElementById("modal-recu-enc");
+  if(existing) existing.remove();
+  const div = document.createElement("div");
+  div.id = "modal-recu-enc";
+  div.className = "modal-bg on";
+  div.innerHTML = `
+    <div class="modal" style="max-width:380px;text-align:center">
+      <div class="modal-title">✅ Encaissement enregistré</div>
+      <div style="background:var(--vert-lt);border-radius:10px;padding:16px;margin-bottom:16px">
+        <div style="font-size:13px;color:var(--gris4);margin-bottom:4px">${data.nom_client}</div>
+        <div style="font-size:32px;font-weight:900;color:var(--vert)">${fmtMontant(data.montant)}</div>
+        <div style="font-size:12px;color:var(--gris3);margin-top:6px">
+          Solde avant : ${fmtMontant(data.solde_avant)}<br>
+          Solde restant : <strong style="color:${data.solde_apres>0?'var(--rouge)':'var(--vert)'}">${fmtMontant(data.solde_apres)}</strong>
+        </div>
+      </div>
+      <p style="font-size:12px;color:var(--gris3);margin-bottom:16px">Le client souhaite un reçu ?</p>
+      <div style="display:flex;gap:10px;justify-content:center">
+        <button class="btn btn-secondary" onclick="document.getElementById('modal-recu-enc').remove()">Non merci</button>
+        <button class="btn btn-secondary" onclick="imprimerReçuEnc(${JSON.stringify(data).replace(/'/g,'\'')})">🖨 Imprimer</button>
+        <button class="btn btn-primary" onclick="telechargerReçuEnc(${JSON.stringify(data).replace(/'/g,'\'')})">⬇ Télécharger</button>
+      </div>
+    </div>`;
+  div.addEventListener("click", e=>{ if(e.target===div) div.remove(); });
+  document.body.appendChild(div);
+}
+
+function genererReçuEncaissement(data){
+  const {jsPDF} = window.jspdf;
+  const doc = new jsPDF('portrait','mm','a4');
+  let y = pdfEntete(doc, 'REÇU DE PAIEMENT', data.recu_num||'—', data.date||'—', data.heure||'—', data.chauffeur_nom||SOC.nom, '', 'NORMAL');
+  y += 6;
+  // Montant en grand
+  doc.setFillColor(255,251,234); doc.setDrawColor(232,192,64); doc.setLineWidth(0.8);
+  doc.roundedRect(10,y,190,32,3,3,'FD');
+  doc.setTextColor(122,90,58); doc.setFont('helvetica','bold'); doc.setFontSize(7.5);
+  doc.text('MONTANT REÇU EN RÈGLEMENT DE COMPTE',105,y+7,{align:'center'});
+  doc.setTextColor(26,37,64); doc.setFont('helvetica','bold'); doc.setFontSize(28);
+  doc.text(fmtMontant(data.montant),105,y+20,{align:'center'});
+  y += 32+5;
+  // Détails
+  doc.setFillColor(200,52,26); doc.rect(10,y,190,7,'F');
+  doc.setTextColor(255,255,255); doc.setFont('helvetica','bold'); doc.setFontSize(7.5);
+  doc.text('DÉTAILS',13,y+4.8); y+=7+1;
+  function ligne(y,l,v){
+    doc.setFillColor(246,246,246); doc.rect(10,y,190,7.5,'F');
+    doc.setTextColor(122,90,58); doc.setFont('helvetica','bold'); doc.setFontSize(7);
+    doc.text(l.toUpperCase(),13,y+4.8);
+    doc.setTextColor(26,26,26); doc.setFont('helvetica','bold'); doc.setFontSize(8.5);
+    doc.text(String(v||'—'),65,y+4.8);
+    doc.setDrawColor(224,224,224); doc.setLineWidth(0.3); doc.line(10,y+7.5,200,y+7.5);
+    return y+7.5;
+  }
+  y = ligne(y,'Client :',data.nom_client||'—');
+  y = ligne(y,'Motif :','Règlement compte client');
+  y = ligne(y,'Solde avant règlement :',fmtMontant(data.solde_avant||0));
+  y = ligne(y,'Montant réglé :',fmtMontant(data.montant||0));
+  // Solde restant avec couleur
+  doc.setFillColor((data.solde_apres||0)>0?253:230,(data.solde_apres||0)>0?236:247,(data.solde_apres||0)>0?235:237);
+  doc.rect(10,y,190,9,'F');
+  doc.setTextColor(122,90,58); doc.setFont('helvetica','bold'); doc.setFontSize(7);
+  doc.text('SOLDE RESTANT :',13,y+5.5);
+  doc.setTextColor((data.solde_apres||0)>0?200:26,(data.solde_apres||0)>0?52:122,(data.solde_apres||0)>0?26:64);
+  doc.setFontSize(11);
+  doc.text(fmtMontant(data.solde_apres||0)+((data.solde_apres||0)===0?' — SOLDÉ ✅':''),65,y+6);
+  y+=9+5;
+  // Cachet
+  const cachetSize=46, cachetX=210-12-cachetSize, cachetY=195;
+  try{ doc.addImage(CACHET_DATA,'PNG',cachetX,cachetY,cachetSize,cachetSize*0.72,'','FAST'); }catch(e){}
+  const cx=cachetX+cachetSize/2, cy=cachetY+cachetSize*0.72*0.43;
+  doc.setFont('helvetica','bold'); doc.setFontSize(8.5); doc.setTextColor(26,37,64);
+  doc.text('Payé le :',cx,cy,{align:'center'});
+  doc.setTextColor(200,52,26); doc.setFontSize(10);
+  doc.text(data.date||'—',cx,cy+5.5,{align:'center'});
+  // Confirmation
+  doc.setFillColor(230,247,237); doc.setDrawColor(26,122,64); doc.setLineWidth(0.7);
+  doc.roundedRect(10,248,190,8,2,2,'FD');
+  doc.setTextColor(26,122,64); doc.setFont('helvetica','bold'); doc.setFontSize(9);
+  doc.text('PAIEMENT CONFIRME EN ESPECES',105,253.2,{align:'center'});
+  pdfPied(doc);
+  return doc;
+}
+
+function imprimerReçuEnc(data){
+  const doc = genererReçuEncaissement(data);
+  doc.autoPrint();
+  const w = window.open(URL.createObjectURL(doc.output('blob')),'_blank');
+  if(w) w.print();
+  document.getElementById('modal-recu-enc')?.remove();
+}
+
+function telechargerReçuEnc(data){
+  const doc = genererReçuEncaissement(data);
+  doc.save('recu-encaissement-'+(data.nom_client||'client')+'-'+data.date?.replace(/\//g,'')+'.pdf');
+  document.getElementById('modal-recu-enc')?.remove();
+  toast("Reçu téléchargé ✅");
 }
 
 // ── MODALS ──
