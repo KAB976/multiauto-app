@@ -384,6 +384,7 @@ tr:hover td{background:var(--gris)}
       <div class="sb-item" onclick="afficherPage('pg-commissions')" id="nav-commissions"><span class="ico">💰</span> Commissions</div>
       <div class="sb-section">Configuration</div>
       <div class="sb-item" onclick="afficherPage('pg-droits')" id="nav-droits"><span class="ico">🔛</span> Droits accès</div>
+      <div class="sb-item" onclick="afficherPage('pg-utilisateurs')" id="nav-utilisateurs"><span class="ico">👥</span> Utilisateurs</div>
       <div class="sb-item" onclick="afficherPage('pg-parametres')" id="nav-parametres"><span class="ico">⚙️</span> Paramètres</div>
       <div class="sb-item" onclick="ouvrirModalAssign()" id="nav-assign"><span class="ico">🔄</span> Assignation temp.</div>
       <div class="sb-item" onclick="ouvrirModalReset()" id="nav-reset"><span class="ico">🔄</span> Reset compteurs</div>
@@ -395,6 +396,37 @@ tr:hover td{background:var(--gris)}
 
   <!-- MAIN -->
   <div class="main">
+
+
+    <!-- UTILISATEURS -->
+    <div class="pg" id="pg-utilisateurs">
+      <div class="page-header">
+        <div><div class="page-title">👥 Gestion des utilisateurs</div><div class="page-sub">Chauffeurs et secrétaires</div></div>
+        <button class="btn btn-primary" onclick="ouvrirModalUtilisateur()">➕ Nouvel utilisateur</button>
+      </div>
+
+      <!-- Secrétaires -->
+      <div class="card" style="margin-bottom:16px">
+        <div class="card-title">📋 Secrétaires</div>
+        <div class="table-wrap">
+          <table>
+            <thead><tr><th>Nom</th><th>Identifiant</th><th>Email</th><th>Statut</th><th>Actions</th></tr></thead>
+            <tbody id="sec-tbody"></tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- Chauffeurs -->
+      <div class="card">
+        <div class="card-title">🚛 Chauffeurs</div>
+        <div class="table-wrap">
+          <table>
+            <thead><tr><th>Nom</th><th>Identifiant</th><th>Préfixe</th><th>Camion</th><th>Statut</th><th>Actions</th></tr></thead>
+            <tbody id="chauf-tbody"></tbody>
+          </table>
+        </div>
+      </div>
+    </div>
 
     <!-- DASHBOARD -->
     <div class="pg on" id="pg-dashboard">
@@ -820,6 +852,45 @@ tr:hover td{background:var(--gris)}
   </div><!-- /main -->
 </div><!-- /pg-app -->
 
+
+<!-- Modal Utilisateur -->
+<div class="modal-bg" id="modal-utilisateur">
+<div class="modal">
+  <div class="modal-title" id="modal-user-title">👤 Nouvel utilisateur</div>
+  <div class="form-grid">
+    <div class="form-group"><span class="fl">Nom complet</span><input class="inp inp-sm" id="user-nom" placeholder="Ex: Fatima Said"></div>
+    <div class="form-group"><span class="fl">Rôle</span>
+      <select class="inp inp-sm" id="user-role" onchange="majChampsChauffeur()">
+        <option value="secretaire">Secrétaire</option>
+        <option value="chauffeur">Chauffeur</option>
+      </select>
+    </div>
+    <div class="form-group"><span class="fl">Identifiant</span>
+      <div style="display:flex;align-items:center;gap:4px">
+        <input class="inp inp-sm" id="user-identifiant" placeholder="Ex: fatima" style="flex:1;text-transform:lowercase" oninput="this.value=this.value.toLowerCase().replace(/\s/g,'')">
+        <span style="font-size:11px;color:var(--gris3)">@multiauto.fr</span>
+      </div>
+    </div>
+    <div class="form-group"><span class="fl">Mot de passe</span><input class="inp inp-sm" id="user-mdp" type="password" placeholder="Minimum 6 caractères"></div>
+  </div>
+  <!-- Champs spécifiques chauffeur -->
+  <div id="champs-chauffeur" style="display:none;margin-top:12px">
+    <div style="background:var(--gris);border-radius:8px;padding:12px;margin-bottom:10px">
+      <div style="font-size:11px;font-weight:800;color:var(--gris3);text-transform:uppercase;letter-spacing:.5px;margin-bottom:10px">Infos chauffeur</div>
+      <div class="form-grid">
+        <div class="form-group"><span class="fl">Préfixe BL</span><input class="inp inp-sm" id="user-prefixe" placeholder="Ex: FAT" style="text-transform:uppercase" oninput="this.value=this.value.toUpperCase()"></div>
+        <div class="form-group"><span class="fl">Camion</span><select class="inp inp-sm" id="user-camion"><option value="">— Choisir —</option></select></div>
+        <div class="form-group"><span class="fl">Immat. camion</span><input class="inp inp-sm" id="user-immat" placeholder="Ex: DA-252-ZA" style="text-transform:uppercase" oninput="this.value=this.value.toUpperCase()"></div>
+      </div>
+    </div>
+  </div>
+  <div class="modal-footer">
+    <button class="btn btn-secondary" onclick="fermerModal('modal-utilisateur')">Annuler</button>
+    <button class="btn btn-primary" id="btn-sauv-user" onclick="sauvegarderUtilisateur()">💾 Créer</button>
+  </div>
+</div>
+</div>
+
 <!-- Modal Client -->
 <div class="modal-bg" id="modal-client">
 <div class="modal">
@@ -886,6 +957,7 @@ function afficherPage(id){
   if(id==="pg-stats")      {}
   if(id==="pg-commissions") {}
   if(id==="pg-droits")     {chargerDroits(); chargerPermChauffeursFn();}
+  if(id==="pg-utilisateurs") chargerUtilisateurs();
   if(id==="pg-parametres") chargerParametres();
 }
 function fermerModal(id){ G(id)?.classList.remove("on"); }
@@ -896,7 +968,7 @@ function seConnecter(){
   const pw=G("inp-pw").value;
   if(!id||!pw){ G("login-err").classList.add("on"); return; }
   loader(true,"Connexion...");
-  auth.signInWithEmailAndPassword(id+"@multiauto.fr",pw)
+  auth.signInWithEmailAndPassword("somalan2000+"+id+"@gmail.com",pw)
     .then(cred=>db.collection("users").doc(cred.user.uid).get())
     .then(snap=>{
       if(!snap.exists||!["admin","secretaire"].includes(snap.data().role)){
@@ -2507,6 +2579,293 @@ function telechargerReçuEnc(data){
   doc.save('recu-encaissement-'+(data.nom_client||'client')+'-'+data.date?.replace(/\//g,'')+'.pdf');
   document.getElementById('modal-recu-enc')?.remove();
   toast("Reçu téléchargé ✅");
+}
+
+
+// ════════════════════════════════════
+// GESTION UTILISATEURS
+// ════════════════════════════════════
+let editingUserId = null;
+
+function ouvrirModalUtilisateur(){
+  editingUserId = null;
+  G("modal-user-title").textContent = "👤 Nouvel utilisateur";
+  ["user-nom","user-identifiant","user-mdp","user-prefixe","user-immat"].forEach(id=>{const el=G(id);if(el)el.value="";});
+  G("user-role").value = "secretaire";
+  G("user-camion").value = "";
+  G("btn-sauv-user").textContent = "💾 Créer";
+  majChampsChauffeur();
+  // Remplir select camions
+  const sel=G("user-camion");
+  sel.innerHTML="<option value=''>— Choisir —</option>";
+  camionsList.forEach(cam=>{const o=document.createElement("option");o.value=cam.nom;o.textContent=cam.nom+" "+(cam.immat||"");sel.appendChild(o);});
+  G("modal-utilisateur").classList.add("on");
+}
+
+function majChampsChauffeur(){
+  const role = G("user-role").value;
+  G("champs-chauffeur").style.display = role==="chauffeur"?"block":"none";
+}
+
+function chargerUtilisateurs(){
+  // Secrétaires
+  db.collection("users").where("role","==","secretaire").get().then(snap=>{
+    let html="";
+    if(snap.empty){
+      html=`<tr><td colspan="5" style="text-align:center;color:var(--gris3);padding:16px">Aucune secrétaire</td></tr>`;
+    }
+    snap.forEach(d=>{
+      const u=d.data(), actif=u.actif!==false;
+      html+=`<tr>
+        <td><strong>${u.nom||"—"}</strong></td>
+        <td><span class="badge badge-bleu">${u.identifiant||"—"}</span></td>
+        <td style="font-size:11px;color:var(--gris3)">${u.identifiant||""}@multiauto.fr</td>
+        <td><span class="badge ${actif?"badge-vert":"badge-rouge"}">${actif?"Active":"Inactive"}</span></td>
+        <td><div style="display:flex;gap:4px">
+          <button class="btn btn-secondary btn-sm" onclick="editerUtilisateur('${d.id}')">✏️ Modifier</button>
+          <button class="btn btn-secondary btn-sm" onclick="resetMDPUser('${u.identifiant||""}','${u.nom||""}')">🔑 MDP</button>
+          <button class="btn btn-${actif?"danger":"success"} btn-sm" onclick="toggleActifUser('${d.id}',${actif})">${actif?"Désactiver":"Activer"}</button>
+          <button class="btn btn-danger btn-sm" onclick="supprimerUtilisateur('${d.id}','${u.nom||""}')">🗑</button>
+        </div></td>
+      </tr>`;
+    });
+    G("sec-tbody").innerHTML=html;
+  }).catch(console.error);
+
+  // Chauffeurs
+  db.collection("users").where("role","==","chauffeur").get().then(snap=>{
+    let html="";
+    if(snap.empty){
+      html=`<tr><td colspan="6" style="text-align:center;color:var(--gris3);padding:16px">Aucun chauffeur</td></tr>`;
+    }
+    snap.forEach(d=>{
+      const u=d.data(), actif=u.actif!==false;
+      const tmp=u.camion_temporaire?`<span class="badge badge-jaune">🔄 ${u.camion_temporaire}</span>`:"";
+      html+=`<tr>
+        <td><strong>${u.nom||"—"}</strong></td>
+        <td><span class="badge badge-bleu">${u.identifiant||"—"}</span></td>
+        <td><span class="badge badge-gris">${u.prefixe_bl||"—"}/BL</span></td>
+        <td>${u.camion||"—"} ${tmp}</td>
+        <td><span class="badge ${actif?"badge-vert":"badge-rouge"}">${actif?"Actif":"Inactif"}</span></td>
+        <td><div style="display:flex;gap:4px">
+          <button class="btn btn-secondary btn-sm" onclick="editerUtilisateur('${d.id}')">✏️ Modifier</button>
+          <button class="btn btn-secondary btn-sm" onclick="resetMDPUser('${u.identifiant||""}','${u.nom||""}')">🔑 MDP</button>
+          <button class="btn btn-${actif?"danger":"success"} btn-sm" onclick="toggleActifUser('${d.id}',${actif})">${actif?"Désactiver":"Activer"}</button>
+          <button class="btn btn-danger btn-sm" onclick="supprimerUtilisateur('${d.id}','${u.nom||""}')">🗑</button>
+        </div></td>
+      </tr>`;
+    });
+    G("chauf-tbody").innerHTML=html;
+  }).catch(console.error);
+}
+
+function editerUtilisateur(uid){
+  db.collection("users").doc(uid).get().then(snap=>{
+    if(!snap.exists) return;
+    const u=snap.data(); editingUserId=uid;
+    G("modal-user-title").textContent="✏️ Modifier — "+u.nom;
+    G("user-nom").value=u.nom||"";
+    G("user-identifiant").value=u.identifiant||"";
+    G("user-role").value=u.role||"secretaire";
+    G("user-mdp").value="";
+    G("user-prefixe").value=u.prefixe_bl||"";
+    G("user-immat").value=u.immat_camion||"";
+    // Remplir camions
+    const sel=G("user-camion");
+    sel.innerHTML="<option value=''>— Choisir —</option>";
+    camionsList.forEach(cam=>{const o=document.createElement("option");o.value=cam.nom;o.textContent=cam.nom+" "+(cam.immat||"");sel.appendChild(o);});
+    G("user-camion").value=u.camion||"";
+    G("btn-sauv-user").textContent="💾 Enregistrer";
+    majChampsChauffeur();
+    G("modal-utilisateur").classList.add("on");
+  });
+}
+
+function sauvegarderUtilisateur(){
+  const nom=G("user-nom").value.trim();
+  const identifiant=G("user-identifiant").value.trim().toLowerCase();
+  const mdp=G("user-mdp").value;
+  const role=G("user-role").value;
+
+  if(!nom||!identifiant){ toast("Nom et identifiant obligatoires","err"); return; }
+  if(!editingUserId && mdp.length<6){ toast("Mot de passe minimum 6 caractères","err"); return; }
+
+  const email="somalan2000+"+identifiant+"@gmail.com";
+  const userData={
+    nom, identifiant, role, email, actif:true,
+    updatedAt:firebase.firestore.FieldValue.serverTimestamp()
+  };
+
+  if(role==="chauffeur"){
+    userData.prefixe_bl=G("user-prefixe").value.trim().toUpperCase()||identifiant.toUpperCase().slice(0,3);
+    userData.prefixe_recu=userData.prefixe_bl;
+    userData.camion=G("user-camion").value||"";
+    userData.immat_camion=G("user-immat").value.trim().toUpperCase()||"";
+    userData.bl_compteur=1;
+    userData.recu_compteur=1;
+  }
+
+  loader(true,"Enregistrement...");
+
+  if(editingUserId){
+    // Modifier utilisateur existant
+    db.collection("users").doc(editingUserId).update(userData)
+      .then(()=>{
+        // Changer le mot de passe si renseigné
+        if(mdp.length>=6){
+          // On ne peut pas changer le mdp d'un autre user via client SDK
+          // On sauvegarde juste les infos
+          toast("⚠️ Infos modifiées. Pour changer le MDP, l'utilisateur doit le faire lui-même dans Paramètres.");
+        } else {
+          toast("Utilisateur modifié ✅");
+        }
+        fermerModal("modal-utilisateur");
+        chargerUtilisateurs();
+        chargerListeChauffeurs();
+        loader(false);
+      }).catch(e=>{ toast("Erreur: "+e.message,"err"); loader(false); });
+
+  } else {
+    // Créer nouveau compte Firebase Auth + Firestore
+    // Utiliser une Cloud Function simulée via un fetch vers l'API Firebase Admin
+    // Alternative: créer via signIn temporaire
+    creerNouvelUtilisateur(email, mdp, userData);
+  }
+}
+
+function creerNouvelUtilisateur(email, mdp, userData){
+  // Sauvegarder l'utilisateur actuel
+  const userActuel = auth.currentUser;
+
+  // Créer le nouveau compte
+  auth.createUserWithEmailAndPassword(email, mdp)
+    .then(cred=>{
+      const uid=cred.user.uid;
+      userData.uid=uid;
+      userData.createdAt=firebase.firestore.FieldValue.serverTimestamp();
+      return db.collection("users").doc(uid).set(userData);
+    })
+    .then(()=>{
+      // Se reconnecter avec le compte admin
+      return auth.signInWithEmailAndPassword(
+        "somalan2000+"+userAdmin.identifiant+"@gmail.com",
+        prompt("Ressaisissez votre mot de passe admin pour rester connecté :")
+      );
+    })
+    .then(()=>{
+      toast("Utilisateur créé ✅ — "+email);
+      fermerModal("modal-utilisateur");
+      chargerUtilisateurs();
+      chargerListeChauffeurs();
+      loader(false);
+    })
+    .catch(e=>{
+      if(e.code==="auth/email-already-in-use"){
+        toast("Cet identifiant existe déjà","err");
+      } else {
+        toast("Erreur: "+e.message,"err");
+      }
+      loader(false);
+    });
+}
+
+function toggleActifUser(uid, actuel){
+  if(!confirm((actuel?"Désactiver":"Activer")+" cet utilisateur ?")) return;
+  db.collection("users").doc(uid).update({actif:!actuel})
+    .then(()=>{ toast("Mis à jour ✅"); chargerUtilisateurs(); chargerListeChauffeurs(); })
+    .catch(()=>toast("Erreur","err"));
+}
+
+function supprimerUtilisateur(uid, nom){
+  if(!confirm("Supprimer définitivement "+nom+" ?\n\nAttention : cette action supprime le profil Firestore mais pas le compte de connexion Firebase Auth.")) return;
+  loader(true);
+  db.collection("users").doc(uid).delete()
+    .then(()=>{
+      toast("Utilisateur supprimé ✅");
+      chargerUtilisateurs();
+      chargerListeChauffeurs();
+      loader(false);
+    }).catch(()=>{ toast("Erreur","err"); loader(false); });
+}
+
+
+// ── RESET MOT DE PASSE ──
+function resetMDPUser(identifiant, nom){
+  // Firebase envoie le lien à l'email de l'utilisateur
+  // Mais on peut intercepter en demandant à Firebase de générer le lien
+  // et l'envoyer à l'email admin à la place
+
+  const emailUser = "somalan2000+"+identifiant+"@gmail.com";
+
+  // Demander le nouveau mot de passe directement
+  const nouveauMdp = prompt(
+    "🔑 Changer le mot de passe de : "+nom+"\n\n"+
+    "Nouveau mot de passe (minimum 6 caractères) :"
+  );
+  if(!nouveauMdp) return;
+  if(nouveauMdp.length < 6){ toast("Minimum 6 caractères","err"); return; }
+
+  // On ne peut pas changer le mdp d'un autre user via client SDK directement
+  // Solution : envoyer un email de réinitialisation à l'EMAIL ADMIN
+  // L'admin clique le lien → change le mdp → communique à l'utilisateur
+
+  // Alternative plus simple : stocker le mdp temporaire dans Firestore
+  // et l'afficher une fois — l'utilisateur devra le changer à la prochaine connexion
+  if(!confirm("Changer le mot de passe de "+nom+" ?\nNouveau mot de passe : "+nouveauMdp)) return;
+
+  loader(true,"Mise à jour...");
+
+  // Sauvegarder le nouveau MDP temporaire dans Firestore (crypté de base)
+  // + envoyer email de reset à l'admin
+  const adminEmail = "somalan2000@gmail.com";
+
+  // Envoyer lien reset à l'admin
+  auth.sendPasswordResetEmail(emailUser, {
+    url: window.location.href, // Redirection après reset
+    handleCodeInApp: false
+  }).then(()=>{
+    loader(false);
+    // Afficher modal avec instructions
+    afficherModalResetMDP(nom, emailUser, nouveauMdp, adminEmail);
+  }).catch(e=>{
+    loader(false);
+    toast("Erreur : "+e.message,"err");
+  });
+}
+
+function afficherModalResetMDP(nom, emailUser, mdpSouhaite, adminEmail){
+  const existing = document.getElementById("modal-reset-mdp");
+  if(existing) existing.remove();
+
+  const div = document.createElement("div");
+  div.id = "modal-reset-mdp";
+  div.className = "modal-bg on";
+  div.innerHTML = `
+    <div class="modal" style="max-width:460px">
+      <div class="modal-title">🔑 Réinitialisation mot de passe</div>
+      <div style="background:var(--bleu-lt);border-radius:10px;padding:14px;margin-bottom:14px;font-size:13px;line-height:1.8">
+        <strong>${nom}</strong> (${emailUser})<br>
+        Un <strong>email de réinitialisation</strong> a été envoyé à :<br>
+        <span style="color:var(--rouge);font-weight:700">${emailUser}</span>
+      </div>
+      <div style="background:var(--jaune-lt);border:1.5px solid var(--jaune-bd);border-radius:10px;padding:14px;margin-bottom:14px;font-size:13px">
+        <strong>⚠️ Procédure :</strong><br>
+        1. Vérifiez votre boîte mail admin<br>
+        2. Cliquez sur le lien reçu de Firebase<br>
+        3. Saisissez le nouveau mot de passe : <strong style="color:var(--bleu);font-size:15px">${mdpSouhaite}</strong><br>
+        4. Communiquez ce mot de passe à ${nom}
+      </div>
+      <div style="background:var(--gris);border-radius:8px;padding:10px;font-size:12px;color:var(--gris4)">
+        💡 <strong>Astuce :</strong> Firebase envoie le lien à l'email de l'utilisateur.
+        Si vous voulez recevoir le lien sur votre email admin, changez temporairement
+        l'email de l'utilisateur dans Firebase Console → Authentication.
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-primary" onclick="document.getElementById('modal-reset-mdp').remove()">Compris ✅</button>
+      </div>
+    </div>`;
+  div.addEventListener("click", e=>{ if(e.target===div) div.remove(); });
+  document.body.appendChild(div);
 }
 
 // ── MODALS ──
