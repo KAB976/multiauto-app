@@ -1635,6 +1635,11 @@ function recalculerLivraison(){
     const remise = parseFloat(G("mag-remise").value)||0;
     const net = Math.max(0, total - remise);
     _livMontantNet = net;
+    // Mettre a jour le montant paye automatiquement si mode choisi
+    const mode2 = G("mag-mode-paiement").value;
+    if(mode2){
+      G("mag-montant-paye").value = net.toFixed(2);
+    }
     const montantPaye = parseFloat(G("mag-montant-paye").value)||0;
     const solde = net - montantPaye;
     G("livraison-calcul").innerHTML =
