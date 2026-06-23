@@ -1615,24 +1615,43 @@ function sauvegarderMagasinage(){
 }
 
 function ouvrirLivraison(id){
-  G("livraison-mag-id").value = id;
-  G("mag-date-sortie").value = new Date().toISOString().split("T")[0];
-  G("mag-remise").value = "";
-  G("mag-mode-paiement").value = "";
-  G("mag-montant-paye").value = "";
-  G("mag-montant-wrap").style.display = "none";
-  G("mag-solde-box").style.display = "none";
-  G("mag-solde-ok").style.display = "none";
-  _livMontantNet = 0;
-  recalculerLivraison();
-  G("modal-livraison-mag").classList.add("on");
+  // Charger les donnees AVANT d'ouvrir le modal
+  _livData = null;
+  db.collection("magasinage").doc(id).get().then(snap=>{
+    _livData = snap.data();
+    const m = _livData;
+    const e = new Date(m.date_entree);
+    const s = new Date(new Date().toISOString().split("T")[0]);
+    const jours = Math.max(1, Math.ceil((s-e)/(1000*60*60*24)));
+    const total = jours * (m.tarif_jour||40);
+    _livMontantNet = total;
+
+    // Initialiser les champs
+    G("livraison-mag-id").value = id;
+    G("mag-date-sortie").value = new Date().toISOString().split("T")[0];
+    G("mag-remise").value = "";
+    G("mag-mode-paiement").value = "";
+    G("mag-montant-paye").value = "";
+    G("mag-montant-wrap").style.display = "none";
+    G("mag-solde-box").style.display = "none";
+    G("mag-solde-ok").style.display = "none";
+
+    // Afficher le resume initial
+    G("livraison-calcul").innerHTML =
+      "<strong>" + m.immat + "</strong> — " + m.client + "<br>" +
+      "Entree : " + m.date_entree + " | Duree : <strong>" + jours + " jour(s)</strong><br>" +
+      "Tarif/jour : " + fmtMontant(m.tarif_jour||40) + "<br>" +
+      "<strong style='color:var(--vert);font-size:15px'>Total a encaisser : " + fmtMontant(total) + "</strong>";
+
+    // Ouvrir le modal
+    G("modal-livraison-mag").classList.add("on");
+  });
 }
 
 var _livMontantNet = 0;
 var _livData = null;
 
 function majRemise(){
-  // Quand la remise change : recalculer net et mettre a jour montant paye
   if(!_livData) return;
   const m = _livData;
   const e = new Date(m.date_entree);
@@ -1642,33 +1661,22 @@ function majRemise(){
   const remise = parseFloat(G("mag-remise").value)||0;
   const net = Math.max(0, total - remise);
   _livMontantNet = net;
-  // Mettre a jour montant paye si mode choisi
-  const mode = G("mag-mode-paiement").value;
-  if(mode){
-    G("mag-montant-paye").value = net.toFixed(2);
-  }
-  // Mettre a jour affichage
+
+  // Mettre a jour affichage calcul
   G("livraison-calcul").innerHTML =
     "<strong>" + m.immat + "</strong> — " + m.client + "<br>" +
     "Entree : " + m.date_entree + " | Duree : <strong>" + jours + " jour(s)</strong><br>" +
     "Total brut : " + fmtMontant(total) +
     (remise>0 ? " | Remise : <span style='color:var(--rouge)'>-" + fmtMontant(remise) + "</span>" : "") +
     "<br><strong style='color:var(--vert);font-size:15px'>Net a encaisser : " + fmtMontant(net) + "</strong>";
-  // Afficher solde
-  const montantPaye = parseFloat(G("mag-montant-paye").value)||0;
-  const solde = net - montantPaye;
-  if(mode && montantPaye > 0){
-    if(solde <= 0){
-      G("mag-solde-box").style.display = "none";
-      G("mag-solde-ok").style.display = "block";
-    } else {
-      G("mag-solde-box").style.display = "block";
-      G("mag-solde-ok").style.display = "none";
-      G("mag-solde-txt").textContent = fmtMontant(solde);
-    }
-  } else {
+
+  // Mettre a jour montant paye si mode deja choisi
+  const mode = G("mag-mode-paiement").value;
+  if(mode){
+    G("mag-montant-paye").value = net.toFixed(2);
+    const solde = net - net; // paye en totalite par defaut
     G("mag-solde-box").style.display = "none";
-    G("mag-solde-ok").style.display = "none";
+    G("mag-solde-ok").style.display = "block";
   }
 }
 
@@ -1741,11 +1749,11 @@ function recalculerLivraison(){
 function onModePaiementChange(){
   const mode = G("mag-mode-paiement").value;
   G("mag-montant-wrap").style.display = mode ? "block" : "none";
-  if(mode && _livData){
-    const net = calculerNet();
-    _livMontantNet = net;
-    G("mag-montant-paye").value = net.toFixed(2);
-    majRemise();
+  if(mode){
+    // Lire le net depuis _livMontantNet deja calcule par majRemise
+    G("mag-montant-paye").value = _livMontantNet.toFixed(2);
+    G("mag-solde-box").style.display = "none";
+    G("mag-solde-ok").style.display = "block";
   }
 }
 
