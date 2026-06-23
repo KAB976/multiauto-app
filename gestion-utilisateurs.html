@@ -515,7 +515,7 @@ async function ouvrirModifier(uid, role){
   loader(true, "Chargement...");
   try {
     const snap = await db.collection("users").doc(uid).get();
-    if(!snap.exists()){ loader(false); toast("Utilisateur introuvable","err"); return; }
+    if(!snap.exists){ loader(false); toast("Utilisateur introuvable","err"); return; }
     const u = snap.data();
 
     editingUid  = uid;
