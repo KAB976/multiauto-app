@@ -304,7 +304,7 @@ tr:hover td{background:var(--gris)}
 <!-- Modal Livraison Magasinage -->
 <div class="modal-bg" id="modal-livraison-mag">
 <div class="modal" style="max-width:500px">
-  <div class="modal-title">✅ Restituer le véhicule</div>
+  <div class="modal-title">✅ Restituer le vehicule</div>
   <input type="hidden" id="livraison-mag-id">
   <div class="form-group" style="margin-bottom:12px">
     <span class="fl">Date de sortie</span>
@@ -312,33 +312,33 @@ tr:hover td{background:var(--gris)}
   </div>
   <div id="livraison-calcul" style="background:var(--jaune-lt);border:1.5px solid var(--jaune-bd);border-radius:8px;padding:14px;margin-bottom:14px;font-size:13px;line-height:2"></div>
   <div class="form-group" style="margin-bottom:12px">
-    <span class="fl">Remise (€) <span style="color:var(--gris3);font-weight:400">— optionnel</span></span>
+    <span class="fl">Remise (euros) - optionnel</span>
     <input class="inp inp-sm" id="mag-remise" type="number" min="0" step="0.01" placeholder="0.00" value="0" oninput="recalculerLivraison()">
   </div>
   <div class="form-group" style="margin-bottom:12px">
-    <span class="fl">Mode de paiement <span style="color:var(--rouge)">*</span></span>
+    <span class="fl">Mode de paiement *</span>
     <select class="inp inp-sm" id="mag-mode-paiement" onchange="onModePaiementChange()">
-      <option value="">— Choisir —</option>
-      <option value="Espèces">💵 Espèces</option>
-      <option value="CB">💳 CB</option>
-      <option value="Chèque">📝 Chèque</option>
-      <option value="Virement">🏦 Virement</option>
+      <option value="">-- Choisir --</option>
+      <option value="Especes">Especes</option>
+      <option value="CB">CB</option>
+      <option value="Cheque">Cheque</option>
+      <option value="Virement">Virement</option>
     </select>
   </div>
   <div class="form-group" id="mag-montant-wrap" style="margin-bottom:12px;display:none">
-    <span class="fl">Montant payé (€)</span>
+    <span class="fl">Montant paye (euros)</span>
     <input class="inp inp-sm" id="mag-montant-paye" type="number" min="0" step="0.01" placeholder="0.00" oninput="recalculerLivraison()">
   </div>
   <div id="mag-solde-box" style="display:none;background:var(--rouge-lt);border:1.5px solid #ffcdd2;border-radius:8px;padding:12px;margin-bottom:12px;font-size:13px">
-    <span class="fl" style="margin-bottom:4px">Solde restant dû</span>
-    <div id="mag-solde-txt" style="font-size:18px;font-weight:900;color:var(--rouge)">—</div>
+    <span class="fl" style="margin-bottom:4px">Solde restant du</span>
+    <div id="mag-solde-txt" style="font-size:18px;font-weight:900;color:var(--rouge)">--</div>
   </div>
   <div id="mag-solde-ok" style="display:none;background:var(--vert-lt);border:1.5px solid #b7e4c7;border-radius:8px;padding:12px;margin-bottom:12px;font-size:13px;font-weight:700;color:var(--vert)">
-    ✅ Paiement total reçu
+    Paiement total recu
   </div>
   <div class="modal-footer">
     <button class="btn btn-secondary" onclick="fermerModal('modal-livraison-mag')">Annuler</button>
-    <button class="btn btn-primary" onclick="confirmerLivraison()">✅ Confirmer restitution</button>
+    <button class="btn btn-primary" onclick="confirmerLivraison()">Confirmer restitution</button>
   </div>
 </div>
 </div>
@@ -533,7 +533,7 @@ tr:hover td{background:var(--gris)}
         <div class="filtres">
           <input class="filtre-inp" type="date" id="rc-date-debut">
           <input class="filtre-inp" type="date" id="rc-date-fin">
-          <select class="filtre-inp" id="rc-filtre-chauffeur"><option value="">Tous chauffeurs</option></select>
+          <select class="filtre-inp" id="rc-filtre-chauffeur"><option value="">Tous les recus</option><option value="magasinage">Magasinage uniquement</option></select>
           <button class="btn btn-primary" onclick="chargerRecus()">🔍 Filtrer</button>
         </div>
         <div class="table-wrap">
@@ -1230,7 +1230,8 @@ function chargerRecus(){
     const debut=G("rc-date-debut")?.value||"", fin=G("rc-date-fin")?.value||"";
     if(debut) recus=recus.filter(r=>toComp(r.date)>=debut);
     if(fin)   recus=recus.filter(r=>toComp(r.date)<=fin);
-    if(ch)    recus=recus.filter(r=>r.chauffeur_uid===ch);
+    if(ch==="magasinage") recus=recus.filter(r=>r.type==="magasinage"||r.chauffeur_uid==="magasinage");
+    else if(ch) recus=recus.filter(r=>r.chauffeur_uid===ch);
     const totalRC=recus.length, totalM=recus.reduce((s,r)=>s+(r.montant||0),0);
     if(G("rc-totaux")) G("rc-totaux").innerHTML=`
       <div class="total-badge"><div class="tb-num">${totalRC}</div><div class="tb-lbl">Total reçus</div></div>
@@ -1541,7 +1542,7 @@ function chargerMagasinage(){
         <td style="font-weight:900;color:var(--vert)">${fmtMontant(net)}</td>
         <td>${st}</td>
         <td><div style="display:flex;gap:4px">
-          ${m.statut==="en_cours"?`<button class="btn btn-success btn-sm" onclick="ouvrirLivraison('${m.id}')">✅ Restituer</button>`:`<button class="btn btn-secondary btn-sm" onclick="voirRecuMag('${m.id}')">🧾 Reçu</button>`}
+          ${m.statut==="en_cours"?`<button class="btn btn-success btn-sm" onclick="ouvrirLivraison('${m.id}')">Restituer</button>`:`<button class="btn btn-secondary btn-sm" onclick="voirRecuMag('${m.id}')">Recu</button>`}
           <button class="btn btn-danger btn-sm btn-icon" onclick="supprimerMag('${m.id}')">🗑</button>
         </div></td></tr>`;
     });
@@ -1618,29 +1619,30 @@ function ouvrirLivraison(id){
   G("modal-livraison-mag").classList.add("on");
 }
 
-let _livMontantNet = 0;
+var _livMontantNet = 0;
+var _livData = null;
 
 function recalculerLivraison(){
   const id = G("livraison-mag-id").value;
   if(!id) return;
   db.collection("magasinage").doc(id).get().then(snap=>{
-    const m = snap.data();
+    _livData = snap.data();
+    const m = _livData;
     const e = new Date(m.date_entree);
     const s = new Date(G("mag-date-sortie").value);
     const jours = Math.max(1, Math.ceil((s-e)/(1000*60*60*24)));
     const total = jours * (m.tarif_jour||40);
     const remise = parseFloat(G("mag-remise").value)||0;
-    const net = total - remise;
+    const net = Math.max(0, total - remise);
     _livMontantNet = net;
     const montantPaye = parseFloat(G("mag-montant-paye").value)||0;
     const solde = net - montantPaye;
-    G("livraison-calcul").innerHTML = `
-      <strong>${m.immat}</strong> — ${m.client}<br>
-      Entrée : ${m.date_entree} &nbsp;|&nbsp; Durée : <strong>${jours} jour(s)</strong><br>
-      Total brut : ${fmtMontant(total)}
-      ${remise>0?` &nbsp;|&nbsp; Remise : <span style="color:var(--rouge)">-${fmtMontant(remise)}</span>`:""}
-      <br><strong style="color:var(--vert);font-size:15px">Net à encaisser : ${fmtMontant(net)}</strong>
-    `;
+    G("livraison-calcul").innerHTML =
+      "<strong>" + m.immat + "</strong> — " + m.client + "<br>" +
+      "Entree : " + m.date_entree + " &nbsp;|&nbsp; Duree : <strong>" + jours + " jour(s)</strong><br>" +
+      "Total brut : " + fmtMontant(total) +
+      (remise>0 ? " &nbsp;|&nbsp; Remise : <span style='color:var(--rouge)'>-" + fmtMontant(remise) + "</span>" : "") +
+      "<br><strong style='color:var(--vert);font-size:15px'>Net a encaisser : " + fmtMontant(net) + "</strong>";
     const mode = G("mag-mode-paiement").value;
     if(mode && montantPaye > 0){
       if(solde <= 0){
@@ -1678,27 +1680,51 @@ function confirmerLivraison(){
     const s = new Date(dateSortie);
     const jours = Math.max(1, Math.ceil((s-e)/(1000*60*60*24)));
     const total = jours * (m.tarif_jour||40);
-    const net = total - remise;
-    const solde = net - montantPaye;
+    const net = Math.max(0, total - remise);
+    const solde = Math.max(0, net - montantPaye);
+    const now = new Date();
+    const dateStr = ("0"+now.getDate()).slice(-2)+"/"+("0"+(now.getMonth()+1)).slice(-2)+"/"+now.getFullYear();
+    const heureStr = ("0"+now.getHours()).slice(-2)+":"+("0"+now.getMinutes()).slice(-2);
     return db.collection("magasinage").doc(id).update({
       statut:"livre", date_sortie:dateSortie, jours,
-      montant_total:total, remise, montant_net:net,
+      montant_total:total, remise:remise, montant_net:net,
       mode_paiement:mode, montant_paye:montantPaye,
-      solde_restant:Math.max(0,solde),
-      paiement_total:solde<=0,
+      solde_restant:solde, paiement_total:solde<=0,
       updatedAt:firebase.firestore.FieldValue.serverTimestamp()
+    }).then(()=>{
+      // Archiver dans collection recus
+      return db.collection("recus").add({
+        type: "magasinage",
+        chauffeur_nom: "Magasinage",
+        chauffeur_uid: "magasinage",
+        nom_client: m.client||"--",
+        immatriculation: m.immat||"--",
+        marque: "", modele: "",
+        mission: "Gardiennage " + (m.date_entree||"") + " au " + dateSortie,
+        date: dateStr, heure: heureStr,
+        montant: montantPaye,
+        montant_net: net,
+        remise: remise,
+        solde_restant: solde,
+        mode_paiement: mode,
+        jours: jours,
+        tarif_jour: m.tarif_jour||40,
+        mag_id: id,
+        timestamp: firebase.firestore.FieldValue.serverTimestamp()
+      });
     });
   }).then(()=>{
-    toast("Véhicule restitué ✅");
+    toast("Vehicule restitue OK");
     fermerModal("modal-livraison-mag");
     chargerMagasinage();
+    // Generer recu PDF
     db.collection("magasinage").doc(id).get().then(snap=>{
       if(snap.exists){
         const recuDoc = genererRecuMagasinage({id,...snap.data()});
-        window.open(URL.createObjectURL(recuDoc.output('blob')),'_blank');
+        window.open(URL.createObjectURL(recuDoc.output("blob")),"_blank");
       }
     });
-  }).catch(()=>toast("Erreur","err"));
+  }).catch(e=>{ console.error(e); toast("Erreur","err"); });
 }
 
 function supprimerMag(id){if(!confirm("Supprimer ?"))return;db.collection("magasinage").doc(id).delete().then(()=>{toast("Supprimé");chargerMagasinage();});}
@@ -2456,78 +2482,72 @@ function genererRecu(recu){
 }
 
 
-// ── REÇU MAGASINAGE ──
 function genererRecuMagasinage(data){
   const {jsPDF}=window.jspdf;
-  const doc=new jsPDF('portrait','mm','a4');
+  const doc=new jsPDF("portrait","mm","a4");
   const W=210,rouge=[200,52,26];
-  doc.setFillColor(...rouge);doc.rect(0,0,W,32,'F');
-  try{if(LOGO_DATA)doc.addImage(LOGO_DATA,'PNG',10,4,40,24,'','FAST');}catch(e){}
-  doc.setTextColor(255,255,255);doc.setFont('helvetica','bold');doc.setFontSize(18);
-  doc.text('REÇU DE GARDIENNAGE',W/2,14,{align:'center'});
-  doc.setFontSize(9);doc.setFont('helvetica','normal');
-  doc.text('N° MAG-'+(data.id||'').slice(-6),W/2,21,{align:'center'});
+  doc.setFillColor(...rouge);doc.rect(0,0,W,32,"F");
+  try{if(LOGO_DATA)doc.addImage(LOGO_DATA,"PNG",10,4,40,24,"","FAST");}catch(e){}
+  doc.setTextColor(255,255,255);doc.setFont("helvetica","bold");doc.setFontSize(18);
+  doc.text("RECU DE GARDIENNAGE",W/2,14,{align:"center"});
+  doc.setFontSize(9);doc.setFont("helvetica","normal");
+  doc.text("N MAG-"+(data.id||"").slice(-6),W/2,21,{align:"center"});
   doc.setFontSize(7.5);
-  doc.text('Date restitution : '+(data.date_sortie||new Date().toLocaleDateString('fr-FR')),W/2,27,{align:'center'});
-  let y=38;
-  doc.setFillColor(255,251,234);doc.setDrawColor(232,192,64);doc.setLineWidth(0.8);doc.roundedRect(10,y,190,32,3,3,'FD');
-  doc.setTextColor(122,90,58);doc.setFont('helvetica','bold');doc.setFontSize(7.5);
-  doc.text('MONTANT RÉGLÉ — '+((data.mode_paiement||'—').toUpperCase()),105,y+7,{align:'center'});
-  doc.setTextColor(26,37,64);doc.setFont('helvetica','bold');doc.setFontSize(30);
-  doc.text((data.montant_paye||0).toFixed(2).replace('.',',')+' €',105,y+20,{align:'center'});
+  doc.text("Date restitution : "+(data.date_sortie||new Date().toLocaleDateString("fr-FR")),W/2,27,{align:"center"});
+  var y=38;
+  doc.setFillColor(255,251,234);doc.setDrawColor(232,192,64);doc.setLineWidth(0.8);doc.roundedRect(10,y,190,32,3,3,"FD");
+  doc.setTextColor(122,90,58);doc.setFont("helvetica","bold");doc.setFontSize(7.5);
+  doc.text("MONTANT REGLE — "+((data.mode_paiement||"--").toUpperCase()),105,y+7,{align:"center"});
+  doc.setTextColor(26,37,64);doc.setFont("helvetica","bold");doc.setFontSize(30);
+  doc.text((data.montant_paye||0).toFixed(2).replace(".",","+" €"),105,y+20,{align:"center"});
   doc.setDrawColor(232,192,64);doc.setLineWidth(0.4);doc.line(20,y+23,190,y+23);
-  function montantLettres(n){
-    const u=['zéro','un','deux','trois','quatre','cinq','six','sept','huit','neuf','dix','onze','douze','treize','quatorze','quinze','seize','dix-sept','dix-huit','dix-neuf'];
-    const d=['vingt','trente','quarante','cinquante','soixante','soixante-dix','quatre-vingts','quatre-vingt-dix'];
-    if(n<20)return u[Math.floor(n)];
-    if(n<100){const di=Math.floor(n/10)-2,un=Math.floor(n%10);return d[di]+(un>0?'-'+u[un]:'');}
-    if(n<1000){return u[Math.floor(n/100)]+' cent'+(n%100>0?' '+montantLettres(n%100):'');}
-    return Math.floor(n)+' ';
+  var m2=data.montant_paye||0,ent=Math.floor(m2),cent=Math.round((m2-ent)*100);
+  var u=["zero","un","deux","trois","quatre","cinq","six","sept","huit","neuf","dix","onze","douze","treize","quatorze","quinze","seize","dix-sept","dix-huit","dix-neuf"];
+  var d2=["vingt","trente","quarante","cinquante","soixante","soixante-dix","quatre-vingts","quatre-vingt-dix"];
+  function mL(n){if(n<20)return u[Math.floor(n)];if(n<100){var di=Math.floor(n/10)-2,un=Math.floor(n%10);return d2[di]+(un>0?"-"+u[un]:"");}if(n<1000)return u[Math.floor(n/100)]+" cent"+(n%100>0?" "+mL(n%100):"");return Math.floor(n)+" ";}
+  var txt=mL(ent).charAt(0).toUpperCase()+mL(ent).slice(1)+" euro"+(ent>1?"s":"")+" et "+cent+" centime"+(cent>1?"s":"")+".";
+  doc.setFillColor(255,251,234);doc.setTextColor(122,85,0);doc.setFont("helvetica","italic");doc.setFontSize(9);
+  doc.text(txt,105,y+29,{align:"center",maxWidth:160});y+=32+5;
+  doc.setFillColor(...rouge);doc.rect(10,y,190,7,"F");doc.setTextColor(255,255,255);doc.setFont("helvetica","bold");doc.setFontSize(7.5);doc.text("DETAILS DU GARDIENNAGE",13,y+4.8);y+=7+1;
+  function pdfL2(y2,l,v){
+    doc.setFillColor(246,246,246);doc.rect(10,y2,190,7.5,"F");
+    doc.setTextColor(122,90,58);doc.setFont("helvetica","bold");doc.setFontSize(7);doc.text(l.toUpperCase(),13,y2+4.8);
+    doc.setTextColor(26,26,26);doc.setFont("helvetica","bold");doc.setFontSize(8.5);doc.text(String(v||"--"),65,y2+4.8);
+    doc.setDrawColor(224,224,224);doc.setLineWidth(0.3);doc.line(10,y2+7.5,200,y2+7.5);return y2+7.5;
   }
-  const m=data.montant_paye||0,ent=Math.floor(m),cent=Math.round((m-ent)*100);
-  const txt=montantLettres(ent).charAt(0).toUpperCase()+montantLettres(ent).slice(1)+' euro'+(ent>1?'s':'')+' et '+cent+' centime'+(cent>1?'s':'')+'.';
-  doc.setFillColor(255,251,234);doc.setTextColor(122,85,0);doc.setFont('helvetica','italic');doc.setFontSize(9);
-  doc.text(txt,105,y+29,{align:'center',maxWidth:160});y+=32+5;
-  doc.setFillColor(...rouge);doc.rect(10,y,190,7,'F');doc.setTextColor(255,255,255);doc.setFont('helvetica','bold');doc.setFontSize(7.5);doc.text('DÉTAILS DU GARDIENNAGE',13,y+4.8);y+=7+1;
-  function pdfL(y,l,v){
-    doc.setFillColor(246,246,246);doc.rect(10,y,190,7.5,'F');
-    doc.setTextColor(122,90,58);doc.setFont('helvetica','bold');doc.setFontSize(7);doc.text(l.toUpperCase(),13,y+4.8);
-    doc.setTextColor(26,26,26);doc.setFont('helvetica','bold');doc.setFontSize(8.5);doc.text(String(v||'—'),65,y+4.8);
-    doc.setDrawColor(224,224,224);doc.setLineWidth(0.3);doc.line(10,y+7.5,200,y+7.5);return y+7.5;
-  }
-  y=pdfL(y,'Client :',data.client||'—');
-  y=pdfL(y,'Immatriculation :',data.immat||'—');
-  y=pdfL(y,"Date d'entrée :",data.date_entree||'—');
-  y=pdfL(y,'Date de sortie :',data.date_sortie||'—');
-  y=pdfL(y,'Durée :',(data.jours||1)+' jour(s)');
-  y=pdfL(y,'Tarif/jour :',(data.tarif_jour||40).toFixed(2).replace('.',',')+' €');
-  y=pdfL(y,'Total brut :',(data.montant_total||0).toFixed(2).replace('.',',')+' €');
-  if((data.remise||0)>0) y=pdfL(y,'Remise :','-'+(data.remise||0).toFixed(2).replace('.',',')+' €');
-  y=pdfL(y,'Net à encaisser :',(data.montant_net||0).toFixed(2).replace('.',',')+' €');
-  y=pdfL(y,'Mode de paiement :',data.mode_paiement||'—');
-  y=pdfL(y,'Montant payé :',(data.montant_paye||0).toFixed(2).replace('.',',')+' €');
-  if((data.solde_restant||0)>0) y=pdfL(y,'Solde restant :',(data.solde_restant||0).toFixed(2).replace('.',',')+' €');
+  y=pdfL2(y,"Client :",data.client||"--");
+  y=pdfL2(y,"Immatriculation :",data.immat||"--");
+  y=pdfL2(y,"Date entree :",data.date_entree||"--");
+  y=pdfL2(y,"Date de sortie :",data.date_sortie||"--");
+  y=pdfL2(y,"Duree :",(data.jours||1)+" jour(s)");
+  y=pdfL2(y,"Tarif/jour :",(data.tarif_jour||40).toFixed(2).replace(".",","+" €"));
+  y=pdfL2(y,"Total brut :",(data.montant_total||0).toFixed(2).replace(".",","+" €"));
+  if((data.remise||0)>0) y=pdfL2(y,"Remise :","-"+(data.remise||0).toFixed(2).replace(".",","+" €"));
+  y=pdfL2(y,"Net a encaisser :",(data.montant_net||0).toFixed(2).replace(".",","+" €"));
+  y=pdfL2(y,"Mode de paiement :",data.mode_paiement||"--");
+  y=pdfL2(y,"Montant paye :",(data.montant_paye||0).toFixed(2).replace(".",","+" €"));
+  if((data.solde_restant||0)>0) y=pdfL2(y,"Solde restant :",(data.solde_restant||0).toFixed(2).replace(".",","+" €"));
   y+=5;
-  const cachetSize=46,cachetX=210-12-cachetSize,cachetY=195;
-  try{doc.addImage(CACHET_DATA,'PNG',cachetX,cachetY,cachetSize,cachetSize*0.72,'','FAST');}catch(e){}
-  const cx=cachetX+cachetSize/2,cy=cachetY+cachetSize*0.72*0.43;
-  doc.setFont('helvetica','bold');doc.setFontSize(8.5);doc.setTextColor(26,37,64);doc.text('Payé le :',cx,cy,{align:'center'});
-  const today=new Date();
-  const datePayee=('0'+today.getDate()).slice(-2)+'/'+('0'+(today.getMonth()+1)).slice(-2)+'/'+today.getFullYear();
-  doc.setTextColor(200,52,26);doc.setFontSize(10);doc.text(datePayee,cx,cy+5.5,{align:'center'});
-  doc.setFillColor(253,236,235);doc.setDrawColor(...rouge);doc.setLineWidth(0.7);doc.roundedRect(10,248,190,8,2,2,'FD');
-  doc.setTextColor(...rouge);doc.setFont('helvetica','bold');doc.setFontSize(9);
-  doc.text('PAIEMENT CONFIRME — GARDIENNAGE',105,253.2,{align:'center'});
+  var cachetSize=46,cachetX=210-12-cachetSize,cachetY=195;
+  try{doc.addImage(CACHET_DATA,"PNG",cachetX,cachetY,cachetSize,cachetSize*0.72,"","FAST");}catch(e){}
+  var cx=cachetX+cachetSize/2,cy2=cachetY+cachetSize*0.72*0.43;
+  doc.setFont("helvetica","bold");doc.setFontSize(8.5);doc.setTextColor(26,37,64);doc.text("Paye le :",cx,cy2,{align:"center"});
+  var today=new Date();
+  var datePayee=("0"+today.getDate()).slice(-2)+"/"+("0"+(today.getMonth()+1)).slice(-2)+"/"+today.getFullYear();
+  doc.setTextColor(200,52,26);doc.setFontSize(10);doc.text(datePayee,cx,cy2+5.5,{align:"center"});
+  doc.setFillColor(253,236,235);doc.setDrawColor(...rouge);doc.setLineWidth(0.7);doc.roundedRect(10,248,190,8,2,2,"FD");
+  doc.setTextColor(...rouge);doc.setFont("helvetica","bold");doc.setFontSize(9);
+  doc.text("PAIEMENT CONFIRME — GARDIENNAGE",105,253.2,{align:"center"});
   pdfPied(doc);
   return doc;
 }
 
 function voirRecuMag(id){
-  loader(true,"Génération reçu...");
+  loader(true,"Generation recu...");
   db.collection("magasinage").doc(id).get().then(snap=>{
-    if(!snap.exists){loader(false);toast("Non trouvé","err");return;}
+    if(!snap.exists){loader(false);toast("Non trouve","err");return;}
     const doc=genererRecuMagasinage({id,...snap.data()});
-    window.open(URL.createObjectURL(doc.output('blob')),'_blank');
+    window.open(URL.createObjectURL(doc.output("blob")),"_blank");
     loader(false);
   }).catch(()=>{loader(false);toast("Erreur","err");});
 }
