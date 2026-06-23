@@ -2708,7 +2708,10 @@ function sauvegarderUtilisateur(){
   if(!nom||!identifiant){ toast("Nom et identifiant obligatoires","err"); return; }
   if(!editingUserId && mdp.length<6){ toast("Mot de passe minimum 6 caractères","err"); return; }
 
-  const email="somalan2000+"+identifiant+"@gmail.com";
+  // Format email selon le rôle
+  const email = role === "chauffeur"
+    ? "somalan2000+" + identifiant + "@gmail.com"
+    : identifiant + "@multiauto.fr";
   const userData={
     nom, identifiant, role, email, actif:true,
     updatedAt:firebase.firestore.FieldValue.serverTimestamp()
@@ -2751,40 +2754,43 @@ function sauvegarderUtilisateur(){
   }
 }
 
-function creerNouvelUtilisateur(email, mdp, userData){
-  // Sauvegarder l'utilisateur actuel
-  const userActuel = auth.currentUser;
+async function creerNouvelUtilisateur(email, mdp, userData){
+  try {
+    // Utiliser une instance Firebase secondaire pour ne pas déconnecter l'admin
+    let appSecondaire;
+    try {
+      appSecondaire = firebase.app("secondaire");
+    } catch(e){
+      appSecondaire = firebase.initializeApp(firebase.app().options, "secondaire");
+    }
+    const authSecondaire = appSecondaire.auth();
 
-  // Créer le nouveau compte
-  auth.createUserWithEmailAndPassword(email, mdp)
-    .then(cred=>{
-      const uid=cred.user.uid;
-      userData.uid=uid;
-      userData.createdAt=firebase.firestore.FieldValue.serverTimestamp();
-      return db.collection("users").doc(uid).set(userData);
-    })
-    .then(()=>{
-      // Se reconnecter avec le compte admin
-      return auth.signInWithEmailAndPassword(
-        "somalan2000+"+userAdmin.identifiant+"@gmail.com",
-        prompt("Ressaisissez votre mot de passe admin pour rester connecté :")
-      );
-    })
-    .then(()=>{
-      toast("Utilisateur créé ✅ — "+email);
-      fermerModal("modal-utilisateur");
-      chargerUtilisateurs();
-      chargerListeChauffeurs();
-      loader(false);
-    })
-    .catch(e=>{
-      if(e.code==="auth/email-already-in-use"){
-        toast("Cet identifiant existe déjà","err");
-      } else {
-        toast("Erreur: "+e.message,"err");
-      }
-      loader(false);
-    });
+    // Créer le compte via l'instance secondaire
+    const cred = await authSecondaire.createUserWithEmailAndPassword(email, mdp);
+    const uid = cred.user.uid;
+
+    // Déconnecter l'instance secondaire immédiatement
+    await authSecondaire.signOut();
+
+    // Créer le document Firestore (l'admin reste connecté)
+    userData.uid = uid;
+    userData.createdAt = firebase.firestore.FieldValue.serverTimestamp();
+    await db.collection("users").doc(uid).set(userData);
+
+    toast("Utilisateur créé ✅ — " + email);
+    fermerModal("modal-utilisateur");
+    chargerUtilisateurs();
+    chargerListeChauffeurs();
+    loader(false);
+
+  } catch(e){
+    if(e.code === "auth/email-already-in-use"){
+      toast("Cet identifiant existe déjà — choisissez un autre identifiant","err");
+    } else {
+      toast("Erreur: " + e.message,"err");
+    }
+    loader(false);
+  }
 }
 
 function toggleActifUser(uid, actuel){
