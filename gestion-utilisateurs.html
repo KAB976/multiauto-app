@@ -372,18 +372,15 @@ async function seConnecterAdmin(){
       throw e1;
     }
 
-    // Charger le profil Firestore — chercher par role admin
+    // Charger le profil Firestore
     console.log("UID connecté:", cred.user.uid);
     let adminData = null;
 
-    // Essai 1 : chercher par UID du document
     const snap = await db.collection("users").doc(cred.user.uid).get();
-    if(snap.exists()){
+    if(snap.exists){
       adminData = snap.data();
-      console.log("Profil trouvé par UID:", adminData);
+      console.log("Profil trouvé:", adminData);
     } else {
-      // Essai 2 : chercher par rôle admin
-      console.log("Profil non trouvé par UID, recherche par rôle...");
       const q = await db.collection("users").where("role","==","admin").get();
       if(!q.empty){
         adminData = q.docs[0].data();
