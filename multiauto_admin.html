@@ -2497,7 +2497,7 @@ function genererRecuMagasinage(data){
   }
   y=pdfL(y,'Client :',data.client||'—');
   y=pdfL(y,'Immatriculation :',data.immat||'—');
-  y=pdfL(y,'Date d'entrée :',data.date_entree||'—');
+  y=pdfL(y,"Date d'entrée :",data.date_entree||'—');
   y=pdfL(y,'Date de sortie :',data.date_sortie||'—');
   y=pdfL(y,'Durée :',(data.jours||1)+' jour(s)');
   y=pdfL(y,'Tarif/jour :',(data.tarif_jour||40).toFixed(2).replace('.',',')+' €');
