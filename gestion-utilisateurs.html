@@ -600,24 +600,28 @@ async function sauvegarder(){
     }
 
   } else {
-    // CRÉER — Firebase Auth + Firestore
-    // On sauvegarde d'abord les infos admin pour se reconnecter
-    const adminEmail = "admin@multiauto.fr";
-    const adminPw    = prompt("Pour créer un compte, ressaisissez votre mot de passe admin :");
-    if(!adminPw){ loader(false); return; }
-
+    // CRÉER — utiliser une deuxième instance Firebase pour ne pas déconnecter l'admin
     try {
-      // Créer le compte Firebase Auth
-      const cred = await auth.createUserWithEmailAndPassword(email, mdp);
+      // Créer une app Firebase secondaire temporaire
+      let appSecondaire;
+      try {
+        appSecondaire = firebase.app("secondaire");
+      } catch(e){
+        appSecondaire = firebase.initializeApp(firebase.app().options, "secondaire");
+      }
+      const authSecondaire = appSecondaire.auth();
+
+      // Créer le compte dans Firebase Auth via l'instance secondaire
+      const cred = await authSecondaire.createUserWithEmailAndPassword(email, mdp);
       const uid  = cred.user.uid;
 
-      // Créer le document Firestore
+      // Déconnecter l'instance secondaire immédiatement
+      await authSecondaire.signOut();
+
+      // Créer le document Firestore (l'admin est toujours connecté)
       userData.uid       = uid;
       userData.createdAt = firebase.firestore.FieldValue.serverTimestamp();
       await db.collection("users").doc(uid).set(userData);
-
-      // Se reconnecter en tant qu'admin
-      await auth.signInWithEmailAndPassword(adminEmail, adminPw);
 
       loader(false);
       fermerModal();
@@ -627,10 +631,7 @@ async function sauvegarder(){
     } catch(e){
       loader(false);
       if(e.code === "auth/email-already-in-use"){
-        toast("Cet identifiant existe déjà","err");
-      } else if(e.code === "auth/wrong-password"){
-        toast("Mot de passe admin incorrect — reconnectez-vous","err");
-        seDeconnecter();
+        toast("Cet identifiant existe déjà — choisissez un autre identifiant","err");
       } else {
         toast("Erreur : " + e.message, "err");
       }
