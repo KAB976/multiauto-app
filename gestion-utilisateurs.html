@@ -372,25 +372,35 @@ async function seConnecterAdmin(){
       throw e1;
     }
 
-    // Charger le profil Firestore si disponible
+    // Charger le profil Firestore — chercher par role admin
+    console.log("UID connecté:", cred.user.uid);
+    let adminData = null;
+
+    // Essai 1 : chercher par UID du document
     const snap = await db.collection("users").doc(cred.user.uid).get();
     if(snap.exists()){
-      const data = snap.data();
-      // Vérifier que ce n'est pas un simple chauffeur
-      if(data.role === "chauffeur"){
-        await auth.signOut();
-        loader(false);
-        G("login-err").textContent = "Accès réservé à l'administrateur.";
-        G("login-err").style.display = "block";
-        return;
-      }
-      adminUser = { uid: cred.user.uid, ...data };
-      G("admin-nom-display").textContent = "Connecté : " + (adminUser.nom || id);
+      adminData = snap.data();
+      console.log("Profil trouvé par UID:", adminData);
     } else {
-      // Pas de profil Firestore — on accepte quand même (compte admin pur Firebase)
-      adminUser = { uid: cred.user.uid, nom: id, identifiant: id };
-      G("admin-nom-display").textContent = "Connecté : " + id;
+      // Essai 2 : chercher par rôle admin
+      console.log("Profil non trouvé par UID, recherche par rôle...");
+      const q = await db.collection("users").where("role","==","admin").get();
+      if(!q.empty){
+        adminData = q.docs[0].data();
+        console.log("Profil trouvé par rôle:", adminData);
+      }
     }
+
+    if(adminData && adminData.role === "chauffeur"){
+      await auth.signOut();
+      loader(false);
+      G("login-err").textContent = "Accès réservé à l'administrateur.";
+      G("login-err").style.display = "block";
+      return;
+    }
+
+    adminUser = { uid: cred.user.uid, ...(adminData || {}) };
+    G("admin-nom-display").textContent = "Connecté : " + (adminData && adminData.nom ? adminData.nom : "Admin");
 
     G("pg-login").style.display = "none";
     G("pg-app").classList.add("on");
