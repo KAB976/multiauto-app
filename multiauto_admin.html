@@ -1663,8 +1663,21 @@ function recalculerLivraison(){
 function onModePaiementChange(){
   const mode = G("mag-mode-paiement").value;
   G("mag-montant-wrap").style.display = mode ? "block" : "none";
-  if(mode) G("mag-montant-paye").value = _livMontantNet > 0 ? _livMontantNet.toFixed(2) : "";
-  recalculerLivraison();
+  // Recalculer d'abord pour avoir le bon net avec remise
+  const id = G("livraison-mag-id").value;
+  if(!id || !mode) return;
+  db.collection("magasinage").doc(id).get().then(snap=>{
+    const m = snap.data();
+    const e = new Date(m.date_entree);
+    const s = new Date(G("mag-date-sortie").value);
+    const jours = Math.max(1, Math.ceil((s-e)/(1000*60*60*24)));
+    const total = jours * (m.tarif_jour||40);
+    const remise = parseFloat(G("mag-remise").value)||0;
+    const net = Math.max(0, total - remise);
+    _livMontantNet = net;
+    G("mag-montant-paye").value = net.toFixed(2);
+    recalculerLivraison();
+  });
 }
 
 function confirmerLivraison(){
