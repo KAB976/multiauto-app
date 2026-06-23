@@ -217,7 +217,7 @@ tr:hover td{background:var(--gris)}
 <div class="modal">
   <div class="modal-title" id="modal-ch-title">👤 Chauffeur</div>
   <div class="form-grid">
-    <div class="form-group"><span class="fl">Nom</span><input class="inp inp-sm" id="ch-nom" placeholder="Nom complet"></div>
+    <div class="form-group"><span class="fl">Nom</span><input class="inp inp-sm" id="ch-nom" oninput="capInput(this)" placeholder="Nom complet"></div>
     <div class="form-group"><span class="fl">Identifiant</span><input class="inp inp-sm" id="ch-id" placeholder="Ex: ABD" style="text-transform:uppercase" oninput="this.value=this.value.toUpperCase()"></div>
     <div class="form-group"><span class="fl">Nouveau mot de passe</span><input class="inp inp-sm" id="ch-mdp" type="password" placeholder="Laisser vide = inchangé"></div>
     <div class="form-group"><span class="fl">Préfixe BL</span><input class="inp inp-sm" id="ch-pref-bl" placeholder="Ex: ABD" style="text-transform:uppercase" oninput="this.value=this.value.toUpperCase()"></div>
@@ -236,10 +236,10 @@ tr:hover td{background:var(--gris)}
 <div class="modal">
   <div class="modal-title" id="modal-cam-title">🚛 Camion</div>
   <div class="form-grid">
-    <div class="form-group"><span class="fl">Nom</span><input class="inp inp-sm" id="cam-nom" placeholder="Ex: Iveco Daily"></div>
+    <div class="form-group"><span class="fl">Nom</span><input class="inp inp-sm" id="cam-nom" oninput="capInput(this)" placeholder="Ex: Iveco Daily"></div>
     <div class="form-group"><span class="fl">Immatriculation</span><input class="inp inp-sm" id="cam-immat" placeholder="Ex: ZA-260-DV" style="text-transform:uppercase" oninput="this.value=this.value.toUpperCase()"></div>
-    <div class="form-group"><span class="fl">Marque</span><input class="inp inp-sm" id="cam-marque" placeholder="Ex: Iveco"></div>
-    <div class="form-group"><span class="fl">Modèle</span><input class="inp inp-sm" id="cam-modele" placeholder="Ex: Daily"></div>
+    <div class="form-group"><span class="fl">Marque</span><input class="inp inp-sm" id="cam-marque" oninput="capInput(this)" placeholder="Ex: Iveco"></div>
+    <div class="form-group"><span class="fl">Modèle</span><input class="inp inp-sm" id="cam-modele" oninput="capInput(this)" placeholder="Ex: Daily"></div>
     <div class="form-group"><span class="fl">Année</span><input class="inp inp-sm" id="cam-annee" type="number" placeholder="Ex: 2020"></div>
     <div class="form-group"><span class="fl">Chauffeur par défaut</span><select class="inp inp-sm" id="cam-chauffeur"><option value="">— Aucun —</option></select></div>
   </div>
@@ -287,13 +287,13 @@ tr:hover td{background:var(--gris)}
   <div class="modal-title" id="modal-mag-title">🏠 Nouveau gardiennage</div>
   <div class="form-grid">
     <div class="form-group"><span class="fl">Immatriculation</span><input class="inp inp-sm" id="mag-immat" placeholder="WV-111-EF" style="text-transform:uppercase" oninput="this.value=this.value.toUpperCase()"></div>
-    <div class="form-group"><span class="fl">Client</span><select class="inp inp-sm" id="mag-client"><option value="">— Choisir —</option></select></div>
-    <div class="form-group"><span class="fl">Marque / Modèle</span><input class="inp inp-sm" id="mag-vehicule" placeholder="Ex: Volvo XC60"></div>
+    <div class="form-group"><span class="fl">Client</span><select class="inp inp-sm" id="mag-client" oninput="capInput(this)"><option value="">— Choisir —</option></select></div>
+    <div class="form-group"><span class="fl">Marque / Modèle</span><input class="inp inp-sm" id="mag-vehicule" oninput="capInput(this)" placeholder="Ex: Volvo XC60"></div>
     <div class="form-group"><span class="fl">Tarif / jour (€)</span><select class="inp inp-sm" id="mag-tarif"><option value="20">20 €</option><option value="30">30 €</option><option value="40" selected>40 €</option></select></div>
     <div class="form-group"><span class="fl">Date entrée</span><input class="inp inp-sm" id="mag-date-entree" type="date"></div>
     <div class="form-group"><span class="fl">Remise (€)</span><input class="inp inp-sm" id="mag-remise" type="number" placeholder="0" min="0" value="0"></div>
   </div>
-  <div class="form-group" style="margin-top:10px"><span class="fl">Notes</span><textarea class="inp inp-sm" id="mag-notes" rows="2" placeholder="Informations..."></textarea></div>
+  <div class="form-group" style="margin-top:10px"><span class="fl">Notes</span><textarea class="inp inp-sm" id="mag-notes" oninput="capInput(this)" rows="2" placeholder="Informations..."></textarea></div>
   <div class="modal-footer">
     <button class="btn btn-secondary" onclick="fermerModal('modal-magasinage')">Annuler</button>
     <button class="btn btn-primary" onclick="sauvegarderMagasinage()">💾 Enregistrer</button>
@@ -313,7 +313,7 @@ tr:hover td{background:var(--gris)}
   <div id="livraison-calcul" style="background:var(--jaune-lt);border:1.5px solid var(--jaune-bd);border-radius:8px;padding:14px;margin-bottom:14px;font-size:13px;line-height:2"></div>
   <div class="form-group" style="margin-bottom:12px">
     <span class="fl">Remise (euros) - optionnel</span>
-    <input class="inp inp-sm" id="mag-remise" type="number" min="0" step="0.01" placeholder="0.00" value="0" oninput="recalculerLivraison()">
+    <input class="inp inp-sm" id="mag-remise" type="number" min="0" step="0.01" placeholder="0.00" oninput="majRemise()">
   </div>
   <div class="form-group" style="margin-bottom:12px">
     <span class="fl">Mode de paiement *</span>
@@ -349,10 +349,10 @@ tr:hover td{background:var(--gris)}
   <div class="modal-title" id="modal-pc-title">📄 Prise en charge</div>
   <div class="form-grid">
     <div class="form-group"><span class="fl">N° Dossier</span><input class="inp inp-sm" id="pc-dossier" placeholder="Ex: ASS-2026-001"></div>
-    <div class="form-group"><span class="fl">Assureur</span><input class="inp inp-sm" id="pc-assureur" placeholder="Ex: AXA, MAAF..."></div>
+    <div class="form-group"><span class="fl">Assureur</span><input class="inp inp-sm" id="pc-assureur" oninput="capInput(this)" placeholder="Ex: AXA, MAAF..."></div>
     <div class="form-group"><span class="fl">Client</span><select class="inp inp-sm" id="pc-client"><option value="">— Choisir —</option></select></div>
     <div class="form-group"><span class="fl">Téléphone</span><input class="inp inp-sm" id="pc-tel" type="tel" placeholder="0639 00 00 00"></div>
-    <div class="form-group"><span class="fl">Véhicule</span><input class="inp inp-sm" id="pc-vehicule" placeholder="Marque Modèle"></div>
+    <div class="form-group"><span class="fl">Véhicule</span><input class="inp inp-sm" id="pc-vehicule" oninput="capInput(this)" placeholder="Marque Modèle"></div>
     <div class="form-group"><span class="fl">Immatriculation</span><input class="inp inp-sm" id="pc-immat" placeholder="WV-111-EF" style="text-transform:uppercase" oninput="this.value=this.value.toUpperCase()"></div>
     <div class="form-group"><span class="fl">Part assurance (€)</span><input class="inp inp-sm" id="pc-montant-ass" type="number" placeholder="0" min="0"></div>
     <div class="form-group"><span class="fl">Part client (€)</span><input class="inp inp-sm" id="pc-montant-client" type="number" placeholder="0" min="0"></div>
@@ -822,7 +822,7 @@ tr:hover td{background:var(--gris)}
           <div class="card">
             <div class="card-title">👔 Commission responsable</div>
             <div class="form-grid">
-              <div class="form-group"><span class="fl">Nom du responsable</span><input class="inp inp-sm" id="resp-nom" placeholder="Ex: Le patron" value="Responsable"></div>
+              <div class="form-group"><span class="fl">Nom du responsable</span><input class="inp inp-sm" id="resp-nom" oninput="capInput(this)" placeholder="Ex: Le patron" value="Responsable"></div>
               <div class="form-group"><span class="fl">Taux commission (%)</span><input class="inp inp-sm" id="taux-resp-inp" type="number" min="0" max="100" step="0.1" value="3"></div>
             </div>
           </div>
@@ -856,8 +856,8 @@ tr:hover td{background:var(--gris)}
         <button class="btn btn-primary" onclick="sauvegarderParametres()">💾 Enregistrer</button>
       </div>
       <div class="card" style="max-width:600px">
-        <div class="form-group" style="margin-bottom:14px"><span class="fl">Nom de la société</span><input class="inp" id="soc-nom" placeholder="Multi Auto Depannage"></div>
-        <div class="form-group" style="margin-bottom:14px"><span class="fl">Adresse</span><input class="inp" id="soc-adresse" placeholder="ZI Kaweni derrière Groupama — 96700 Mamoudzou"></div>
+        <div class="form-group" style="margin-bottom:14px"><span class="fl">Nom de la société</span><input class="inp" id="soc-nom" oninput="capInput(this)" placeholder="Multi Auto Depannage"></div>
+        <div class="form-group" style="margin-bottom:14px"><span class="fl">Adresse</span><input class="inp" id="soc-adresse" oninput="capInput(this)" placeholder="ZI Kaweni derrière Groupama — 96700 Mamoudzou"></div>
         <div class="form-group" style="margin-bottom:14px"><span class="fl">Téléphone</span><input class="inp" id="soc-tel" type="tel" placeholder="0639 69 13 58"></div>
         <div class="form-group" style="margin-bottom:14px"><span class="fl">Email</span><input class="inp" id="soc-email" type="email" placeholder="depannage.mayotte@multiauto.fr"></div>
       </div>
@@ -901,7 +901,7 @@ tr:hover td{background:var(--gris)}
 <div class="modal">
   <div class="modal-title" id="modal-user-title">👤 Nouvel utilisateur</div>
   <div class="form-grid">
-    <div class="form-group"><span class="fl">Nom complet</span><input class="inp inp-sm" id="user-nom" placeholder="Ex: Fatima Said"></div>
+    <div class="form-group"><span class="fl">Nom complet</span><input class="inp inp-sm" id="user-nom" oninput="capInput(this)" placeholder="Ex: Fatima Said"></div>
     <div class="form-group"><span class="fl">Rôle</span>
       <select class="inp inp-sm" id="user-role" onchange="majChampsChauffeur()">
         <option value="secretaire">Secrétaire</option>
@@ -938,7 +938,7 @@ tr:hover td{background:var(--gris)}
 <div class="modal-bg" id="modal-client">
 <div class="modal">
   <div class="modal-title">👥 Ajouter un client</div>
-  <div class="form-group" style="margin-bottom:12px"><span class="fl">Nom</span><input class="inp" id="nc-nom" placeholder="Nom du client"></div>
+  <div class="form-group" style="margin-bottom:12px"><span class="fl">Nom</span><input class="inp" id="nc-nom" oninput="capInput(this)" placeholder="Nom du client"></div>
   <div class="form-group" style="margin-bottom:12px"><span class="fl">Téléphone</span><input class="inp" id="nc-tel" type="tel" placeholder="0639 00 00 00"></div>
   <div class="form-group" style="margin-bottom:12px"><span class="fl">Mode paiement</span><select class="inp" id="nc-mode"><option value="">— Choisir —</option><option>Espèces</option><option>CB</option><option>Virement</option><option>Chèque</option></select></div>
   <div class="modal-footer">
@@ -967,6 +967,15 @@ let userAdmin=null, chauffeursList=[], camionsList=[], clientsList=[], editingId
 let leafletMapAdmin=null;
 
 const G=id=>document.getElementById(id);
+
+function capitalizeWords(str){
+  return str.replace(/(?:^|\s)\S/g, c => c.toUpperCase());
+}
+function capInput(el){
+  const pos = el.selectionStart;
+  el.value = capitalizeWords(el.value);
+  try{ el.setSelectionRange(pos, pos); }catch(e){}
+}
 function toast(msg,type="ok"){
   const t=G("toast"); t.className="toast on "+type;
   t.innerHTML=(type==="ok"?"✅":"❌")+" "+msg;
@@ -1608,7 +1617,7 @@ function sauvegarderMagasinage(){
 function ouvrirLivraison(id){
   G("livraison-mag-id").value = id;
   G("mag-date-sortie").value = new Date().toISOString().split("T")[0];
-  G("mag-remise").value = "0";
+  G("mag-remise").value = "";
   G("mag-mode-paiement").value = "";
   G("mag-montant-paye").value = "";
   G("mag-montant-wrap").style.display = "none";
@@ -1621,6 +1630,47 @@ function ouvrirLivraison(id){
 
 var _livMontantNet = 0;
 var _livData = null;
+
+function majRemise(){
+  // Quand la remise change : recalculer net et mettre a jour montant paye
+  if(!_livData) return;
+  const m = _livData;
+  const e = new Date(m.date_entree);
+  const s = new Date(G("mag-date-sortie").value);
+  const jours = Math.max(1, Math.ceil((s-e)/(1000*60*60*24)));
+  const total = jours * (m.tarif_jour||40);
+  const remise = parseFloat(G("mag-remise").value)||0;
+  const net = Math.max(0, total - remise);
+  _livMontantNet = net;
+  // Mettre a jour montant paye si mode choisi
+  const mode = G("mag-mode-paiement").value;
+  if(mode){
+    G("mag-montant-paye").value = net.toFixed(2);
+  }
+  // Mettre a jour affichage
+  G("livraison-calcul").innerHTML =
+    "<strong>" + m.immat + "</strong> — " + m.client + "<br>" +
+    "Entree : " + m.date_entree + " | Duree : <strong>" + jours + " jour(s)</strong><br>" +
+    "Total brut : " + fmtMontant(total) +
+    (remise>0 ? " | Remise : <span style='color:var(--rouge)'>-" + fmtMontant(remise) + "</span>" : "") +
+    "<br><strong style='color:var(--vert);font-size:15px'>Net a encaisser : " + fmtMontant(net) + "</strong>";
+  // Afficher solde
+  const montantPaye = parseFloat(G("mag-montant-paye").value)||0;
+  const solde = net - montantPaye;
+  if(mode && montantPaye > 0){
+    if(solde <= 0){
+      G("mag-solde-box").style.display = "none";
+      G("mag-solde-ok").style.display = "block";
+    } else {
+      G("mag-solde-box").style.display = "block";
+      G("mag-solde-ok").style.display = "none";
+      G("mag-solde-txt").textContent = fmtMontant(solde);
+    }
+  } else {
+    G("mag-solde-box").style.display = "none";
+    G("mag-solde-ok").style.display = "none";
+  }
+}
 
 function calculerNet(){
   // Lit les valeurs des champs et retourne le net
@@ -1691,13 +1741,12 @@ function recalculerLivraison(){
 function onModePaiementChange(){
   const mode = G("mag-mode-paiement").value;
   G("mag-montant-wrap").style.display = mode ? "block" : "none";
-  if(mode){
-    // Calculer le net depuis les donnees deja chargees — pas de Firestore
+  if(mode && _livData){
     const net = calculerNet();
-    G("mag-montant-paye").value = net.toFixed(2);
     _livMontantNet = net;
+    G("mag-montant-paye").value = net.toFixed(2);
+    majRemise();
   }
-  recalculerLivraison();
 }
 
 function confirmerLivraison(){
