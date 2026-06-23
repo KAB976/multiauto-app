@@ -131,10 +131,7 @@ tr:hover td{background:var(--gris)}
     <div class="login-sub">Multi Auto Dépannage — Accès Admin uniquement</div>
     <div class="sep"></div>
     <label class="fl">Mot de passe admin</label>
-    <div class="mdp-wrap" style="margin-bottom:14px">
-      <input class="inp" type="password" id="login-pw" placeholder="••••••••" onkeydown="if(event.key==='Enter')seConnecterAdmin()">
-      <button class="btn-eye" onclick="toggleMdp('login-pw',this)">👁</button>
-    </div>
+    <input class="inp" type="password" id="login-pw" placeholder="••••••••" onkeydown="if(event.key==='Enter')seConnecterAdmin()" style="margin-bottom:14px">
     <div id="login-err" style="color:var(--rouge);font-size:12px;font-weight:700;text-align:center;margin-bottom:10px;display:none">
       Mot de passe incorrect
     </div>
@@ -365,10 +362,13 @@ async function seConnecterAdmin(){
   try {
     // Email admin fixe
     const email = "admin@multiauto.fr";
+    console.log("Tentative connexion:", email, "mdp length:", pw.length);
     let cred;
     try {
       cred = await auth.signInWithEmailAndPassword(email, pw);
+      console.log("Connexion OK:", cred.user.email);
     } catch(e1){
+      console.error("Erreur Firebase:", e1.code, e1.message);
       throw e1;
     }
 
