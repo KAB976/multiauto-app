@@ -754,6 +754,7 @@ function majNums(){
 // ════════════════════════════════════
 function initMarques(){
   var sel = G("sel-marque");
+  sel.innerHTML = "<option value=''>— Marque —</option>";
   var marques = Object.keys(MARQUES_MODELES).sort();
   marques.forEach(function(m){
     var o = document.createElement("option"); o.value=m; o.textContent=m; sel.appendChild(o);
@@ -1541,9 +1542,9 @@ window.seConnecter = async function(){
     G("pg-login").classList.remove("on");
     G("pg-app").classList.add("on");
     initApp();
-    // Remplir les selects APRÈS que les données soient chargées
-    if(typeof initClients === "function") initClients();
-    if(typeof initMarques === "function") initMarques();
+    // Recharger les selects avec les données Firestore (CLIENTS est maintenant rempli)
+    initClients();
+    initMarques();
 
   } catch(err){
     loader(false);
