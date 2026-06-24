@@ -1865,8 +1865,8 @@ function ouvrirCarteGPS(bon){
     const hasCoords=bon.gps_emb_lat&&bon.gps_dest_lat;
     leafletMapAdmin=L.map("gps-map");
     L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png",{attribution:"© OpenStreetMap"}).addTo(leafletMapAdmin);
-    const emb=[bon.gps_emb_lat||(-12.78),bon.gps_emb_lng||(45.23)];
-    const dest=[bon.gps_dest_lat||(-12.8),bon.gps_dest_lng||(45.24)];
+    const emb=[parseFloat(bon.gps_emb_lat)||(-12.78),parseFloat(bon.gps_emb_lng)||(45.23)];
+    const dest=[parseFloat(bon.gps_dest_lat)||(-12.8),parseFloat(bon.gps_dest_lng)||(45.24)];
     const embIcon=L.divIcon({html:'<div style="background:#C8341A;color:white;border-radius:50%;width:26px;height:26px;display:flex;align-items:center;justify-content:center;font-size:13px;font-weight:900;border:2px solid white;box-shadow:0 2px 6px rgba(0,0,0,.4)">A</div>',iconSize:[26,26],className:""});
     const destIcon=L.divIcon({html:'<div style="background:#1A7A40;color:white;border-radius:50%;width:26px;height:26px;display:flex;align-items:center;justify-content:center;font-size:13px;font-weight:900;border:2px solid white;box-shadow:0 2px 6px rgba(0,0,0,.4)">B</div>',iconSize:[26,26],className:""});
     L.marker(emb,{icon:embIcon}).addTo(leafletMapAdmin).bindPopup("Départ: "+(bon.lieu_embarquement||"—"));

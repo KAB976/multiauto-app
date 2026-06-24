@@ -1323,15 +1323,19 @@ function afficherMenu(section){
   G("btn-menu-carb").style.color      = isBL ? "var(--bl)"  : "white";
 
   if(!isBL){
-    // Init carburant rapide
+    // Init carburant rapide — tout vider à chaque ouverture
     if(user){
       G("rapide-camion-nom").textContent  = user.camion_temporaire || user.camion || "—";
       G("rapide-camion-immat").textContent= user.immat_temporaire  || user.immatCam || "—";
     }
-    G("rap-date").value = new Date().toISOString().split("T")[0];
-    G("rap-alert").style.display="none";
-    G("rap-success").style.display="none";
-    G("btn-rap-valider").style.display="flex";
+    G("rap-date").value  = new Date().toISOString().split("T")[0];
+    G("rap-litres").value  = "";
+    G("rap-montant").value = "";
+    G("rap-km").value      = "";
+    G("rap-station").value = "";
+    G("rap-alert").style.display  = "none";
+    G("rap-success").style.display = "none";
+    G("btn-rap-valider").style.display = "flex";
   }
 }
 
@@ -1537,6 +1541,9 @@ window.seConnecter = async function(){
     G("pg-login").classList.remove("on");
     G("pg-app").classList.add("on");
     initApp();
+    // Remplir les selects APRÈS que les données soient chargées
+    if(typeof initClients === "function") initClients();
+    if(typeof initMarques === "function") initMarques();
 
   } catch(err){
     loader(false);
