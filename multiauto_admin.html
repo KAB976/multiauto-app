@@ -313,7 +313,7 @@ tr:hover td{background:var(--gris)}
   <div id="livraison-calcul" style="background:var(--jaune-lt);border:1.5px solid var(--jaune-bd);border-radius:8px;padding:14px;margin-bottom:14px;font-size:13px;line-height:2"></div>
   <div class="form-group" style="margin-bottom:12px">
     <span class="fl">Remise (euros) - optionnel</span>
-    <input class="inp inp-sm" id="mag-remise" type="number" min="0" step="0.01" placeholder="0.00" oninput="majRemise()">
+    <input class="inp inp-sm" id="liv-remise" type="number" min="0" step="0.01" placeholder="0.00" oninput="majRemise()">
   </div>
   <div class="form-group" style="margin-bottom:12px">
     <span class="fl">Mode de paiement *</span>
@@ -1249,6 +1249,7 @@ function chargerRecus(){
     if(ch==="magasinage") recus=recus.filter(r=>r.type==="magasinage"||r.chauffeur_uid==="magasinage");
     else if(ch==="tous_chauffeurs") recus=recus.filter(r=>r.type!=="magasinage"&&r.chauffeur_uid!=="magasinage");
     else if(ch) recus=recus.filter(r=>r.chauffeur_uid===ch);
+    window._recusAffiches = recus;
     const totalRC=recus.length, totalM=recus.reduce((s,r)=>s+(r.montant||0),0);
     if(G("rc-totaux")) G("rc-totaux").innerHTML=`
       <div class="total-badge"><div class="tb-num">${totalRC}</div><div class="tb-lbl">Total reçus</div></div>
@@ -1642,7 +1643,7 @@ function ouvrirLivraison(id){
     // Initialiser les champs
     G("livraison-mag-id").value = id;
     G("mag-date-sortie").value = dateAuj;
-    G("mag-remise").value = "";
+    G("liv-remise").value = "";
     G("mag-mode-paiement").value = "";
     G("mag-montant-paye").value = "";
     G("mag-montant-wrap").style.display = "none";
@@ -1664,7 +1665,7 @@ function majRemise(){
   // Appelé quand l'utilisateur change la remise
   const m = window._magM;
   if(!m) return;
-  const remise = parseFloat(G("mag-remise").value)||0;
+  const remise = parseFloat(G("liv-remise").value)||0;
   const net = Math.max(0, window._magTotal - remise);
   window._magNet = net;
 
@@ -1719,7 +1720,7 @@ function recalculerLivraison(){
   const total = jours * (m.tarif_jour||40);
   window._magJours = jours;
   window._magTotal = total;
-  const remise = parseFloat(G("mag-remise").value)||0;
+  const remise = parseFloat(G("liv-remise").value)||0;
   const net = Math.max(0, total - remise);
   window._magNet = net;
   G("livraison-calcul").innerHTML =
@@ -1737,7 +1738,7 @@ function confirmerLivraison(){
   const id = G("livraison-mag-id").value;
   const dateSortie = G("mag-date-sortie").value;
   const mode = G("mag-mode-paiement").value;
-  const remise = parseFloat(G("mag-remise").value)||0;
+  const remise = parseFloat(G("liv-remise").value)||0;
   const montantPaye = parseFloat(G("mag-montant-paye").value)||0;
   if(!mode){ toast("Choisissez un mode de paiement","err"); return; }
   db.collection("magasinage").doc(id).get().then(snap=>{
@@ -2575,7 +2576,7 @@ function genererRecuMagasinage(data){
   doc.setTextColor(122,90,58);doc.setFont("helvetica","bold");doc.setFontSize(7.5);
   doc.text("MONTANT REGLE — "+((data.mode_paiement||"--").toUpperCase()),105,y+7,{align:"center"});
   doc.setTextColor(26,37,64);doc.setFont("helvetica","bold");doc.setFontSize(30);
-  doc.text((data.montant_paye||0).toFixed(2).replace(".",","+" €"),105,y+20,{align:"center"});
+  doc.text((data.montant_paye||0).toFixed(2).replace(".",",")+" €",105,y+20,{align:"center"});
   doc.setDrawColor(232,192,64);doc.setLineWidth(0.4);doc.line(20,y+23,190,y+23);
   var m2=data.montant_paye||0,ent=Math.floor(m2),cent=Math.round((m2-ent)*100);
   var u=["zero","un","deux","trois","quatre","cinq","six","sept","huit","neuf","dix","onze","douze","treize","quatorze","quinze","seize","dix-sept","dix-huit","dix-neuf"];
@@ -2702,26 +2703,77 @@ function exporterBonsPDF(){
   loader(false);toast(cochees.length>0?cochees.length+" BL exportés ✅":"Liste BL exportée ✅");
 }
 
+// Construction du tableau pour PDF reçus
+function _buildRecusTableData(recusList){
+  const rows=[];let totalNet=0;
+  recusList.forEach(r=>{
+    const net=r.montant_net||r.montant||0, remise=r.remise||0;
+    totalNet+=net;
+    rows.push([
+      r.recu_num||"—", r.date||"—",
+      r.chauffeur_nom||"Gardiennage",
+      r.nom_client||"—",
+      (r.immatriculation||(r.marque||"")+" "+(r.modele||"")).trim()||"—",
+      r.mission||"—",
+      remise>0?"-"+fmtMontant(remise):"—",
+      fmtMontant(net),
+      r.mode_paiement||"—"
+    ]);
+  });
+  rows.push(["","","","","","","TOTAL",fmtMontant(totalNet),""]);
+  return rows;
+}
+function _genRecusPDF(recusList,titre){
+  const {jsPDF}=window.jspdf;
+  const doc=new jsPDF("landscape","mm","a4");
+  const sel=G("rc-filtre-chauffeur");
+  const filtreLabel=sel?.options[sel.selectedIndex]?.text||"Tous";
+  const debut=G("rc-date-debut")?.value||"", fin=G("rc-date-fin")?.value||"";
+  doc.setFont("helvetica","bold");doc.setFontSize(13);doc.setTextColor(200,52,26);
+  doc.text(titre+" — "+SOC.nom,148,13,{align:"center"});
+  doc.setFontSize(8);doc.setTextColor(100,100,100);
+  let sub="Généré le "+new Date().toLocaleDateString("fr-FR");
+  if(debut||fin) sub+=" | Période : "+(debut||"…")+" → "+(fin||"…");
+  sub+=" | Filtre : "+filtreLabel;
+  doc.text(sub,148,19,{align:"center"});
+  doc.autoTable({startY:24,
+    head:[["N° Reçu","Date","Chauffeur","Client","Véhicule","Mission","Remise","Montant net","Mode paiement"]],
+    body:_buildRecusTableData(recusList),
+    headStyles:{fillColor:[26,37,64],textColor:255,fontSize:6.5},
+    bodyStyles:{fontSize:6.5},
+    alternateRowStyles:{fillColor:[246,246,246]},
+    margin:{left:8,right:8}
+  });
+  pdfPied(doc);
+  return doc;
+}
+function exporterRecusFiltresPDF(){
+  const list=window._recusAffiches||[];
+  if(!list.length){toast("Aucun reçu à exporter","err");return;}
+  _genRecusPDF(list,"LISTE DES REÇUS").save("recus-filtres.pdf");
+  toast("Liste exportée ✅");
+}
+function imprimerListeRecus(){
+  const list=window._recusAffiches||[];
+  if(!list.length){toast("Aucun reçu","err");return;}
+  const doc=_genRecusPDF(list,"LISTE DES REÇUS");
+  doc.autoPrint(); window.open(doc.output("bloburl"),"_blank");
+}
 function exporterRecusPDF(){
   loader(true,"Export reçus...");
-  const {jsPDF}=window.jspdf;
-  const doc=new jsPDF('landscape','mm','a4');
-  doc.setFont('helvetica','bold');doc.setFontSize(14);doc.setTextColor(200,52,26);
-  doc.text('LISTE DES REÇUS ESPÈCES — '+SOC.nom,148,15,{align:'center'});
-  doc.setFontSize(9);doc.setTextColor(100,100,100);
-  doc.text('Généré le '+new Date().toLocaleDateString('fr-FR'),148,21,{align:'center'});
-  const cochees=document.querySelectorAll('.rc-check:checked');
-  const source=cochees.length>0?Array.from(cochees).map(cb=>cb.closest('tr')):Array.from(G("recus-tbody")?.querySelectorAll("tr")||[]);
-  const rows=[];let total=0;
-  source.forEach(tr=>{const cells=[];tr.querySelectorAll("td").forEach((td,i)=>{if(i>0&&i<10)cells.push(td.textContent.trim());});if(cells.length>1){const m=parseFloat((cells[6]||'0').replace(',','.').replace(/[€ \s]/g,''))||0;total+=m;rows.push(cells.slice(0,8));}}); 
-  rows.push(['','','','','','TOTAL',total.toFixed(2).replace('.',',')+' €','']);
-  doc.autoTable({startY:26,head:[['N° Reçu','Date','Chauffeur','Client','Véhicule','Mission','Montant','N° BL']],body:rows,
-    headStyles:{fillColor:[26,37,64],textColor:255,fontSize:7},bodyStyles:{fontSize:7},
-    alternateRowStyles:{fillColor:[246,246,246]},margin:{left:10,right:10}});
-  pdfPied(doc);
-  doc.save('recus'+(cochees.length>0?'-selection':'')+'.pdf');
-  loader(false);toast(cochees.length>0?cochees.length+" reçu(s) exportés ✅":"Liste reçus exportée ✅");
+  const cochees=document.querySelectorAll(".rc-check:checked");
+  const list=window._recusAffiches||[];
+  if(cochees.length>0){
+    const ids=new Set(Array.from(cochees).map(cb=>cb.dataset.id));
+    const sel=list.filter(r=>ids.has(r.id));
+    _genRecusPDF(sel,"REÇUS SÉLECTIONNÉS").save("recus-selection.pdf");
+    loader(false);toast(cochees.length+" reçu(s) exportés ✅");
+  } else {
+    exporterRecusFiltresPDF();
+    loader(false);
+  }
 }
+
 
 
 // ── ENCAISSEMENT CLIENT EN COMPTE ──
