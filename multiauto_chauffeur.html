@@ -756,22 +756,22 @@ function majNums(){
 var MARQUES_FIRESTORE = {}; // {marque: [modele1, modele2, ...]}
 
 function initMarques(){
-  // Essayer de charger depuis Firestore vehicules_clients
-  db.collection("vehicules_clients").orderBy("marque").get().then(function(snap){
-    if(!snap.empty){
-      snap.forEach(function(d){
-        var v=d.data();
-        if(!MARQUES_FIRESTORE[v.marque]) MARQUES_FIRESTORE[v.marque]=[];
-        if(v.modele) MARQUES_FIRESTORE[v.marque].push(v.modele);
-      });
-      remplirSelectMarques(MARQUES_FIRESTORE);
-    } else {
-      // Fallback : liste statique
-      remplirSelectMarques(MARQUES_MODELES);
-    }
-  }).catch(function(){
-    remplirSelectMarques(MARQUES_MODELES);
-  });
+  // SDK modulaire (même que le reste du fichier)
+  try {
+    getDocs(query(collection(db,"vehicules_clients"), orderBy("marque","asc")))
+      .then(function(snap){
+        if(!snap.empty){
+          snap.forEach(function(d){
+            var v=d.data();
+            if(!MARQUES_FIRESTORE[v.marque]) MARQUES_FIRESTORE[v.marque]=[];
+            if(v.modele) MARQUES_FIRESTORE[v.marque].push(v.modele);
+          });
+          remplirSelectMarques(MARQUES_FIRESTORE);
+        } else {
+          remplirSelectMarques(MARQUES_MODELES);
+        }
+      }).catch(function(){ remplirSelectMarques(MARQUES_MODELES); });
+  } catch(e){ remplirSelectMarques(MARQUES_MODELES); }
 }
 
 function remplirSelectMarques(source){
@@ -788,7 +788,6 @@ function majModeles(){
   var sel = G("sel-modele");
   sel.innerHTML = "<option value=''>— Modèle —</option>";
   if(!marque) return;
-  // Chercher dans Firestore d'abord, puis statique
   var source = Object.keys(MARQUES_FIRESTORE).length > 0 ? MARQUES_FIRESTORE : MARQUES_MODELES;
   var modeles = (source[marque]||[]).slice().sort();
   modeles.forEach(function(m){
@@ -1365,12 +1364,16 @@ function afficherMenu(section){
   G("btn-menu-carb").style.color      = isBL ? "var(--bl)"  : "white";
 
   if(!isBL){
-    // Init carburant rapide
+    // Init carburant rapide — tout remettre à zéro
     if(user){
       G("rapide-camion-nom").textContent  = user.camion_temporaire || user.camion || "—";
       G("rapide-camion-immat").textContent= user.immat_temporaire  || user.immatCam || "—";
     }
     G("rap-date").value = new Date().toISOString().split("T")[0];
+    G("rap-litres").value="";
+    G("rap-montant").value="";
+    G("rap-km").value="";
+    G("rap-station").value="";
     G("rap-alert").style.display="none";
     G("rap-success").style.display="none";
     G("btn-rap-valider").style.display="flex";
