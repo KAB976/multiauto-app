@@ -1538,7 +1538,7 @@ window.seConnecter = async function(){
       immatCam: profil.immat_temporaire || profil.immat_camion,
       prefixBL: profil.prefixe_bl || profil.identifiant,
       prefixR:  profil.prefixe_recu || profil.identifiant,
-      photoOblig: profil.photo_obligatoire !== false,
+      photoOblig: profil.photo_obligatoire !== false && profil.perm_sans_photo !== true,
       bl_compteur: profil.bl_compteur || 1,
       recu_compteur: profil.recu_compteur || 1
     };
@@ -1789,7 +1789,7 @@ onAuthStateChanged(auth, async (firebaseUser) => {
           immatCam: profil.immat_temporaire || profil.immat_camion,
           prefixBL: profil.prefixe_bl || profil.identifiant,
           prefixR:  profil.prefixe_recu || profil.identifiant,
-          photoOblig: profil.photo_obligatoire !== false,
+          photoOblig: profil.photo_obligatoire !== false && profil.perm_sans_photo !== true,
           bl_compteur: profil.bl_compteur || 1,
           recu_compteur: profil.recu_compteur || 1
         };

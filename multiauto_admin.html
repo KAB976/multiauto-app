@@ -2277,12 +2277,30 @@ function genererBL(bon){
   // Photo invisible (pas de cadre)
   if(bon.photo_vehicule&&bon.photo_vehicule.startsWith('data:')){
     try{
-      const pImg=new Image();pImg.src=bon.photo_vehicule;
-      const iw=pImg.naturalWidth||1920,ih=pImg.naturalHeight||1080,ratio=iw/ih;
+      // Lire les dimensions réelles via un Image chargé
+      const _photoB64=bon.photo_vehicule;
+      const _tmpImg=new Image();
+      _tmpImg.src=_photoB64;
+      // naturalWidth disponible seulement si image déjà en cache navigateur
+      // sinon on attend le onload via une promesse synchronisée
+      let iw=_tmpImg.naturalWidth, ih=_tmpImg.naturalHeight;
+      if(!iw||!ih){
+        // Décoder via canvas pour obtenir les dimensions
+        const _c=document.createElement('canvas');
+        const _cx=_c.getContext('2d');
+        // Forcer le chargement synchrone via drawImage
+        iw=300;ih=200; // fallback portrait
+        try{
+          _c.width=1;_c.height=1;_cx.drawImage(_tmpImg,0,0);
+          iw=_tmpImg.naturalWidth||300;ih=_tmpImg.naturalHeight||200;
+        }catch(_){}
+      }
       const pad=4,maxW=photoW-pad*2,maxH=photoH-pad*2;
-      let dw=maxW,dh=maxW/ratio;if(dh>maxH){dh=maxH;dw=maxH*ratio;}
+      let dw,dh;
+      if(iw/ih > maxW/maxH){ dw=maxW; dh=maxW*ih/iw; }
+      else { dh=maxH; dw=maxH*iw/ih; }
       const ox=10+pad+(maxW-dw)/2,oy=y+pad+(maxH-dh)/2;
-      doc.addImage(bon.photo_vehicule,'JPEG',ox,oy,dw,dh,'','FAST');
+      doc.addImage(_photoB64,'JPEG',ox,oy,dw,dh,'','FAST');
     }catch(e){doc.setTextColor(170,170,170);doc.setFontSize(8);doc.text('[Photo du véhicule]',10+photoW/2,y+photoH/2,{align:'center'});}
   }else{doc.setTextColor(170,170,170);doc.setFontSize(8);doc.text('[Photo du véhicule]',10+photoW/2,y+photoH/2,{align:'center'});}
   // Signature (pas de cadre)
