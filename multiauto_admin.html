@@ -1857,14 +1857,79 @@ function exporterMagasinagePDF(){toast("Export PDF magasinage — disponible pro
 
 // ── VEHICULES CLIENTS (Marques/Modèles) ──
 let marquesList=[];
+
+// Liste statique de référence (même que l'app chauffeur)
+const MARQUES_MODELES_REF = {
+  "Alfa Romeo":["147","156","159","Giulia","Giulietta","Stelvio","MiTo"],
+  "Audi":["A1","A3","A4","A5","A6","A7","A8","Q2","Q3","Q5","Q7","Q8","TT","RS3","RS6"],
+  "BMW":["Série 1","Série 2","Série 3","Série 4","Série 5","Série 7","X1","X2","X3","X4","X5","X6","X7","M3","M5"],
+  "Citroën":["C1","C2","C3","C4","C5","Berlingo","Jumper","Jumpy","SpaceTourer"],
+  "Dacia":["Duster","Jogger","Logan","Sandero","Spring","Lodgy"],
+  "Fiat":["500","Doblo","Ducato","Grande Punto","Panda","Tipo"],
+  "Ford":["EcoSport","Fiesta","Focus","Kuga","Mustang","Ranger","Transit","Transit Custom"],
+  "Honda":["Accord","Civic","CR-V","HR-V","Jazz"],
+  "Hyundai":["i10","i20","i30","Kona","Santa Fe","Tucson","Elantra","Creta"],
+  "Isuzu":["D-Max","MU-X","NPR","NQR"],
+  "Jeep":["Cherokee","Compass","Grand Cherokee","Renegade","Wrangler"],
+  "Kia":["Ceed","Niro","Picanto","Rio","Sorento","Sportage","Stonic"],
+  "Land Rover":["Defender","Discovery","Freelander","Range Rover","Range Rover Evoque","Range Rover Sport"],
+  "Mahindra":["Bolero","Pik Up","Scorpio","Thar","XUV500","XUV700"],
+  "Mazda":["2","3","6","CX-3","CX-5","CX-30","MX-5"],
+  "Mercedes":["Classe A","Classe B","Classe C","Classe E","Classe G","Classe S","GLA","GLC","GLE","Sprinter","Vito","Actros"],
+  "Mitsubishi":["ASX","Eclipse Cross","L200","Outlander","Pajero"],
+  "Nissan":["Juke","Leaf","Micra","Navara","Pathfinder","Qashqai","X-Trail"],
+  "Opel":["Astra","Corsa","Crossland","Grandland","Insignia","Mokka","Vivaro","Zafira"],
+  "Peugeot":["108","2008","208","3008","308","5008","508","Boxer","Expert","Partner","Rifter"],
+  "Renault":["Arkana","Captur","Clio","Duster","Kadjar","Kangoo","Master","Megane","Scenic","Trafic","Twingo","Zoe"],
+  "Scania":["P Series","R Series","S Series","G Series"],
+  "Seat":["Arona","Ateca","Ibiza","Leon","Tarraco"],
+  "Skoda":["Fabia","Kamiq","Karoq","Kodiaq","Octavia","Superb"],
+  "Suzuki":["Alto","Baleno","Grand Vitara","Ignis","Jimny","Swift","Vitara"],
+  "Toyota":["Auris","Aygo","C-HR","Camry","Corolla","Hilux","Land Cruiser","Prius","RAV4","Yaris"],
+  "Volkswagen":["Amarok","Caddy","Golf","Passat","Polo","T-Cross","T-Roc","Tiguan","Touareg","Transporter"],
+  "Volvo":["S60","S90","V60","V90","XC40","XC60","XC90"],
+  "BMW Moto":["F 750 GS","F 850 GS","G 310 R","R 1200 GS","R 1250 GS","S 1000 RR"],
+  "Honda Moto":["CBR 500R","CB 500F","CB 650R","Africa Twin","Forza","PCX","SH"],
+  "Kawasaki":["Ninja 400","Ninja 650","Versys 650","Z650","Z900"],
+  "Yamaha":["MT-07","MT-09","NMAX","TMAX","Tenere 700"],
+  "Suzuki Moto":["Burgman","V-Strom","GSX-R 600","GSX-R 750"]
+};
+
 function chargerMarques(){
   loader(true);
   db.collection("vehicules_clients").orderBy("marque").get().then(snap=>{
     marquesList=[];
     snap.forEach(d=>marquesList.push({id:d.id,...d.data()}));
+    // Si vide → proposer d'importer la liste de référence
+    if(marquesList.length===0){
+      G("marques-tbody").innerHTML=`<tr><td colspan="3" style="text-align:center;padding:24px">
+        <div style="color:var(--gris3);margin-bottom:12px">Aucun véhicule — la liste est vide</div>
+        <button class="btn btn-primary" onclick="importerListeReference()">⬆️ Importer la liste complète (${Object.keys(MARQUES_MODELES_REF).reduce((s,m)=>s+MARQUES_MODELES_REF[m].length,0)} modèles)</button>
+      </td></tr>`;
+      loader(false);
+      return;
+    }
     filtrerMarques();
     loader(false);
   }).catch(()=>{loader(false);toast("Erreur chargement","err");});
+}
+
+async function importerListeReference(){
+  if(!confirm("Importer toute la liste de véhicules de référence dans Firestore ?\nCela ajoutera chaque modèle comme une entrée séparée."))return;
+  loader(true,"Import en cours...");
+  let count=0;
+  const batch=db.batch();
+  Object.keys(MARQUES_MODELES_REF).forEach(marque=>{
+    MARQUES_MODELES_REF[marque].forEach(modele=>{
+      const ref=db.collection("vehicules_clients").doc();
+      batch.set(ref,{marque,modele,createdAt:firebase.firestore.FieldValue.serverTimestamp()});
+      count++;
+    });
+  });
+  // Firestore batch max 500 — si dépassé, on divise
+  await batch.commit();
+  toast(count+" modèles importés ✅");
+  chargerMarques();
 }
 function filtrerMarques(){
   const q=(G("marque-search")?.value||"").toLowerCase();
