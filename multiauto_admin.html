@@ -525,7 +525,9 @@ tr:hover td{background:var(--gris)}
           <button class="btn btn-secondary btn-sm" id="btn-imprimer-rc-sel" onclick="imprimerSelectionRC()" disabled>🖨 Imprimer</button>
           <button class="btn btn-secondary btn-sm" id="btn-telecharger-rc-sel" onclick="telechargerSelectionRC()" disabled>⬇ Télécharger</button>
           <button class="btn btn-danger btn-sm" id="btn-supprimer-rc-sel" onclick="supprimerSelectionRC()" disabled>🗑 Supprimer</button>
-          <button class="btn btn-secondary btn-sm" onclick="exporterRecusPDF()">⬇ Tout exporter</button>
+          <button class="btn btn-secondary btn-sm" onclick="exporterRecusPDF()">&#11015; Tout exporter</button>
+          <button class="btn btn-secondary btn-sm" onclick="exporterRecusFiltresPDF()">&#11015; Exporter liste</button>
+          <button class="btn btn-secondary btn-sm" onclick="imprimerListeRecus()">&#128424; Imprimer liste</button>
         </div>
       </div>
       <div class="card">
@@ -533,7 +535,7 @@ tr:hover td{background:var(--gris)}
         <div class="filtres">
           <input class="filtre-inp" type="date" id="rc-date-debut">
           <input class="filtre-inp" type="date" id="rc-date-fin">
-          <select class="filtre-inp" id="rc-filtre-chauffeur"><option value="">Tous les reçus</option><option value="magasinage">Gardiennage uniquement</option></select>
+          <select class="filtre-inp" id="rc-filtre-chauffeur"><option value="">— Tous les reçus —</option><option value="magasinage">Gardiennage uniquement</option></select>
           <button class="btn btn-primary" onclick="chargerRecus()">🔍 Filtrer</button>
         </div>
         <div class="table-wrap">
@@ -1070,10 +1072,9 @@ function chargerListeChauffeurs(){
       const first=sel.options[0]; sel.innerHTML=""; sel.appendChild(first);
       chauffeursList.forEach(ch=>{const o=document.createElement("option");o.value=ch.id;o.textContent=ch.nom;sel.appendChild(o);});
     });
-    // rc-filtre-chauffeur : garder "Tous" + "Gardiennage" + chauffeurs
     const rcSel=G("rc-filtre-chauffeur");
     if(rcSel){
-      rcSel.innerHTML='<option value="">— Tous les reçus —</option><option value="magasinage">Gardiennage uniquement</option><option value="tous_chauffeurs">Tous les chauffeurs</option>';
+      rcSel.innerHTML='<option value="">\u2014 Tous les re\u00e7us \u2014</option><option value="magasinage">Gardiennage uniquement</option><option value="tous_chauffeurs">Tous les chauffeurs</option>';
       chauffeursList.forEach(ch=>{const o=document.createElement("option");o.value=ch.id;o.textContent=ch.nom;rcSel.appendChild(o);});
     }
     const sc=G("cam-chauffeur");
@@ -2549,7 +2550,6 @@ function genererRecu(recu){
 
 
 function genererRecuMagasinage(data){
-  // Recalculer si données partielles
   if(!data.montant_total && data.date_entree && data.date_sortie){
     const e=new Date(data.date_entree), s=new Date(data.date_sortie);
     const jours=Math.max(1,Math.ceil((s-e)/(1000*60*60*24)));
@@ -2596,13 +2596,13 @@ function genererRecuMagasinage(data){
   y=pdfL2(y,"Date entree :",data.date_entree||"--");
   y=pdfL2(y,"Date de sortie :",data.date_sortie||"--");
   y=pdfL2(y,"Duree :",(data.jours||1)+" jour(s)");
-  y=pdfL2(y,"Tarif/jour :",(data.tarif_jour||40).toFixed(2).replace(".",",")+"€");
-  y=pdfL2(y,"Total brut :",(data.montant_total||0).toFixed(2).replace(".",",")+"€");
-  if((data.remise||0)>0) y=pdfL2(y,"Remise :","-"+(data.remise||0).toFixed(2).replace(".",",")+"€");
-  y=pdfL2(y,"Net a encaisser :",(data.montant_net||0).toFixed(2).replace(".",",")+"€");
+  y=pdfL2(y,"Tarif/jour :",(data.tarif_jour||40).toFixed(2).replace(".",","+" €"));
+  y=pdfL2(y,"Total brut :",(data.montant_total||0).toFixed(2).replace(".",","+" €"));
+  if((data.remise||0)>0) y=pdfL2(y,"Remise :","-"+(data.remise||0).toFixed(2).replace(".",","+" €"));
+  y=pdfL2(y,"Net a encaisser :",(data.montant_net||0).toFixed(2).replace(".",","+" €"));
   y=pdfL2(y,"Mode de paiement :",data.mode_paiement||"--");
-  y=pdfL2(y,"Montant paye :",(data.montant_paye||0).toFixed(2).replace(".",",")+"€");
-  if((data.solde_restant||0)>0) y=pdfL2(y,"Solde restant :",(data.solde_restant||0).toFixed(2).replace(".",",")+"€");
+  y=pdfL2(y,"Montant paye :",(data.montant_paye||0).toFixed(2).replace(".",","+" €"));
+  if((data.solde_restant||0)>0) y=pdfL2(y,"Solde restant :",(data.solde_restant||0).toFixed(2).replace(".",","+" €"));
   y+=5;
   var cachetSize=46,cachetX=210-12-cachetSize,cachetY=195;
   try{doc.addImage(CACHET_DATA,"PNG",cachetX,cachetY,cachetSize,cachetSize*0.72,"","FAST");}catch(e){}
@@ -2702,42 +2702,34 @@ function exporterBonsPDF(){
   loader(false);toast(cochees.length>0?cochees.length+" BL exportés ✅":"Liste BL exportée ✅");
 }
 
-// Construction du tableau pour PDF reçus
-function _buildRecusTableData(recusList){
-  const rows=[];let totalNet=0;
-  recusList.forEach(r=>{
-    const net=r.montant_net||r.montant||0, remise=r.remise||0;
-    totalNet+=net;
-    rows.push([
-      r.recu_num||"—", r.date||"—",
-      r.chauffeur_nom||"Gardiennage",
-      r.nom_client||"—",
-      (r.immatriculation||(r.marque||"")+" "+(r.modele||"")).trim()||"—",
-      r.mission||"—",
-      remise>0?"-"+fmtMontant(remise):"—",
-      fmtMontant(net),
-      r.mode_paiement||"—"
-    ]);
+function _buildRecusRows(list){
+  const rows=[];let tot=0;
+  list.forEach(r=>{
+    const net=r.montant_net||r.montant||0, rem=r.remise||0; tot+=net;
+    rows.push([r.recu_num||"--",r.date||"--",r.chauffeur_nom||"Gardiennage",
+      r.nom_client||"--",(r.immatriculation||((r.marque||"")+" "+(r.modele||"")).trim()||"--"),
+      r.mission||"--",rem>0?"-"+fmtMontant(rem):"--",fmtMontant(net),r.mode_paiement||"--"]);
   });
-  rows.push(["","","","","","","TOTAL",fmtMontant(totalNet),""]);
+  rows.push(["","","","","","","TOTAL",fmtMontant(tot),""]);
   return rows;
 }
-function _genRecusPDF(recusList,titre){
+function _pdfListeRecus(list,titre){
   const {jsPDF}=window.jspdf;
   const doc=new jsPDF("landscape","mm","a4");
   const sel=G("rc-filtre-chauffeur");
-  const filtreLabel=sel?.options[sel.selectedIndex]?.text||"Tous";
-  const debut=G("rc-date-debut")?.value||"", fin=G("rc-date-fin")?.value||"";
+  const fl=sel&&sel.options[sel.selectedIndex]?sel.options[sel.selectedIndex].text:"Tous";
+  const d1=G("rc-date-debut")&&G("rc-date-debut").value||"";
+  const d2=G("rc-date-fin")&&G("rc-date-fin").value||"";
   doc.setFont("helvetica","bold");doc.setFontSize(13);doc.setTextColor(200,52,26);
-  doc.text(titre+" — "+SOC.nom,148,13,{align:"center"});
+  doc.text(titre+" -- "+SOC.nom,148,13,{align:"center"});
   doc.setFontSize(8);doc.setTextColor(100,100,100);
-  let sub="Généré le "+new Date().toLocaleDateString("fr-FR");
-  if(debut||fin) sub+=" | Période : "+(debut||"…")+" → "+(fin||"…");
-  sub+=" | Filtre : "+filtreLabel;
+  let sub="Genere le "+new Date().toLocaleDateString("fr-FR");
+  if(d1||d2) sub+=" | Periode: "+(d1||"...")+" au "+(d2||"...");
+  sub+=" | Filtre: "+fl;
   doc.text(sub,148,19,{align:"center"});
   doc.autoTable({startY:24,
-    head:[["N° Reçu","Date","Chauffeur","Client","Véhicule","Mission","Remise","Montant net","Mode paiement"]],
-    body:_buildRecusTableData(recusList),
+    head:[["N Recu","Date","Chauffeur","Client","Vehicule","Mission","Remise","Montant","Paiement"]],
+    body:_buildRecusRows(list),
     headStyles:{fillColor:[26,37,64],textColor:255,fontSize:6.5},
     bodyStyles:{fontSize:6.5},
     alternateRowStyles:{fillColor:[246,246,246]},
@@ -2748,31 +2740,36 @@ function _genRecusPDF(recusList,titre){
 }
 function exporterRecusFiltresPDF(){
   const list=window._recusAffiches||[];
-  if(!list.length){toast("Aucun reçu à exporter","err");return;}
-  _genRecusPDF(list,"LISTE DES REÇUS").save("recus-filtres.pdf");
-  toast("Liste exportée ✅");
+  if(!list.length){toast("Aucun recu a exporter","err");return;}
+  _pdfListeRecus(list,"LISTE DES RECUS").save("recus-filtres.pdf");
+  toast("Liste exportee");
 }
 function imprimerListeRecus(){
   const list=window._recusAffiches||[];
-  if(!list.length){toast("Aucun reçu","err");return;}
-  const doc=_genRecusPDF(list,"LISTE DES REÇUS");
+  if(!list.length){toast("Aucun recu","err");return;}
+  const doc=_pdfListeRecus(list,"LISTE DES RECUS");
   doc.autoPrint(); window.open(doc.output("bloburl"),"_blank");
 }
 function exporterRecusPDF(){
   loader(true,"Export reçus...");
-  const cochees=document.querySelectorAll(".rc-check:checked");
-  const list=window._recusAffiches||[];
-  if(cochees.length>0){
-    const ids=new Set(Array.from(cochees).map(cb=>cb.dataset.id));
-    const sel=list.filter(r=>ids.has(r.id));
-    _genRecusPDF(sel,"REÇUS SÉLECTIONNÉS").save("recus-selection.pdf");
-    loader(false);toast(cochees.length+" reçu(s) exportés ✅");
-  } else {
-    exporterRecusFiltresPDF();
-    loader(false);
-  }
+  const {jsPDF}=window.jspdf;
+  const doc=new jsPDF('landscape','mm','a4');
+  doc.setFont('helvetica','bold');doc.setFontSize(14);doc.setTextColor(200,52,26);
+  doc.text('LISTE DES REÇUS ESPÈCES — '+SOC.nom,148,15,{align:'center'});
+  doc.setFontSize(9);doc.setTextColor(100,100,100);
+  doc.text('Généré le '+new Date().toLocaleDateString('fr-FR'),148,21,{align:'center'});
+  const cochees=document.querySelectorAll('.rc-check:checked');
+  const source=cochees.length>0?Array.from(cochees).map(cb=>cb.closest('tr')):Array.from(G("recus-tbody")?.querySelectorAll("tr")||[]);
+  const rows=[];let total=0;
+  source.forEach(tr=>{const cells=[];tr.querySelectorAll("td").forEach((td,i)=>{if(i>0&&i<10)cells.push(td.textContent.trim());});if(cells.length>1){const m=parseFloat((cells[6]||'0').replace(',','.').replace(/[€ \s]/g,''))||0;total+=m;rows.push(cells.slice(0,8));}}); 
+  rows.push(['','','','','','TOTAL',total.toFixed(2).replace('.',',')+' €','']);
+  doc.autoTable({startY:26,head:[['N° Reçu','Date','Chauffeur','Client','Véhicule','Mission','Montant','N° BL']],body:rows,
+    headStyles:{fillColor:[26,37,64],textColor:255,fontSize:7},bodyStyles:{fontSize:7},
+    alternateRowStyles:{fillColor:[246,246,246]},margin:{left:10,right:10}});
+  pdfPied(doc);
+  doc.save('recus'+(cochees.length>0?'-selection':'')+'.pdf');
+  loader(false);toast(cochees.length>0?cochees.length+" reçu(s) exportés ✅":"Liste reçus exportée ✅");
 }
-
 
 
 // ── ENCAISSEMENT CLIENT EN COMPTE ──
