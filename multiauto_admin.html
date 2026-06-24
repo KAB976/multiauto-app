@@ -2575,7 +2575,7 @@ function genererRecuMagasinage(data){
   doc.setTextColor(122,90,58);doc.setFont("helvetica","bold");doc.setFontSize(7.5);
   doc.text("MONTANT REGLE — "+((data.mode_paiement||"--").toUpperCase()),105,y+7,{align:"center"});
   doc.setTextColor(26,37,64);doc.setFont("helvetica","bold");doc.setFontSize(30);
-  doc.text((data.montant_paye||0).toFixed(2).replace(".",",")+" €",105,y+20,{align:"center"});
+  doc.text((data.montant_paye||0).toFixed(2).replace(".",",")+"€",105,y+20,{align:"center"});
   doc.setDrawColor(232,192,64);doc.setLineWidth(0.4);doc.line(20,y+23,190,y+23);
   var m2=data.montant_paye||0,ent=Math.floor(m2),cent=Math.round((m2-ent)*100);
   var u=["zero","un","deux","trois","quatre","cinq","six","sept","huit","neuf","dix","onze","douze","treize","quatorze","quinze","seize","dix-sept","dix-huit","dix-neuf"];
@@ -2596,13 +2596,13 @@ function genererRecuMagasinage(data){
   y=pdfL2(y,"Date entree :",data.date_entree||"--");
   y=pdfL2(y,"Date de sortie :",data.date_sortie||"--");
   y=pdfL2(y,"Duree :",(data.jours||1)+" jour(s)");
-  y=pdfL2(y,"Tarif/jour :",(data.tarif_jour||40).toFixed(2).replace(".",",")+" €"));
-  y=pdfL2(y,"Total brut :",(data.montant_total||0).toFixed(2).replace(".",",")+" €"));
-  if((data.remise||0)>0) y=pdfL2(y,"Remise :","-"+(data.remise||0).toFixed(2).replace(".",",")+" €"));
-  y=pdfL2(y,"Net a encaisser :",(data.montant_net||0).toFixed(2).replace(".",",")+" €"));
+  y=pdfL2(y,"Tarif/jour :",(data.tarif_jour||40).toFixed(2).replace(".",",")+"€");
+  y=pdfL2(y,"Total brut :",(data.montant_total||0).toFixed(2).replace(".",",")+"€");
+  if((data.remise||0)>0) y=pdfL2(y,"Remise :","-"+(data.remise||0).toFixed(2).replace(".",",")+"€");
+  y=pdfL2(y,"Net a encaisser :",(data.montant_net||0).toFixed(2).replace(".",",")+"€");
   y=pdfL2(y,"Mode de paiement :",data.mode_paiement||"--");
-  y=pdfL2(y,"Montant paye :",(data.montant_paye||0).toFixed(2).replace(".",",")+" €"));
-  if((data.solde_restant||0)>0) y=pdfL2(y,"Solde restant :",(data.solde_restant||0).toFixed(2).replace(".",",")+" €"));
+  y=pdfL2(y,"Montant paye :",(data.montant_paye||0).toFixed(2).replace(".",",")+"€");
+  if((data.solde_restant||0)>0) y=pdfL2(y,"Solde restant :",(data.solde_restant||0).toFixed(2).replace(".",",")+"€");
   y+=5;
   var cachetSize=46,cachetX=210-12-cachetSize,cachetY=195;
   try{doc.addImage(CACHET_DATA,"PNG",cachetX,cachetY,cachetSize,cachetSize*0.72,"","FAST");}catch(e){}
