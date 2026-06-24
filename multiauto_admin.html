@@ -1862,19 +1862,35 @@ function ouvrirCarteGPS(bon){
   G("modal-gps-carte").classList.add("on");
   if(leafletMapAdmin){leafletMapAdmin.remove();leafletMapAdmin=null;}
   setTimeout(()=>{
-    const hasCoords=bon.gps_emb_lat&&bon.gps_dest_lat;
+    const embLat=parseFloat(bon.gps_emb_lat), embLng=parseFloat(bon.gps_emb_lng);
+    const destLat=parseFloat(bon.gps_dest_lat), destLng=parseFloat(bon.gps_dest_lng);
+    const hasCoords=!isNaN(embLat)&&!isNaN(destLat)&&embLat!==0&&destLat!==0;
+    const hasEmbOnly=!isNaN(embLat)&&embLat!==0;
     leafletMapAdmin=L.map("gps-map");
     L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png",{attribution:"© OpenStreetMap"}).addTo(leafletMapAdmin);
-    const emb=[parseFloat(bon.gps_emb_lat)||(-12.78),parseFloat(bon.gps_emb_lng)||(45.23)];
-    const dest=[parseFloat(bon.gps_dest_lat)||(-12.8),parseFloat(bon.gps_dest_lng)||(45.24)];
     const embIcon=L.divIcon({html:'<div style="background:#C8341A;color:white;border-radius:50%;width:26px;height:26px;display:flex;align-items:center;justify-content:center;font-size:13px;font-weight:900;border:2px solid white;box-shadow:0 2px 6px rgba(0,0,0,.4)">A</div>',iconSize:[26,26],className:""});
     const destIcon=L.divIcon({html:'<div style="background:#1A7A40;color:white;border-radius:50%;width:26px;height:26px;display:flex;align-items:center;justify-content:center;font-size:13px;font-weight:900;border:2px solid white;box-shadow:0 2px 6px rgba(0,0,0,.4)">B</div>',iconSize:[26,26],className:""});
-    L.marker(emb,{icon:embIcon}).addTo(leafletMapAdmin).bindPopup("Départ: "+(bon.lieu_embarquement||"—"));
-    L.marker(dest,{icon:destIcon}).addTo(leafletMapAdmin).bindPopup("Arrivée: "+(bon.destination||"—"));
-    L.polyline([emb,dest],{color:"#C8341A",weight:3,dashArray:"8 4"}).addTo(leafletMapAdmin);
-    leafletMapAdmin.fitBounds([emb,dest],{padding:[30,30]});
-    const url=hasCoords?"https://www.google.com/maps/dir/"+bon.gps_emb_lat+","+bon.gps_emb_lng+"/"+bon.gps_dest_lat+","+bon.gps_dest_lng:"https://www.google.com/maps/dir/"+encodeURIComponent((bon.lieu_embarquement||"")+", Mayotte")+"/"+encodeURIComponent((bon.destination||"")+", Mayotte");
-    G("btn-gmaps-admin").onclick=()=>window.open(url,"_blank");
+    if(hasCoords){
+      const emb=[embLat,embLng], dest=[destLat,destLng];
+      L.marker(emb,{icon:embIcon}).addTo(leafletMapAdmin).bindPopup("Départ: "+(bon.lieu_embarquement||"—"));
+      L.marker(dest,{icon:destIcon}).addTo(leafletMapAdmin).bindPopup("Arrivée: "+(bon.destination||"—"));
+      L.polyline([emb,dest],{color:"#C8341A",weight:3,dashArray:"8 4"}).addTo(leafletMapAdmin);
+      leafletMapAdmin.fitBounds([emb,dest],{padding:[30,30]});
+    } else if(hasEmbOnly){
+      const emb=[embLat,embLng];
+      L.marker(emb,{icon:embIcon}).addTo(leafletMapAdmin).bindPopup("Départ: "+(bon.lieu_embarquement||"—"));
+      leafletMapAdmin.setView(emb,14);
+    } else {
+      // Pas de coords GPS réelles — centrer sur Mayotte sans marqueur
+      leafletMapAdmin.setView([-12.82,45.15],11);
+      L.control.attribution().addTo(leafletMapAdmin);
+      const noGps=L.divIcon({html:'<div style="background:rgba(200,52,26,.9);color:white;padding:6px 10px;border-radius:8px;font-size:11px;font-weight:700;white-space:nowrap">⚠️ GPS non capturé</div>',className:""});
+      L.marker([-12.82,45.15],{icon:noGps}).addTo(leafletMapAdmin);
+    }
+    const url=hasCoords?"https://www.google.com/maps/dir/"+embLat+","+embLng+"/"+destLat+","+destLng
+      :hasEmbOnly?"https://www.google.com/maps/?q="+embLat+","+embLng
+      :"";
+    G("btn-gmaps-admin").onclick=url?()=>window.open(url,"_blank"):()=>alert("GPS non disponible pour ce trajet");
   },200);
 }
 
@@ -2268,8 +2284,6 @@ function genererBL(bon){
     doc.setTextColor(26,26,26);doc.setFontSize(8.5);doc.text('Espèces',13,y+6.5);
     doc.setTextColor(200,52,26);doc.setFontSize(10);doc.text(bon.montant_especes?bon.montant_especes.toFixed(2).replace('.',',')+' €':'—',73,y+6.5);
     doc.setTextColor(21,101,192);doc.setFontSize(8);doc.text(bon.recu_num||'—',133,y+6.5);y+=8+3;
-  }else{
-    doc.setFillColor(246,246,246);doc.rect(10,y,190,7.5,'F');doc.setTextColor(170,170,170);doc.setFont('helvetica','normal');doc.setFontSize(8);doc.text('Aucun paiement espèces',105,y+4.8,{align:'center'});y+=7.5+3;
   }
   // Section photo
   doc.setFillColor(200,52,26);doc.rect(10,y,190,7,'F');doc.setTextColor(255,255,255);doc.setFont('helvetica','bold');doc.setFontSize(7.5);doc.text('PHOTO DU VÉHICULE',13,y+4.8);y+=7+2;
@@ -2277,30 +2291,36 @@ function genererBL(bon){
   // Photo invisible (pas de cadre)
   if(bon.photo_vehicule&&bon.photo_vehicule.startsWith('data:')){
     try{
-      // Lire les dimensions réelles via un Image chargé
-      const _photoB64=bon.photo_vehicule;
-      const _tmpImg=new Image();
-      _tmpImg.src=_photoB64;
-      // naturalWidth disponible seulement si image déjà en cache navigateur
-      // sinon on attend le onload via une promesse synchronisée
-      let iw=_tmpImg.naturalWidth, ih=_tmpImg.naturalHeight;
-      if(!iw||!ih){
-        // Décoder via canvas pour obtenir les dimensions
-        const _c=document.createElement('canvas');
-        const _cx=_c.getContext('2d');
-        // Forcer le chargement synchrone via drawImage
-        iw=300;ih=200; // fallback portrait
+      // Obtenir les vraies dimensions via un Image avec onload
+      const _photoData=bon.photo_vehicule;
+      const _img=new Image();
+      _img.src=_photoData;
+      let iw=0,ih=0;
+      // Si déjà en cache (naturalWidth > 0), on l'utilise directement
+      if(_img.naturalWidth>0){ iw=_img.naturalWidth; ih=_img.naturalHeight; }
+      else {
+        // Lire dimensions depuis le header base64 JPEG/PNG
+        // JPEG: bytes 0xFF 0xC0 contiennent height et width
+        // On extrait via atob
         try{
-          _c.width=1;_c.height=1;_cx.drawImage(_tmpImg,0,0);
-          iw=_tmpImg.naturalWidth||300;ih=_tmpImg.naturalHeight||200;
+          const b64=_photoData.split(',')[1];
+          const bin=atob(b64.substring(0,1000));
+          for(let _i=0;_i<bin.length-8;_i++){
+            if(bin.charCodeAt(_i)===0xFF&&(bin.charCodeAt(_i+1)===0xC0||bin.charCodeAt(_i+1)===0xC2)){
+              ih=(bin.charCodeAt(_i+5)<<8)|bin.charCodeAt(_i+6);
+              iw=(bin.charCodeAt(_i+7)<<8)|bin.charCodeAt(_i+8);
+              break;
+            }
+          }
         }catch(_){}
+        if(!iw||!ih){ iw=1920; ih=1080; } // fallback paysage
       }
       const pad=4,maxW=photoW-pad*2,maxH=photoH-pad*2;
       let dw,dh;
-      if(iw/ih > maxW/maxH){ dw=maxW; dh=maxW*ih/iw; }
-      else { dh=maxH; dw=maxH*iw/ih; }
-      const ox=10+pad+(maxW-dw)/2,oy=y+pad+(maxH-dh)/2;
-      doc.addImage(_photoB64,'JPEG',ox,oy,dw,dh,'','FAST');
+      if((iw/ih)>(maxW/maxH)){ dw=maxW; dh=Math.round(maxW*ih/iw); }
+      else{ dh=maxH; dw=Math.round(maxH*iw/ih); }
+      const ox=10+pad+(maxW-dw)/2, oy=y+pad+(maxH-dh)/2;
+      doc.addImage(_photoData,'JPEG',ox,oy,dw,dh,'','FAST');
     }catch(e){doc.setTextColor(170,170,170);doc.setFontSize(8);doc.text('[Photo du véhicule]',10+photoW/2,y+photoH/2,{align:'center'});}
   }else{doc.setTextColor(170,170,170);doc.setFontSize(8);doc.text('[Photo du véhicule]',10+photoW/2,y+photoH/2,{align:'center'});}
   // Signature (pas de cadre)
