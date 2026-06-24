@@ -752,9 +752,32 @@ function majNums(){
 // ════════════════════════════════════
 // MARQUES / MODÈLES
 // ════════════════════════════════════
+// Données Firestore vehicules_clients (chargées au démarrage)
+var MARQUES_FIRESTORE = {}; // {marque: [modele1, modele2, ...]}
+
 function initMarques(){
+  // Essayer de charger depuis Firestore vehicules_clients
+  db.collection("vehicules_clients").orderBy("marque").get().then(function(snap){
+    if(!snap.empty){
+      snap.forEach(function(d){
+        var v=d.data();
+        if(!MARQUES_FIRESTORE[v.marque]) MARQUES_FIRESTORE[v.marque]=[];
+        if(v.modele) MARQUES_FIRESTORE[v.marque].push(v.modele);
+      });
+      remplirSelectMarques(MARQUES_FIRESTORE);
+    } else {
+      // Fallback : liste statique
+      remplirSelectMarques(MARQUES_MODELES);
+    }
+  }).catch(function(){
+    remplirSelectMarques(MARQUES_MODELES);
+  });
+}
+
+function remplirSelectMarques(source){
   var sel = G("sel-marque");
-  var marques = Object.keys(MARQUES_MODELES).sort();
+  sel.innerHTML = "<option value=''>— Marque —</option>";
+  var marques = Object.keys(source).sort();
   marques.forEach(function(m){
     var o = document.createElement("option"); o.value=m; o.textContent=m; sel.appendChild(o);
   });
@@ -765,7 +788,9 @@ function majModeles(){
   var sel = G("sel-modele");
   sel.innerHTML = "<option value=''>— Modèle —</option>";
   if(!marque) return;
-  var modeles = (MARQUES_MODELES[marque]||[]).slice().sort();
+  // Chercher dans Firestore d'abord, puis statique
+  var source = Object.keys(MARQUES_FIRESTORE).length > 0 ? MARQUES_FIRESTORE : MARQUES_MODELES;
+  var modeles = (source[marque]||[]).slice().sort();
   modeles.forEach(function(m){
     var o = document.createElement("option"); o.value=m; o.textContent=m; sel.appendChild(o);
   });
@@ -926,6 +951,7 @@ function enregistrerArrivee(){
   G("inp-dest").style.display="block";
   G("inp-dest").focus();
   // Écouter quand la destination est saisie
+  G("inp-dest").removeEventListener("input", majDestValidee);
   G("inp-dest").addEventListener("input", majDestValidee);
 }
 
@@ -1198,20 +1224,36 @@ function nouveauBon(){
   // Reset tout
   G("pg-success").classList.remove("on");
   G("pg-app").classList.add("on");
+  // Champs texte
   ["inp-immat","inp-tel","inp-emb","inp-dest","inp-montant"].forEach(function(id){ G(id).value=""; });
+  // Sélects véhicule et client
   G("sel-marque").value=""; G("sel-modele").innerHTML="<option value=''>— Modèle —</option>";
   G("sel-client").value="";
+  // Photo
   photoData=null;
   G("photo-prev").style.display="none"; G("photo-prev").src="";
   G("pz-inner").style.display="flex";
   G("photo-zone").classList.remove("ok");
+  try{ G("inp-photo").value=""; }catch(e){}
+  // Signature
   clearSig();
   G("sig-zone-active").style.display  = "block";
   G("sig-zone-validee").style.display = "none";
   if(G("sig-preview")) G("sig-preview").src="";
+  // Espèces
   espActif=false; G("esp-switch").classList.remove("on"); G("esp-box").style.display="none";
+  G("inp-montant").value="";
+  // Alertes
   G("form-alert").style.display="none"; G("form-alert2").classList.remove("on");
+  // Zones validées trajet - vider les textes
+  if(G("zv-dest-txt")) G("zv-dest-txt").textContent="Destination enregistrée";
+  if(G("zv-dest-duree")) G("zv-dest-duree").textContent="Durée du trajet : —";
+  if(G("zv-emb-txt")) G("zv-emb-txt").textContent="Embarquement enregistré";
+  if(G("zv-emb-heure")) G("zv-emb-heure").textContent="—";
+  // GPS
   gpsEmb={lat:"",lng:"",lieu:""}; gpsDest={lat:"",lng:"",lieu:""};
+  try{ localStorage.removeItem("gps_emb_pending"); }catch(e){}
+  // Trajet
   resetTrajet();
   majTarif();
   majNums();

@@ -401,6 +401,7 @@ tr:hover td{background:var(--gris)}
       <div class="sb-section">Gestion</div>
       <div class="sb-item" onclick="afficherPage('pg-chauffeurs')" id="nav-chauffeurs"><span class="ico">👤</span> Chauffeurs</div>
       <div class="sb-item" onclick="afficherPage('pg-camions')" id="nav-camions"><span class="ico">🚛</span> Camions</div>
+      <div class="sb-item" onclick="afficherPage('pg-marques')" id="nav-marques"><span class="ico">🚗</span> Véhicules clients</div>
       <div class="sb-item" onclick="afficherPage('pg-clients')" id="nav-clients"><span class="ico">👥</span> Clients</div>
       <div class="sb-item" onclick="afficherPage('pg-magasinage')" id="nav-magasinage"><span class="ico">🏠</span> Magasinage</div>
       <div class="sb-item" onclick="afficherPage('pg-pc')" id="nav-pc"><span class="ico">📄</span> Prises en charge</div>
@@ -583,6 +584,23 @@ tr:hover td{background:var(--gris)}
           <table>
             <thead><tr><th>Nom</th><th>Immat.</th><th>Marque</th><th>Modèle</th><th>Chauffeur défaut</th><th>Statut</th><th>Actions</th></tr></thead>
             <tbody id="cam-tbody"></tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <!-- MARQUES / MODELES VEHICULES -->
+    <div class="pg" id="pg-marques">
+      <div class="page-header">
+        <div><div class="page-title">🚗 Véhicules clients</div><div class="page-sub">Marques et modèles pour les BL</div></div>
+        <button class="btn btn-primary" onclick="ouvrirModalMarque()">➕ Ajouter</button>
+      </div>
+      <div class="card">
+        <input class="filtre-inp" type="text" id="marque-search" placeholder="🔍 Rechercher..." oninput="filtrerMarques()" style="width:100%;margin-bottom:14px">
+        <div class="table-wrap">
+          <table>
+            <thead><tr><th>Marque</th><th>Modèle</th><th>Actions</th></tr></thead>
+            <tbody id="marques-tbody"></tbody>
           </table>
         </div>
       </div>
@@ -950,6 +968,35 @@ tr:hover td{background:var(--gris)}
 </div>
 </div>
 
+<!-- Modal Modifier Client -->
+<div class="modal-bg" id="modal-modifier-client">
+<div class="modal">
+  <div class="modal-title">✏️ Modifier le client</div>
+  <input type="hidden" id="modcl-id">
+  <div class="form-group" style="margin-bottom:12px"><span class="fl">Nom</span><input class="inp" id="modcl-nom" oninput="capInput(this)" placeholder="Nom du client"></div>
+  <div class="form-group" style="margin-bottom:12px"><span class="fl">Téléphone</span><input class="inp" id="modcl-tel" type="tel" placeholder="0639 00 00 00"></div>
+  <div class="form-group" style="margin-bottom:12px"><span class="fl">Mode paiement</span><select class="inp" id="modcl-mode"><option value="">— Choisir —</option><option>Espèces</option><option>CB</option><option>Virement</option><option>Chèque</option></select></div>
+  <div class="modal-footer">
+    <button class="btn btn-secondary" onclick="fermerModal('modal-modifier-client')">Annuler</button>
+    <button class="btn btn-primary" onclick="enregistrerModifClient()">💾 Enregistrer</button>
+  </div>
+</div>
+</div>
+
+<!-- Modal Marque/Modèle -->
+<div class="modal-bg" id="modal-marque">
+<div class="modal" style="max-width:400px">
+  <div class="modal-title" id="modal-marque-title">🚗 Ajouter un véhicule</div>
+  <input type="hidden" id="marque-edit-id">
+  <div class="form-group" style="margin-bottom:12px"><span class="fl">Marque</span><input class="inp inp-sm" id="marque-marque" oninput="capInput(this)" placeholder="Ex: Toyota"></div>
+  <div class="form-group" style="margin-bottom:12px"><span class="fl">Modèle</span><input class="inp inp-sm" id="marque-modele" oninput="capInput(this)" placeholder="Ex: Corolla"></div>
+  <div class="modal-footer">
+    <button class="btn btn-secondary" onclick="fermerModal('modal-marque')">Annuler</button>
+    <button class="btn btn-primary" onclick="sauvegarderMarque()">💾 Enregistrer</button>
+  </div>
+</div>
+</div>
+
 <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-auth-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-firestore-compat.js"></script>
@@ -1003,6 +1050,7 @@ function afficherPage(id){
   if(id==="pg-recus")      chargerRecus();
   if(id==="pg-chauffeurs") {chargerChauffeurs(); chargerPermChauffeursFn();}
   if(id==="pg-camions")    chargerCamions();
+  if(id==="pg-marques")    chargerMarques();
   if(id==="pg-clients")    chargerClients();
   if(id==="pg-magasinage") chargerMagasinage();
   if(id==="pg-pc")         chargerPC();
@@ -1463,13 +1511,23 @@ function sauvegarderClient(){
     .catch(()=>{toast("Erreur","err");loader(false);});
 }
 function ouvrirModifierClient(id,nom,tel,mode){
-  const newNom=prompt("Nom du client :",nom);
-  if(newNom===null)return;
-  const newTel=prompt("Téléphone :",tel);
-  const newMode=prompt("Mode paiement (Espèces/CB/Virement/Chèque) :",mode);
-  if(!newNom.trim()){toast("Nom obligatoire","err");return;}
-  db.collection("clients").doc(id).update({nom:newNom.trim().charAt(0).toUpperCase()+newNom.trim().slice(1),tel:(newTel||"").trim(),mode_paiement:(newMode||"").trim()})
-    .then(()=>{toast("Client modifié ✅");chargerClients();}).catch(()=>toast("Erreur","err"));
+  G("modcl-id").value=id;
+  G("modcl-nom").value=nom||"";
+  G("modcl-tel").value=tel||"";
+  G("modcl-mode").value=mode||"";
+  G("modal-modifier-client").classList.add("on");
+}
+function enregistrerModifClient(){
+  const id=G("modcl-id").value;
+  const nom=G("modcl-nom").value.trim();
+  if(!nom){toast("Nom obligatoire","err");return;}
+  loader(true);
+  db.collection("clients").doc(id).update({
+    nom:nom.charAt(0).toUpperCase()+nom.slice(1),
+    tel:G("modcl-tel").value.trim(),
+    mode_paiement:G("modcl-mode").value
+  }).then(()=>{toast("Client modifié ✅");fermerModal("modal-modifier-client");chargerClients();loader(false);})
+    .catch(()=>{toast("Erreur","err");loader(false);});
 }
 function supprimerClient(id){if(!confirm("Supprimer ?"))return;db.collection("clients").doc(id).delete().then(()=>{toast("Supprimé");chargerClients();});}
 
@@ -1796,6 +1854,64 @@ function confirmerLivraison(){
 
 function supprimerMag(id){if(!confirm("Supprimer ?"))return;db.collection("magasinage").doc(id).delete().then(()=>{toast("Supprimé");chargerMagasinage();});}
 function exporterMagasinagePDF(){toast("Export PDF magasinage — disponible prochainement");}
+
+// ── VEHICULES CLIENTS (Marques/Modèles) ──
+let marquesList=[];
+function chargerMarques(){
+  loader(true);
+  db.collection("vehicules_clients").orderBy("marque").get().then(snap=>{
+    marquesList=[];
+    snap.forEach(d=>marquesList.push({id:d.id,...d.data()}));
+    filtrerMarques();
+    loader(false);
+  }).catch(()=>{loader(false);toast("Erreur chargement","err");});
+}
+function filtrerMarques(){
+  const q=(G("marque-search")?.value||"").toLowerCase();
+  const list=q?marquesList.filter(m=>((m.marque||"")+(m.modele||"")).toLowerCase().includes(q)):marquesList;
+  let html="";
+  list.forEach(m=>{
+    html+=`<tr>
+      <td><strong>${m.marque||"—"}</strong></td>
+      <td>${m.modele||"—"}</td>
+      <td><div style="display:flex;gap:4px">
+        <button class="btn btn-secondary btn-sm" onclick="editerMarque('${m.id}','${(m.marque||"").replace(/'/g,"\'")}','${(m.modele||"").replace(/'/g,"\'")}')">✏️</button>
+        <button class="btn btn-danger btn-sm" onclick="supprimerMarque('${m.id}')">🗑</button>
+      </div></td></tr>`;
+  });
+  G("marques-tbody").innerHTML=html||`<tr><td colspan="3" style="text-align:center;color:var(--gris3);padding:24px">Aucun véhicule enregistré</td></tr>`;
+}
+function ouvrirModalMarque(){
+  G("marque-edit-id").value="";
+  G("modal-marque-title").textContent="🚗 Ajouter un véhicule";
+  G("marque-marque").value="";
+  G("marque-modele").value="";
+  G("modal-marque").classList.add("on");
+}
+function editerMarque(id,marque,modele){
+  G("marque-edit-id").value=id;
+  G("modal-marque-title").textContent="✏️ Modifier le véhicule";
+  G("marque-marque").value=marque;
+  G("marque-modele").value=modele;
+  G("modal-marque").classList.add("on");
+}
+function sauvegarderMarque(){
+  const marque=G("marque-marque").value.trim();
+  const modele=G("marque-modele").value.trim();
+  if(!marque){toast("Marque obligatoire","err");return;}
+  loader(true);
+  const id=G("marque-edit-id").value;
+  const data={marque:marque.charAt(0).toUpperCase()+marque.slice(1),modele:modele.charAt(0).toUpperCase()+modele.slice(1)};
+  const p=id?db.collection("vehicules_clients").doc(id).update(data)
+           :db.collection("vehicules_clients").add({...data,createdAt:firebase.firestore.FieldValue.serverTimestamp()});
+  p.then(()=>{toast(id?"Modifié ✅":"Ajouté ✅");fermerModal("modal-marque");chargerMarques();loader(false);})
+   .catch(()=>{toast("Erreur","err");loader(false);});
+}
+function supprimerMarque(id){
+  if(!confirm("Supprimer ce véhicule ?"))return;
+  db.collection("vehicules_clients").doc(id).delete()
+    .then(()=>{toast("Supprimé");chargerMarques();});
+}
 
 // ── PRISES EN CHARGE ──
 function chargerPC(){
@@ -2461,8 +2577,6 @@ function genererBL(bon){
     doc.setTextColor(26,26,26);doc.setFontSize(8.5);doc.text('Espèces',13,y+6.5);
     doc.setTextColor(200,52,26);doc.setFontSize(10);doc.text(bon.montant_especes?bon.montant_especes.toFixed(2).replace('.',',')+' €':'—',73,y+6.5);
     doc.setTextColor(21,101,192);doc.setFontSize(8);doc.text(bon.recu_num||'—',133,y+6.5);y+=8+3;
-  }else{
-    doc.setFillColor(246,246,246);doc.rect(10,y,190,7.5,'F');doc.setTextColor(170,170,170);doc.setFont('helvetica','normal');doc.setFontSize(8);doc.text('Aucun paiement espèces',105,y+4.8,{align:'center'});y+=7.5+3;
   }
   // Section photo
   doc.setFillColor(200,52,26);doc.rect(10,y,190,7,'F');doc.setTextColor(255,255,255);doc.setFont('helvetica','bold');doc.setFontSize(7.5);doc.text('PHOTO DU VÉHICULE',13,y+4.8);y+=7+2;
@@ -2470,10 +2584,16 @@ function genererBL(bon){
   // Photo invisible (pas de cadre)
   if(bon.photo_vehicule&&bon.photo_vehicule.startsWith('data:')){
     try{
-      const pImg=new Image();pImg.src=bon.photo_vehicule;
-      const iw=pImg.naturalWidth||1920,ih=pImg.naturalHeight||1080,ratio=iw/ih;
+      // Lire les vraies dimensions via un canvas
+      const tmpImg=new Image();
+      tmpImg.src=bon.photo_vehicule;
+      const canvas=document.createElement('canvas');
+      canvas.width=tmpImg.width||1;canvas.height=tmpImg.height||1;
+      const ctx2=canvas.getContext('2d');ctx2.drawImage(tmpImg,0,0);
+      const iw=tmpImg.width||1920,ih=tmpImg.height||1080;
       const pad=4,maxW=photoW-pad*2,maxH=photoH-pad*2;
-      let dw=maxW,dh=maxW/ratio;if(dh>maxH){dh=maxH;dw=maxH*ratio;}
+      let dw,dh;
+      if(iw/ih>maxW/maxH){dw=maxW;dh=maxW*ih/iw;}else{dh=maxH;dw=maxH*iw/ih;}
       const ox=10+pad+(maxW-dw)/2,oy=y+pad+(maxH-dh)/2;
       doc.addImage(bon.photo_vehicule,'JPEG',ox,oy,dw,dh,'','FAST');
     }catch(e){doc.setTextColor(170,170,170);doc.setFontSize(8);doc.text('[Photo du véhicule]',10+photoW/2,y+photoH/2,{align:'center'});}
