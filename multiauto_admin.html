@@ -1021,7 +1021,7 @@ function seConnecter(){
   if(!id||!pw){ G("login-err").classList.add("on"); return; }
   loader(true,"Connexion...");
   auth.signInWithEmailAndPassword(
-      id==="admin" ? "admin@multiauto.fr" : "somalan2000+"+id+"@gmail.com",
+      id==="admin" ? "admin@multiauto.fr" : id+"@multiauto.fr",
       pw
     )
     .then(cred=>db.collection("users").doc(cred.user.uid).get())
@@ -1073,8 +1073,7 @@ function chargerListeChauffeurs(){
     // rc-filtre-chauffeur : garder "Tous" + "Gardiennage" + chauffeurs
     const rcSel=G("rc-filtre-chauffeur");
     if(rcSel){
-      rcSel.innerHTML='<option value="">Tous les reçus</option><option value="magasinage">Gardiennage uniquement</option>';
-      const optTous=document.createElement("option");optTous.value="tous_chauffeurs";optTous.textContent="Tous chauffeurs";rcSel.appendChild(optTous);
+      rcSel.innerHTML='<option value="">— Tous les reçus —</option><option value="magasinage">Gardiennage uniquement</option><option value="tous_chauffeurs">Tous les chauffeurs</option>';
       chauffeursList.forEach(ch=>{const o=document.createElement("option");o.value=ch.id;o.textContent=ch.nom;rcSel.appendChild(o);});
     }
     const sc=G("cam-chauffeur");
