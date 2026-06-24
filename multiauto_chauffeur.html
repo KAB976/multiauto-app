@@ -852,11 +852,20 @@ function initApp(){
 // ════════════════════════════════════
 // GPS
 // ════════════════════════════════════
-function captureGPS(cb){
+function captureGPS(cb, _essai){
+  _essai = _essai || 1;
   if(!navigator.geolocation){ cb({lat:"",lng:"",lieu:""}); return; }
   navigator.geolocation.getCurrentPosition(function(pos){
-    var lat=pos.coords.latitude.toFixed(6);
-    var lng=pos.coords.longitude.toFixed(6);
+    var acc = pos.coords.accuracy;
+    var lat = pos.coords.latitude.toFixed(6);
+    var lng = pos.coords.longitude.toFixed(6);
+    var latN = parseFloat(lat), lngN = parseFloat(lng);
+    // Rejeter si hors zone Mayotte (lat -14/-11, lng 44/46) ou précision > 5km
+    var horsZone = (latN < -14 || latN > -11 || lngN < 44 || lngN > 46);
+    if((horsZone || acc > 5000) && _essai < 3){
+      setTimeout(function(){ captureGPS(cb, _essai+1); }, 3000);
+      return;
+    }
     fetch("https://nominatim.openstreetmap.org/reverse?format=json&lat="+lat+"&lon="+lng)
       .then(function(r){ return r.json(); })
       .then(function(d){
@@ -864,7 +873,7 @@ function captureGPS(cb){
         var lieu=a.quarter||a.neighbourhood||a.village||a.suburb||a.town||a.city||a.county||"";
         cb({lat:lat,lng:lng,lieu:lieu});
       }).catch(function(){ cb({lat:lat,lng:lng,lieu:""}); });
-  },function(){ cb({lat:"",lng:"",lieu:""}); },{enableHighAccuracy:true,timeout:12000,maximumAge:0});
+  },function(){ cb({lat:"",lng:"",lieu:""}); },{enableHighAccuracy:true,timeout:20000,maximumAge:0});
 }
 
 // ════════════════════════════════════
