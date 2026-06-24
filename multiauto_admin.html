@@ -593,7 +593,10 @@ tr:hover td{background:var(--gris)}
     <div class="pg" id="pg-marques">
       <div class="page-header">
         <div><div class="page-title">🚗 Véhicules clients</div><div class="page-sub">Marques et modèles pour les BL</div></div>
-        <button class="btn btn-primary" onclick="ouvrirModalMarque()">➕ Ajouter</button>
+        <div style="display:flex;gap:8px;flex-wrap:wrap">
+          <button class="btn btn-secondary btn-sm" onclick="importerListeReference()">⬆️ Importer liste complète</button>
+          <button class="btn btn-primary" onclick="ouvrirModalMarque()">➕ Ajouter</button>
+        </div>
       </div>
       <div class="card">
         <input class="filtre-inp" type="text" id="marque-search" placeholder="🔍 Rechercher..." oninput="filtrerMarques()" style="width:100%;margin-bottom:14px">
