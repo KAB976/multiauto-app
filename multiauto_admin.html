@@ -217,7 +217,7 @@ tr:hover td{background:var(--gris)}
 <div class="modal">
   <div class="modal-title" id="modal-ch-title">👤 Chauffeur</div>
   <div class="form-grid">
-    <div class="form-group"><span class="fl">Nom</span><input class="inp inp-sm" id="ch-nom" oninput="capInput(this)" placeholder="Nom complet"></div>
+    <div class="form-group"><span class="fl">Nom</span><input class="inp inp-sm" id="ch-nom" placeholder="Nom complet"></div>
     <div class="form-group"><span class="fl">Identifiant</span><input class="inp inp-sm" id="ch-id" placeholder="Ex: ABD" style="text-transform:uppercase" oninput="this.value=this.value.toUpperCase()"></div>
     <div class="form-group"><span class="fl">Nouveau mot de passe</span><input class="inp inp-sm" id="ch-mdp" type="password" placeholder="Laisser vide = inchangé"></div>
     <div class="form-group"><span class="fl">Préfixe BL</span><input class="inp inp-sm" id="ch-pref-bl" placeholder="Ex: ABD" style="text-transform:uppercase" oninput="this.value=this.value.toUpperCase()"></div>
@@ -236,10 +236,10 @@ tr:hover td{background:var(--gris)}
 <div class="modal">
   <div class="modal-title" id="modal-cam-title">🚛 Camion</div>
   <div class="form-grid">
-    <div class="form-group"><span class="fl">Nom</span><input class="inp inp-sm" id="cam-nom" oninput="capInput(this)" placeholder="Ex: Iveco Daily"></div>
+    <div class="form-group"><span class="fl">Nom</span><input class="inp inp-sm" id="cam-nom" placeholder="Ex: Iveco Daily"></div>
     <div class="form-group"><span class="fl">Immatriculation</span><input class="inp inp-sm" id="cam-immat" placeholder="Ex: ZA-260-DV" style="text-transform:uppercase" oninput="this.value=this.value.toUpperCase()"></div>
-    <div class="form-group"><span class="fl">Marque</span><input class="inp inp-sm" id="cam-marque" oninput="capInput(this)" placeholder="Ex: Iveco"></div>
-    <div class="form-group"><span class="fl">Modèle</span><input class="inp inp-sm" id="cam-modele" oninput="capInput(this)" placeholder="Ex: Daily"></div>
+    <div class="form-group"><span class="fl">Marque</span><input class="inp inp-sm" id="cam-marque" placeholder="Ex: Iveco"></div>
+    <div class="form-group"><span class="fl">Modèle</span><input class="inp inp-sm" id="cam-modele" placeholder="Ex: Daily"></div>
     <div class="form-group"><span class="fl">Année</span><input class="inp inp-sm" id="cam-annee" type="number" placeholder="Ex: 2020"></div>
     <div class="form-group"><span class="fl">Chauffeur par défaut</span><select class="inp inp-sm" id="cam-chauffeur"><option value="">— Aucun —</option></select></div>
   </div>
@@ -287,13 +287,13 @@ tr:hover td{background:var(--gris)}
   <div class="modal-title" id="modal-mag-title">🏠 Nouveau gardiennage</div>
   <div class="form-grid">
     <div class="form-group"><span class="fl">Immatriculation</span><input class="inp inp-sm" id="mag-immat" placeholder="WV-111-EF" style="text-transform:uppercase" oninput="this.value=this.value.toUpperCase()"></div>
-    <div class="form-group"><span class="fl">Client</span><select class="inp inp-sm" id="mag-client" oninput="capInput(this)"><option value="">— Choisir —</option></select></div>
-    <div class="form-group"><span class="fl">Marque / Modèle</span><input class="inp inp-sm" id="mag-vehicule" oninput="capInput(this)" placeholder="Ex: Volvo XC60"></div>
+    <div class="form-group"><span class="fl">Client</span><select class="inp inp-sm" id="mag-client"><option value="">— Choisir —</option></select></div>
+    <div class="form-group"><span class="fl">Marque / Modèle</span><input class="inp inp-sm" id="mag-vehicule" placeholder="Ex: Volvo XC60"></div>
     <div class="form-group"><span class="fl">Tarif / jour (€)</span><select class="inp inp-sm" id="mag-tarif"><option value="20">20 €</option><option value="30">30 €</option><option value="40" selected>40 €</option></select></div>
     <div class="form-group"><span class="fl">Date entrée</span><input class="inp inp-sm" id="mag-date-entree" type="date"></div>
     <div class="form-group"><span class="fl">Remise (€)</span><input class="inp inp-sm" id="mag-remise" type="number" placeholder="0" min="0" value="0"></div>
   </div>
-  <div class="form-group" style="margin-top:10px"><span class="fl">Notes</span><textarea class="inp inp-sm" id="mag-notes" oninput="capInput(this)" rows="2" placeholder="Informations..."></textarea></div>
+  <div class="form-group" style="margin-top:10px"><span class="fl">Notes</span><textarea class="inp inp-sm" id="mag-notes" rows="2" placeholder="Informations..."></textarea></div>
   <div class="modal-footer">
     <button class="btn btn-secondary" onclick="fermerModal('modal-magasinage')">Annuler</button>
     <button class="btn btn-primary" onclick="sauvegarderMagasinage()">💾 Enregistrer</button>
@@ -303,42 +303,14 @@ tr:hover td{background:var(--gris)}
 
 <!-- Modal Livraison Magasinage -->
 <div class="modal-bg" id="modal-livraison-mag">
-<div class="modal" style="max-width:500px">
-  <div class="modal-title">✅ Restituer le vehicule</div>
+<div class="modal">
+  <div class="modal-title">✅ Restituer le véhicule</div>
   <input type="hidden" id="livraison-mag-id">
-  <div class="form-group" style="margin-bottom:12px">
-    <span class="fl">Date de sortie</span>
-    <input class="inp inp-sm" id="mag-date-sortie" type="date" onchange="recalculerLivraison()">
-  </div>
+  <div class="form-group" style="margin-bottom:14px"><span class="fl">Date de sortie</span><input class="inp inp-sm" id="mag-date-sortie" type="date"></div>
   <div id="livraison-calcul" style="background:var(--jaune-lt);border:1.5px solid var(--jaune-bd);border-radius:8px;padding:14px;margin-bottom:14px;font-size:13px;line-height:2"></div>
-  <div class="form-group" style="margin-bottom:12px">
-    <span class="fl">Remise (euros) - optionnel</span>
-    <input class="inp inp-sm" id="liv-remise" type="number" min="0" step="0.01" placeholder="0.00" oninput="majRemise()">
-  </div>
-  <div class="form-group" style="margin-bottom:12px">
-    <span class="fl">Mode de paiement *</span>
-    <select class="inp inp-sm" id="mag-mode-paiement" onchange="onModePaiementChange()">
-      <option value="">-- Choisir --</option>
-      <option value="Especes">Especes</option>
-      <option value="CB">CB</option>
-      <option value="Cheque">Cheque</option>
-      <option value="Virement">Virement</option>
-    </select>
-  </div>
-  <div class="form-group" id="mag-montant-wrap" style="margin-bottom:12px;display:none">
-    <span class="fl">Montant paye (euros)</span>
-    <input class="inp inp-sm" id="mag-montant-paye" type="number" min="0" step="0.01" placeholder="0.00" oninput="majSoldeLivraison()">
-  </div>
-  <div id="mag-solde-box" style="display:none;background:var(--rouge-lt);border:1.5px solid #ffcdd2;border-radius:8px;padding:12px;margin-bottom:12px;font-size:13px">
-    <span class="fl" style="margin-bottom:4px">Solde restant du</span>
-    <div id="mag-solde-txt" style="font-size:18px;font-weight:900;color:var(--rouge)">--</div>
-  </div>
-  <div id="mag-solde-ok" style="display:none;background:var(--vert-lt);border:1.5px solid #b7e4c7;border-radius:8px;padding:12px;margin-bottom:12px;font-size:13px;font-weight:700;color:var(--vert)">
-    Paiement total recu
-  </div>
   <div class="modal-footer">
     <button class="btn btn-secondary" onclick="fermerModal('modal-livraison-mag')">Annuler</button>
-    <button class="btn btn-primary" onclick="confirmerLivraison()">Confirmer restitution</button>
+    <button class="btn btn-primary" onclick="confirmerLivraison()">✅ Confirmer restitution</button>
   </div>
 </div>
 </div>
@@ -349,10 +321,10 @@ tr:hover td{background:var(--gris)}
   <div class="modal-title" id="modal-pc-title">📄 Prise en charge</div>
   <div class="form-grid">
     <div class="form-group"><span class="fl">N° Dossier</span><input class="inp inp-sm" id="pc-dossier" placeholder="Ex: ASS-2026-001"></div>
-    <div class="form-group"><span class="fl">Assureur</span><input class="inp inp-sm" id="pc-assureur" oninput="capInput(this)" placeholder="Ex: AXA, MAAF..."></div>
+    <div class="form-group"><span class="fl">Assureur</span><input class="inp inp-sm" id="pc-assureur" placeholder="Ex: AXA, MAAF..."></div>
     <div class="form-group"><span class="fl">Client</span><select class="inp inp-sm" id="pc-client"><option value="">— Choisir —</option></select></div>
     <div class="form-group"><span class="fl">Téléphone</span><input class="inp inp-sm" id="pc-tel" type="tel" placeholder="0639 00 00 00"></div>
-    <div class="form-group"><span class="fl">Véhicule</span><input class="inp inp-sm" id="pc-vehicule" oninput="capInput(this)" placeholder="Marque Modèle"></div>
+    <div class="form-group"><span class="fl">Véhicule</span><input class="inp inp-sm" id="pc-vehicule" placeholder="Marque Modèle"></div>
     <div class="form-group"><span class="fl">Immatriculation</span><input class="inp inp-sm" id="pc-immat" placeholder="WV-111-EF" style="text-transform:uppercase" oninput="this.value=this.value.toUpperCase()"></div>
     <div class="form-group"><span class="fl">Part assurance (€)</span><input class="inp inp-sm" id="pc-montant-ass" type="number" placeholder="0" min="0"></div>
     <div class="form-group"><span class="fl">Part client (€)</span><input class="inp inp-sm" id="pc-montant-client" type="number" placeholder="0" min="0"></div>
@@ -401,7 +373,6 @@ tr:hover td{background:var(--gris)}
       <div class="sb-section">Gestion</div>
       <div class="sb-item" onclick="afficherPage('pg-chauffeurs')" id="nav-chauffeurs"><span class="ico">👤</span> Chauffeurs</div>
       <div class="sb-item" onclick="afficherPage('pg-camions')" id="nav-camions"><span class="ico">🚛</span> Camions</div>
-      <div class="sb-item" onclick="afficherPage('pg-marques')" id="nav-marques"><span class="ico">🚗</span> Véhicules clients</div>
       <div class="sb-item" onclick="afficherPage('pg-clients')" id="nav-clients"><span class="ico">👥</span> Clients</div>
       <div class="sb-item" onclick="afficherPage('pg-magasinage')" id="nav-magasinage"><span class="ico">🏠</span> Magasinage</div>
       <div class="sb-item" onclick="afficherPage('pg-pc')" id="nav-pc"><span class="ico">📄</span> Prises en charge</div>
@@ -526,9 +497,7 @@ tr:hover td{background:var(--gris)}
           <button class="btn btn-secondary btn-sm" id="btn-imprimer-rc-sel" onclick="imprimerSelectionRC()" disabled>🖨 Imprimer</button>
           <button class="btn btn-secondary btn-sm" id="btn-telecharger-rc-sel" onclick="telechargerSelectionRC()" disabled>⬇ Télécharger</button>
           <button class="btn btn-danger btn-sm" id="btn-supprimer-rc-sel" onclick="supprimerSelectionRC()" disabled>🗑 Supprimer</button>
-          <button class="btn btn-secondary btn-sm" onclick="exporterRecusPDF()">&#11015; Tout exporter</button>
-          <button class="btn btn-secondary btn-sm" onclick="exporterRecusFiltresPDF()">&#11015; Exporter liste</button>
-          <button class="btn btn-secondary btn-sm" onclick="imprimerListeRecus()">&#128424; Imprimer liste</button>
+          <button class="btn btn-secondary btn-sm" onclick="exporterRecusPDF()">⬇ Tout exporter</button>
         </div>
       </div>
       <div class="card">
@@ -536,7 +505,7 @@ tr:hover td{background:var(--gris)}
         <div class="filtres">
           <input class="filtre-inp" type="date" id="rc-date-debut">
           <input class="filtre-inp" type="date" id="rc-date-fin">
-          <select class="filtre-inp" id="rc-filtre-chauffeur"><option value="">— Tous les reçus —</option><option value="magasinage">Gardiennage uniquement</option></select>
+          <select class="filtre-inp" id="rc-filtre-chauffeur"><option value="">Tous chauffeurs</option></select>
           <button class="btn btn-primary" onclick="chargerRecus()">🔍 Filtrer</button>
         </div>
         <div class="table-wrap">
@@ -584,26 +553,6 @@ tr:hover td{background:var(--gris)}
           <table>
             <thead><tr><th>Nom</th><th>Immat.</th><th>Marque</th><th>Modèle</th><th>Chauffeur défaut</th><th>Statut</th><th>Actions</th></tr></thead>
             <tbody id="cam-tbody"></tbody>
-          </table>
-        </div>
-      </div>
-    </div>
-
-    <!-- MARQUES / MODELES VEHICULES -->
-    <div class="pg" id="pg-marques">
-      <div class="page-header">
-        <div><div class="page-title">🚗 Véhicules clients</div><div class="page-sub">Marques et modèles pour les BL</div></div>
-        <div style="display:flex;gap:8px;flex-wrap:wrap">
-          <button class="btn btn-secondary btn-sm" onclick="importerListeReference()">⬆️ Importer liste complète</button>
-          <button class="btn btn-primary" onclick="ouvrirModalMarque()">➕ Ajouter</button>
-        </div>
-      </div>
-      <div class="card">
-        <input class="filtre-inp" type="text" id="marque-search" placeholder="🔍 Rechercher..." oninput="filtrerMarques()" style="width:100%;margin-bottom:14px">
-        <div class="table-wrap">
-          <table>
-            <thead><tr><th>Marque</th><th>Modèle</th><th>Actions</th></tr></thead>
-            <tbody id="marques-tbody"></tbody>
           </table>
         </div>
       </div>
@@ -845,7 +794,7 @@ tr:hover td{background:var(--gris)}
           <div class="card">
             <div class="card-title">👔 Commission responsable</div>
             <div class="form-grid">
-              <div class="form-group"><span class="fl">Nom du responsable</span><input class="inp inp-sm" id="resp-nom" oninput="capInput(this)" placeholder="Ex: Le patron" value="Responsable"></div>
+              <div class="form-group"><span class="fl">Nom du responsable</span><input class="inp inp-sm" id="resp-nom" placeholder="Ex: Le patron" value="Responsable"></div>
               <div class="form-group"><span class="fl">Taux commission (%)</span><input class="inp inp-sm" id="taux-resp-inp" type="number" min="0" max="100" step="0.1" value="3"></div>
             </div>
           </div>
@@ -879,8 +828,8 @@ tr:hover td{background:var(--gris)}
         <button class="btn btn-primary" onclick="sauvegarderParametres()">💾 Enregistrer</button>
       </div>
       <div class="card" style="max-width:600px">
-        <div class="form-group" style="margin-bottom:14px"><span class="fl">Nom de la société</span><input class="inp" id="soc-nom" oninput="capInput(this)" placeholder="Multi Auto Depannage"></div>
-        <div class="form-group" style="margin-bottom:14px"><span class="fl">Adresse</span><input class="inp" id="soc-adresse" oninput="capInput(this)" placeholder="ZI Kaweni derrière Groupama — 96700 Mamoudzou"></div>
+        <div class="form-group" style="margin-bottom:14px"><span class="fl">Nom de la société</span><input class="inp" id="soc-nom" placeholder="Multi Auto Depannage"></div>
+        <div class="form-group" style="margin-bottom:14px"><span class="fl">Adresse</span><input class="inp" id="soc-adresse" placeholder="ZI Kaweni derrière Groupama — 96700 Mamoudzou"></div>
         <div class="form-group" style="margin-bottom:14px"><span class="fl">Téléphone</span><input class="inp" id="soc-tel" type="tel" placeholder="0639 69 13 58"></div>
         <div class="form-group" style="margin-bottom:14px"><span class="fl">Email</span><input class="inp" id="soc-email" type="email" placeholder="depannage.mayotte@multiauto.fr"></div>
       </div>
@@ -924,7 +873,7 @@ tr:hover td{background:var(--gris)}
 <div class="modal">
   <div class="modal-title" id="modal-user-title">👤 Nouvel utilisateur</div>
   <div class="form-grid">
-    <div class="form-group"><span class="fl">Nom complet</span><input class="inp inp-sm" id="user-nom" oninput="capInput(this)" placeholder="Ex: Fatima Said"></div>
+    <div class="form-group"><span class="fl">Nom complet</span><input class="inp inp-sm" id="user-nom" placeholder="Ex: Fatima Said"></div>
     <div class="form-group"><span class="fl">Rôle</span>
       <select class="inp inp-sm" id="user-role" onchange="majChampsChauffeur()">
         <option value="secretaire">Secrétaire</option>
@@ -961,41 +910,12 @@ tr:hover td{background:var(--gris)}
 <div class="modal-bg" id="modal-client">
 <div class="modal">
   <div class="modal-title">👥 Ajouter un client</div>
-  <div class="form-group" style="margin-bottom:12px"><span class="fl">Nom</span><input class="inp" id="nc-nom" oninput="capInput(this)" placeholder="Nom du client"></div>
+  <div class="form-group" style="margin-bottom:12px"><span class="fl">Nom</span><input class="inp" id="nc-nom" placeholder="Nom du client"></div>
   <div class="form-group" style="margin-bottom:12px"><span class="fl">Téléphone</span><input class="inp" id="nc-tel" type="tel" placeholder="0639 00 00 00"></div>
   <div class="form-group" style="margin-bottom:12px"><span class="fl">Mode paiement</span><select class="inp" id="nc-mode"><option value="">— Choisir —</option><option>Espèces</option><option>CB</option><option>Virement</option><option>Chèque</option></select></div>
   <div class="modal-footer">
     <button class="btn btn-secondary" onclick="fermerModal('modal-client')">Annuler</button>
     <button class="btn btn-primary" onclick="sauvegarderClient()">💾 Enregistrer</button>
-  </div>
-</div>
-</div>
-
-<!-- Modal Modifier Client -->
-<div class="modal-bg" id="modal-modifier-client">
-<div class="modal">
-  <div class="modal-title">✏️ Modifier le client</div>
-  <input type="hidden" id="modcl-id">
-  <div class="form-group" style="margin-bottom:12px"><span class="fl">Nom</span><input class="inp" id="modcl-nom" oninput="capInput(this)" placeholder="Nom du client"></div>
-  <div class="form-group" style="margin-bottom:12px"><span class="fl">Téléphone</span><input class="inp" id="modcl-tel" type="tel" placeholder="0639 00 00 00"></div>
-  <div class="form-group" style="margin-bottom:12px"><span class="fl">Mode paiement</span><select class="inp" id="modcl-mode"><option value="">— Choisir —</option><option>Espèces</option><option>CB</option><option>Virement</option><option>Chèque</option></select></div>
-  <div class="modal-footer">
-    <button class="btn btn-secondary" onclick="fermerModal('modal-modifier-client')">Annuler</button>
-    <button class="btn btn-primary" onclick="enregistrerModifClient()">💾 Enregistrer</button>
-  </div>
-</div>
-</div>
-
-<!-- Modal Marque/Modèle -->
-<div class="modal-bg" id="modal-marque">
-<div class="modal" style="max-width:400px">
-  <div class="modal-title" id="modal-marque-title">🚗 Ajouter un véhicule</div>
-  <input type="hidden" id="marque-edit-id">
-  <div class="form-group" style="margin-bottom:12px"><span class="fl">Marque</span><input class="inp inp-sm" id="marque-marque" oninput="capInput(this)" placeholder="Ex: Toyota"></div>
-  <div class="form-group" style="margin-bottom:12px"><span class="fl">Modèle</span><input class="inp inp-sm" id="marque-modele" oninput="capInput(this)" placeholder="Ex: Corolla"></div>
-  <div class="modal-footer">
-    <button class="btn btn-secondary" onclick="fermerModal('modal-marque')">Annuler</button>
-    <button class="btn btn-primary" onclick="sauvegarderMarque()">💾 Enregistrer</button>
   </div>
 </div>
 </div>
@@ -1019,15 +939,6 @@ let userAdmin=null, chauffeursList=[], camionsList=[], clientsList=[], editingId
 let leafletMapAdmin=null;
 
 const G=id=>document.getElementById(id);
-
-function capitalizeWords(str){
-  return str.replace(/(?:^|\s)\S/g, c => c.toUpperCase());
-}
-function capInput(el){
-  const pos = el.selectionStart;
-  el.value = capitalizeWords(el.value);
-  try{ el.setSelectionRange(pos, pos); }catch(e){}
-}
 function toast(msg,type="ok"){
   const t=G("toast"); t.className="toast on "+type;
   t.innerHTML=(type==="ok"?"✅":"❌")+" "+msg;
@@ -1053,7 +964,6 @@ function afficherPage(id){
   if(id==="pg-recus")      chargerRecus();
   if(id==="pg-chauffeurs") {chargerChauffeurs(); chargerPermChauffeursFn();}
   if(id==="pg-camions")    chargerCamions();
-  if(id==="pg-marques")    chargerMarques();
   if(id==="pg-clients")    chargerClients();
   if(id==="pg-magasinage") chargerMagasinage();
   if(id==="pg-pc")         chargerPC();
@@ -1074,7 +984,7 @@ function seConnecter(){
   if(!id||!pw){ G("login-err").classList.add("on"); return; }
   loader(true,"Connexion...");
   auth.signInWithEmailAndPassword(
-      id==="admin" ? "admin@multiauto.fr" : id+"@multiauto.fr",
+      id==="admin" ? "admin@multiauto.fr" : "somalan2000+"+id+"@gmail.com",
       pw
     )
     .then(cred=>db.collection("users").doc(cred.user.uid).get())
@@ -1118,16 +1028,11 @@ function chargerListeChauffeurs(){
     chauffeursList=[];
     snap.forEach(d=>chauffeursList.push({id:d.id,...d.data()}));
     chauffeursList.sort((a,b)=>a.nom.localeCompare(b.nom));
-    ["bl-filtre-chauffeur","gps-chauffeur","stats-chauffeur","comm-chauffeur","assign-chauffeur"].forEach(sid=>{
+    ["bl-filtre-chauffeur","rc-filtre-chauffeur","gps-chauffeur","stats-chauffeur","comm-chauffeur","assign-chauffeur"].forEach(sid=>{
       const sel=G(sid); if(!sel) return;
       const first=sel.options[0]; sel.innerHTML=""; sel.appendChild(first);
       chauffeursList.forEach(ch=>{const o=document.createElement("option");o.value=ch.id;o.textContent=ch.nom;sel.appendChild(o);});
     });
-    const rcSel=G("rc-filtre-chauffeur");
-    if(rcSel){
-      rcSel.innerHTML='<option value="">\u2014 Tous les re\u00e7us \u2014</option><option value="magasinage">Gardiennage uniquement</option><option value="tous_chauffeurs">Tous les chauffeurs</option>';
-      chauffeursList.forEach(ch=>{const o=document.createElement("option");o.value=ch.id;o.textContent=ch.nom;rcSel.appendChild(o);});
-    }
     const sc=G("cam-chauffeur");
     if(sc){sc.innerHTML="<option value=''>— Aucun —</option>";chauffeursList.forEach(ch=>{const o=document.createElement("option");o.value=ch.nom;o.textContent=ch.nom;sc.appendChild(o);});}
     const sch=G("ch-camion");
@@ -1297,10 +1202,7 @@ function chargerRecus(){
     const debut=G("rc-date-debut")?.value||"", fin=G("rc-date-fin")?.value||"";
     if(debut) recus=recus.filter(r=>toComp(r.date)>=debut);
     if(fin)   recus=recus.filter(r=>toComp(r.date)<=fin);
-    if(ch==="magasinage") recus=recus.filter(r=>r.type==="magasinage"||r.chauffeur_uid==="magasinage");
-    else if(ch==="tous_chauffeurs") recus=recus.filter(r=>r.type!=="magasinage"&&r.chauffeur_uid!=="magasinage");
-    else if(ch) recus=recus.filter(r=>r.chauffeur_uid===ch);
-    window._recusAffiches = recus;
+    if(ch)    recus=recus.filter(r=>r.chauffeur_uid===ch);
     const totalRC=recus.length, totalM=recus.reduce((s,r)=>s+(r.montant||0),0);
     if(G("rc-totaux")) G("rc-totaux").innerHTML=`
       <div class="total-badge"><div class="tb-num">${totalRC}</div><div class="tb-lbl">Total reçus</div></div>
@@ -1514,23 +1416,13 @@ function sauvegarderClient(){
     .catch(()=>{toast("Erreur","err");loader(false);});
 }
 function ouvrirModifierClient(id,nom,tel,mode){
-  G("modcl-id").value=id;
-  G("modcl-nom").value=nom||"";
-  G("modcl-tel").value=tel||"";
-  G("modcl-mode").value=mode||"";
-  G("modal-modifier-client").classList.add("on");
-}
-function enregistrerModifClient(){
-  const id=G("modcl-id").value;
-  const nom=G("modcl-nom").value.trim();
-  if(!nom){toast("Nom obligatoire","err");return;}
-  loader(true);
-  db.collection("clients").doc(id).update({
-    nom:nom.charAt(0).toUpperCase()+nom.slice(1),
-    tel:G("modcl-tel").value.trim(),
-    mode_paiement:G("modcl-mode").value
-  }).then(()=>{toast("Client modifié ✅");fermerModal("modal-modifier-client");chargerClients();loader(false);})
-    .catch(()=>{toast("Erreur","err");loader(false);});
+  const newNom=prompt("Nom du client :",nom);
+  if(newNom===null)return;
+  const newTel=prompt("Téléphone :",tel);
+  const newMode=prompt("Mode paiement (Espèces/CB/Virement/Chèque) :",mode);
+  if(!newNom.trim()){toast("Nom obligatoire","err");return;}
+  db.collection("clients").doc(id).update({nom:newNom.trim().charAt(0).toUpperCase()+newNom.trim().slice(1),tel:(newTel||"").trim(),mode_paiement:(newMode||"").trim()})
+    .then(()=>{toast("Client modifié ✅");chargerClients();}).catch(()=>toast("Erreur","err"));
 }
 function supprimerClient(id){if(!confirm("Supprimer ?"))return;db.collection("clients").doc(id).delete().then(()=>{toast("Supprimé");chargerClients();});}
 
@@ -1621,7 +1513,7 @@ function chargerMagasinage(){
         <td style="font-weight:900;color:var(--vert)">${fmtMontant(net)}</td>
         <td>${st}</td>
         <td><div style="display:flex;gap:4px">
-          ${m.statut==="en_cours"?`<button class="btn btn-success btn-sm" onclick="ouvrirLivraison('${m.id}')">Restituer</button>`:`<button class="btn btn-secondary btn-sm" onclick="voirRecuMag('${m.id}')">Recu</button>`}
+          ${m.statut==="en_cours"?`<button class="btn btn-success btn-sm" onclick="ouvrirLivraison('${m.id}')">✅ Restituer</button>`:""}
           <button class="btn btn-danger btn-sm btn-icon" onclick="supprimerMag('${m.id}')">🗑</button>
         </div></td></tr>`;
     });
@@ -1685,301 +1577,32 @@ function sauvegarderMagasinage(){
 }
 
 function ouvrirLivraison(id){
-  // Charger les données depuis Firestore PUIS ouvrir le modal
+  G("livraison-mag-id").value=id;
+  G("mag-date-sortie").value=new Date().toISOString().split("T")[0];
   db.collection("magasinage").doc(id).get().then(snap=>{
-    const m = snap.data();
-    const dateAuj = new Date().toISOString().split("T")[0];
-    const e = new Date(m.date_entree);
-    const s = new Date(dateAuj);
-    const jours = Math.max(1, Math.ceil((s-e)/(1000*60*60*24)));
-    const total = jours * (m.tarif_jour||40);
-
-    // Stocker dans window pour y accéder partout
-    window._magId = id;
-    window._magM = m;
-    window._magJours = jours;
-    window._magTotal = total;
-    window._magNet = total; // net = total au départ (pas de remise)
-
-    // Initialiser les champs
-    G("livraison-mag-id").value = id;
-    G("mag-date-sortie").value = dateAuj;
-    G("liv-remise").value = "";
-    G("mag-mode-paiement").value = "";
-    G("mag-montant-paye").value = "";
-    G("mag-montant-wrap").style.display = "none";
-    G("mag-solde-box").style.display = "none";
-    G("mag-solde-ok").style.display = "none";
-
-    // Afficher le résumé
-    G("livraison-calcul").innerHTML =
-      "<strong>" + m.immat + "</strong> — " + m.client + "<br>" +
-      "Entrée : " + m.date_entree + " | Durée : <strong>" + jours + " jour(s)</strong><br>" +
-      "Tarif/jour : " + fmtMontant(m.tarif_jour||40) + "<br>" +
-      "<strong style='color:var(--vert);font-size:15px'>Total à encaisser : " + fmtMontant(total) + "</strong>";
-
+    const m=snap.data();
+    const e=new Date(m.date_entree), s=new Date(G("mag-date-sortie").value);
+    const jours=Math.max(1,Math.ceil((s-e)/(1000*60*60*24)));
+    const total=jours*(m.tarif_jour||40), net=total-(m.remise||0);
+    G("livraison-calcul").innerHTML=`<strong>${m.immat}</strong> — ${m.client}<br>Entrée: ${m.date_entree}<br>Durée: <strong>${jours} jour(s)</strong><br>Total: ${fmtMontant(total)}<br>${m.remise>0?`Remise: -${fmtMontant(m.remise)}<br>`:""}<strong style="color:var(--vert);font-size:15px">Net à encaisser: ${fmtMontant(net)}</strong>`;
     G("modal-livraison-mag").classList.add("on");
   });
 }
 
-function majRemise(){
-  // Appelé quand l'utilisateur change la remise
-  const m = window._magM;
-  if(!m) return;
-  const remise = parseFloat(G("liv-remise").value)||0;
-  const net = Math.max(0, window._magTotal - remise);
-  window._magNet = net;
-
-  // Mettre à jour l'affichage
-  G("livraison-calcul").innerHTML =
-    "<strong>" + m.immat + "</strong> — " + m.client + "<br>" +
-    "Entrée : " + m.date_entree + " | Durée : <strong>" + window._magJours + " jour(s)</strong><br>" +
-    "Total brut : " + fmtMontant(window._magTotal) +
-    (remise>0 ? " | Remise : <span style='color:var(--rouge)'>-" + fmtMontant(remise) + "</span>" : "") +
-    "<br><strong style='color:var(--vert);font-size:15px'>Net à payer : " + fmtMontant(net) + "</strong>";
-
-  // Si mode déjà choisi, mettre à jour montant et solde
-  const mode = G("mag-mode-paiement").value;
-  if(mode){
-    G("mag-montant-paye").value = net.toFixed(2);
-    majSoldeLivraison();
-  }
-}
-
-function onModePaiementChange(){
-  const mode = G("mag-mode-paiement").value;
-  G("mag-montant-wrap").style.display = mode ? "block" : "none";
-  if(mode){
-    const net = window._magNet !== undefined ? window._magNet : (window._magTotal || 0);
-    G("mag-montant-paye").value = net.toFixed(2);
-    majSoldeLivraison();
-  }
-}
-
-function majSoldeLivraison(){
-  const net = window._magNet !== undefined ? window._magNet : (window._magTotal || 0);
-  const paye = parseFloat(G("mag-montant-paye").value)||0;
-  const solde = net - paye;
-  if(solde > 0.009){
-    G("mag-solde-box").style.display = "block";
-    G("mag-solde-txt").textContent = solde.toFixed(2).replace(".",",")+" €";
-    G("mag-solde-ok").style.display = "none";
-  } else {
-    G("mag-solde-box").style.display = "none";
-    G("mag-solde-ok").style.display = "block";
-  }
-}
-
-function recalculerLivraison(){
-  const m = window._magM;
-  if(!m) return;
-  const dateS = G("mag-date-sortie").value;
-  if(!dateS) return;
-  const e = new Date(m.date_entree);
-  const s = new Date(dateS);
-  const jours = Math.max(1, Math.ceil((s-e)/(1000*60*60*24)));
-  const total = jours * (m.tarif_jour||40);
-  window._magJours = jours;
-  window._magTotal = total;
-  const remise = parseFloat(G("liv-remise").value)||0;
-  const net = Math.max(0, total - remise);
-  window._magNet = net;
-  G("livraison-calcul").innerHTML =
-    "<strong>"+m.immat+"</strong> — "+m.client+"<br>"+
-    "Entrée : "+m.date_entree+" | Durée : <strong>"+jours+" jour(s)</strong><br>"+
-    "Tarif/jour : "+fmtMontant(m.tarif_jour||40)+"<br>"+
-    "Total brut : "+fmtMontant(total)+
-    (remise>0 ? " | Remise : <span style='color:var(--rouge)'>-"+fmtMontant(remise)+"</span>" : "")+
-    "<br><strong style='color:var(--vert);font-size:15px'>Net à payer : "+fmtMontant(net)+"</strong>";
-  const mode = G("mag-mode-paiement").value;
-  if(mode){ G("mag-montant-paye").value = net.toFixed(2); majSoldeLivraison(); }
-}
-
 function confirmerLivraison(){
-  const id = G("livraison-mag-id").value;
-  const dateSortie = G("mag-date-sortie").value;
-  const mode = G("mag-mode-paiement").value;
-  const remise = parseFloat(G("liv-remise").value)||0;
-  const montantPaye = parseFloat(G("mag-montant-paye").value)||0;
-  if(!mode){ toast("Choisissez un mode de paiement","err"); return; }
+  const id=G("livraison-mag-id").value, dateSortie=G("mag-date-sortie").value;
   db.collection("magasinage").doc(id).get().then(snap=>{
-    const m = snap.data();
-    const e = new Date(m.date_entree);
-    const s = new Date(dateSortie);
-    const jours = Math.max(1, Math.ceil((s-e)/(1000*60*60*24)));
-    const total = jours * (m.tarif_jour||40);
-    const net = Math.max(0, total - remise);
-    const solde = Math.max(0, net - montantPaye);
-    const now = new Date();
-    const dateStr = ("0"+now.getDate()).slice(-2)+"/"+("0"+(now.getMonth()+1)).slice(-2)+"/"+now.getFullYear();
-    const heureStr = ("0"+now.getHours()).slice(-2)+":"+("0"+now.getMinutes()).slice(-2);
-    return db.collection("magasinage").doc(id).update({
-      statut:"livre", date_sortie:dateSortie, jours,
-      montant_total:total, remise:remise, montant_net:net,
-      mode_paiement:mode, montant_paye:montantPaye,
-      solde_restant:solde, paiement_total:solde<=0,
-      updatedAt:firebase.firestore.FieldValue.serverTimestamp()
-    }).then(()=>{
-      // Archiver dans collection recus
-      return db.collection("recus").add({
-        type: "magasinage",
-        chauffeur_nom: "Magasinage",
-        chauffeur_uid: "magasinage",
-        nom_client: m.client||"--",
-        immatriculation: m.immat||"--",
-        marque: "", modele: "",
-        mission: "Gardiennage " + (m.date_entree||"") + " au " + dateSortie,
-        date: dateStr, heure: heureStr,
-        montant: montantPaye,
-        montant_net: net,
-        remise: remise,
-        solde_restant: solde,
-        mode_paiement: mode,
-        jours: jours,
-        tarif_jour: m.tarif_jour||40,
-        mag_id: id,
-        timestamp: firebase.firestore.FieldValue.serverTimestamp()
-      });
-    });
-  }).then(()=>{
-    toast("Vehicule restitue OK");
-    fermerModal("modal-livraison-mag");
-    chargerMagasinage();
-    // Generer recu PDF
-    db.collection("magasinage").doc(id).get().then(snap=>{
-      if(snap.exists){
-        const recuDoc = genererRecuMagasinage({id,...snap.data()});
-        window.open(URL.createObjectURL(recuDoc.output("blob")),"_blank");
-      }
-    });
-  }).catch(e=>{ console.error(e); toast("Erreur","err"); });
+    const m=snap.data();
+    const e=new Date(m.date_entree), s=new Date(dateSortie);
+    const jours=Math.max(1,Math.ceil((s-e)/(1000*60*60*24)));
+    const total=jours*(m.tarif_jour||40), net=total-(m.remise||0);
+    return db.collection("magasinage").doc(id).update({statut:"livre",date_sortie:dateSortie,jours,montant_total:total,montant_net:net});
+  }).then(()=>{toast("Véhicule restitué ✅");fermerModal("modal-livraison-mag");chargerMagasinage();})
+  .catch(()=>toast("Erreur","err"));
 }
 
 function supprimerMag(id){if(!confirm("Supprimer ?"))return;db.collection("magasinage").doc(id).delete().then(()=>{toast("Supprimé");chargerMagasinage();});}
 function exporterMagasinagePDF(){toast("Export PDF magasinage — disponible prochainement");}
-
-// ── VEHICULES CLIENTS (Marques/Modèles) ──
-let marquesList=[];
-
-// Liste statique de référence (même que l'app chauffeur)
-const MARQUES_MODELES_REF = {
-  "Alfa Romeo":["147","156","159","Giulia","Giulietta","Stelvio","MiTo"],
-  "Audi":["A1","A3","A4","A5","A6","A7","A8","Q2","Q3","Q5","Q7","Q8","TT","RS3","RS6"],
-  "BMW":["Série 1","Série 2","Série 3","Série 4","Série 5","Série 7","X1","X2","X3","X4","X5","X6","X7","M3","M5"],
-  "Citroën":["C1","C2","C3","C4","C5","Berlingo","Jumper","Jumpy","SpaceTourer"],
-  "Dacia":["Duster","Jogger","Logan","Sandero","Spring","Lodgy"],
-  "Fiat":["500","Doblo","Ducato","Grande Punto","Panda","Tipo"],
-  "Ford":["EcoSport","Fiesta","Focus","Kuga","Mustang","Ranger","Transit","Transit Custom"],
-  "Honda":["Accord","Civic","CR-V","HR-V","Jazz"],
-  "Hyundai":["i10","i20","i30","Kona","Santa Fe","Tucson","Elantra","Creta"],
-  "Isuzu":["D-Max","MU-X","NPR","NQR"],
-  "Jeep":["Cherokee","Compass","Grand Cherokee","Renegade","Wrangler"],
-  "Kia":["Ceed","Niro","Picanto","Rio","Sorento","Sportage","Stonic"],
-  "Land Rover":["Defender","Discovery","Freelander","Range Rover","Range Rover Evoque","Range Rover Sport"],
-  "Mahindra":["Bolero","Pik Up","Scorpio","Thar","XUV500","XUV700"],
-  "Mazda":["2","3","6","CX-3","CX-5","CX-30","MX-5"],
-  "Mercedes":["Classe A","Classe B","Classe C","Classe E","Classe G","Classe S","GLA","GLC","GLE","Sprinter","Vito","Actros"],
-  "Mitsubishi":["ASX","Eclipse Cross","L200","Outlander","Pajero"],
-  "Nissan":["Juke","Leaf","Micra","Navara","Pathfinder","Qashqai","X-Trail"],
-  "Opel":["Astra","Corsa","Crossland","Grandland","Insignia","Mokka","Vivaro","Zafira"],
-  "Peugeot":["108","2008","208","3008","308","5008","508","Boxer","Expert","Partner","Rifter"],
-  "Renault":["Arkana","Captur","Clio","Duster","Kadjar","Kangoo","Master","Megane","Scenic","Trafic","Twingo","Zoe"],
-  "Scania":["P Series","R Series","S Series","G Series"],
-  "Seat":["Arona","Ateca","Ibiza","Leon","Tarraco"],
-  "Skoda":["Fabia","Kamiq","Karoq","Kodiaq","Octavia","Superb"],
-  "Suzuki":["Alto","Baleno","Grand Vitara","Ignis","Jimny","Swift","Vitara"],
-  "Toyota":["Auris","Aygo","C-HR","Camry","Corolla","Hilux","Land Cruiser","Prius","RAV4","Yaris"],
-  "Volkswagen":["Amarok","Caddy","Golf","Passat","Polo","T-Cross","T-Roc","Tiguan","Touareg","Transporter"],
-  "Volvo":["S60","S90","V60","V90","XC40","XC60","XC90"],
-  "BMW Moto":["F 750 GS","F 850 GS","G 310 R","R 1200 GS","R 1250 GS","S 1000 RR"],
-  "Honda Moto":["CBR 500R","CB 500F","CB 650R","Africa Twin","Forza","PCX","SH"],
-  "Kawasaki":["Ninja 400","Ninja 650","Versys 650","Z650","Z900"],
-  "Yamaha":["MT-07","MT-09","NMAX","TMAX","Tenere 700"],
-  "Suzuki Moto":["Burgman","V-Strom","GSX-R 600","GSX-R 750"]
-};
-
-function chargerMarques(){
-  loader(true);
-  db.collection("vehicules_clients").orderBy("marque").get().then(snap=>{
-    marquesList=[];
-    snap.forEach(d=>marquesList.push({id:d.id,...d.data()}));
-    // Si vide → proposer d'importer la liste de référence
-    if(marquesList.length===0){
-      G("marques-tbody").innerHTML=`<tr><td colspan="3" style="text-align:center;padding:24px">
-        <div style="color:var(--gris3);margin-bottom:12px">Aucun véhicule — la liste est vide</div>
-        <button class="btn btn-primary" onclick="importerListeReference()">⬆️ Importer la liste complète (${Object.keys(MARQUES_MODELES_REF).reduce((s,m)=>s+MARQUES_MODELES_REF[m].length,0)} modèles)</button>
-      </td></tr>`;
-      loader(false);
-      return;
-    }
-    filtrerMarques();
-    loader(false);
-  }).catch(()=>{loader(false);toast("Erreur chargement","err");});
-}
-
-async function importerListeReference(){
-  if(!confirm("Importer toute la liste de véhicules de référence dans Firestore ?\nCela ajoutera chaque modèle comme une entrée séparée."))return;
-  loader(true,"Import en cours...");
-  let count=0;
-  const batch=db.batch();
-  Object.keys(MARQUES_MODELES_REF).forEach(marque=>{
-    MARQUES_MODELES_REF[marque].forEach(modele=>{
-      const ref=db.collection("vehicules_clients").doc();
-      batch.set(ref,{marque,modele,createdAt:firebase.firestore.FieldValue.serverTimestamp()});
-      count++;
-    });
-  });
-  // Firestore batch max 500 — si dépassé, on divise
-  await batch.commit();
-  toast(count+" modèles importés ✅");
-  chargerMarques();
-}
-function filtrerMarques(){
-  const q=(G("marque-search")?.value||"").toLowerCase();
-  const list=q?marquesList.filter(m=>((m.marque||"")+(m.modele||"")).toLowerCase().includes(q)):marquesList;
-  let html="";
-  list.forEach(m=>{
-    html+=`<tr>
-      <td><strong>${m.marque||"—"}</strong></td>
-      <td>${m.modele||"—"}</td>
-      <td><div style="display:flex;gap:4px">
-        <button class="btn btn-secondary btn-sm" onclick="editerMarque('${m.id}','${(m.marque||"").replace(/'/g,"\'")}','${(m.modele||"").replace(/'/g,"\'")}')">✏️</button>
-        <button class="btn btn-danger btn-sm" onclick="supprimerMarque('${m.id}')">🗑</button>
-      </div></td></tr>`;
-  });
-  G("marques-tbody").innerHTML=html||`<tr><td colspan="3" style="text-align:center;color:var(--gris3);padding:24px">Aucun véhicule enregistré</td></tr>`;
-}
-function ouvrirModalMarque(){
-  G("marque-edit-id").value="";
-  G("modal-marque-title").textContent="🚗 Ajouter un véhicule";
-  G("marque-marque").value="";
-  G("marque-modele").value="";
-  G("modal-marque").classList.add("on");
-}
-function editerMarque(id,marque,modele){
-  G("marque-edit-id").value=id;
-  G("modal-marque-title").textContent="✏️ Modifier le véhicule";
-  G("marque-marque").value=marque;
-  G("marque-modele").value=modele;
-  G("modal-marque").classList.add("on");
-}
-function sauvegarderMarque(){
-  const marque=G("marque-marque").value.trim();
-  const modele=G("marque-modele").value.trim();
-  if(!marque){toast("Marque obligatoire","err");return;}
-  loader(true);
-  const id=G("marque-edit-id").value;
-  const data={marque:marque.charAt(0).toUpperCase()+marque.slice(1),modele:modele.charAt(0).toUpperCase()+modele.slice(1)};
-  const p=id?db.collection("vehicules_clients").doc(id).update(data)
-           :db.collection("vehicules_clients").add({...data,createdAt:firebase.firestore.FieldValue.serverTimestamp()});
-  p.then(()=>{toast(id?"Modifié ✅":"Ajouté ✅");fermerModal("modal-marque");chargerMarques();loader(false);})
-   .catch(()=>{toast("Erreur","err");loader(false);});
-}
-function supprimerMarque(id){
-  if(!confirm("Supprimer ce véhicule ?"))return;
-  db.collection("vehicules_clients").doc(id).delete()
-    .then(()=>{toast("Supprimé");chargerMarques();});
-}
 
 // ── PRISES EN CHARGE ──
 function chargerPC(){
@@ -2645,6 +2268,8 @@ function genererBL(bon){
     doc.setTextColor(26,26,26);doc.setFontSize(8.5);doc.text('Espèces',13,y+6.5);
     doc.setTextColor(200,52,26);doc.setFontSize(10);doc.text(bon.montant_especes?bon.montant_especes.toFixed(2).replace('.',',')+' €':'—',73,y+6.5);
     doc.setTextColor(21,101,192);doc.setFontSize(8);doc.text(bon.recu_num||'—',133,y+6.5);y+=8+3;
+  }else{
+    doc.setFillColor(246,246,246);doc.rect(10,y,190,7.5,'F');doc.setTextColor(170,170,170);doc.setFont('helvetica','normal');doc.setFontSize(8);doc.text('Aucun paiement espèces',105,y+4.8,{align:'center'});y+=7.5+3;
   }
   // Section photo
   doc.setFillColor(200,52,26);doc.rect(10,y,190,7,'F');doc.setTextColor(255,255,255);doc.setFont('helvetica','bold');doc.setFontSize(7.5);doc.text('PHOTO DU VÉHICULE',13,y+4.8);y+=7+2;
@@ -2652,16 +2277,10 @@ function genererBL(bon){
   // Photo invisible (pas de cadre)
   if(bon.photo_vehicule&&bon.photo_vehicule.startsWith('data:')){
     try{
-      // Lire les vraies dimensions via un canvas
-      const tmpImg=new Image();
-      tmpImg.src=bon.photo_vehicule;
-      const canvas=document.createElement('canvas');
-      canvas.width=tmpImg.width||1;canvas.height=tmpImg.height||1;
-      const ctx2=canvas.getContext('2d');ctx2.drawImage(tmpImg,0,0);
-      const iw=tmpImg.width||1920,ih=tmpImg.height||1080;
+      const pImg=new Image();pImg.src=bon.photo_vehicule;
+      const iw=pImg.naturalWidth||1920,ih=pImg.naturalHeight||1080,ratio=iw/ih;
       const pad=4,maxW=photoW-pad*2,maxH=photoH-pad*2;
-      let dw,dh;
-      if(iw/ih>maxW/maxH){dw=maxW;dh=maxW*ih/iw;}else{dh=maxH;dw=maxH*iw/ih;}
+      let dw=maxW,dh=maxW/ratio;if(dh>maxH){dh=maxH;dw=maxH*ratio;}
       const ox=10+pad+(maxW-dw)/2,oy=y+pad+(maxH-dh)/2;
       doc.addImage(bon.photo_vehicule,'JPEG',ox,oy,dw,dh,'','FAST');
     }catch(e){doc.setTextColor(170,170,170);doc.setFontSize(8);doc.text('[Photo du véhicule]',10+photoW/2,y+photoH/2,{align:'center'});}
@@ -2734,86 +2353,6 @@ function genererRecu(recu){
   doc.text('PAIEMENT CONFIRME EN ESPECES',105,253.2,{align:'center'});
   pdfPied(doc);
   return doc;
-}
-
-
-function genererRecuMagasinage(data){
-  if(!data.montant_total && data.date_entree && data.date_sortie){
-    const e=new Date(data.date_entree), s=new Date(data.date_sortie);
-    const jours=Math.max(1,Math.ceil((s-e)/(1000*60*60*24)));
-    data.jours=jours;
-    data.montant_total=jours*(data.tarif_jour||40);
-    data.montant_net=Math.max(0,data.montant_total-(data.remise||0));
-    data.montant_paye=data.montant_paye||data.montant_net;
-    data.solde_restant=Math.max(0,data.montant_net-data.montant_paye);
-  }
-  const {jsPDF}=window.jspdf;
-  const doc=new jsPDF("portrait","mm","a4");
-  const W=210,rouge=[200,52,26];
-  doc.setFillColor(...rouge);doc.rect(0,0,W,32,"F");
-  try{if(LOGO_DATA)doc.addImage(LOGO_DATA,"PNG",10,4,40,24,"","FAST");}catch(e){}
-  doc.setTextColor(255,255,255);doc.setFont("helvetica","bold");doc.setFontSize(18);
-  doc.text("RECU DE GARDIENNAGE",W/2,14,{align:"center"});
-  doc.setFontSize(9);doc.setFont("helvetica","normal");
-  doc.text("N MAG-"+(data.id||"").slice(-6),W/2,21,{align:"center"});
-  doc.setFontSize(7.5);
-  doc.text("Date restitution : "+(data.date_sortie||new Date().toLocaleDateString("fr-FR")),W/2,27,{align:"center"});
-  var y=38;
-  doc.setFillColor(255,251,234);doc.setDrawColor(232,192,64);doc.setLineWidth(0.8);doc.roundedRect(10,y,190,32,3,3,"FD");
-  doc.setTextColor(122,90,58);doc.setFont("helvetica","bold");doc.setFontSize(7.5);
-  doc.text("MONTANT REGLE — "+((data.mode_paiement||"--").toUpperCase()),105,y+7,{align:"center"});
-  doc.setTextColor(26,37,64);doc.setFont("helvetica","bold");doc.setFontSize(30);
-  doc.text((data.montant_paye||0).toFixed(2).replace(".",",")+"€",105,y+20,{align:"center"});
-  doc.setDrawColor(232,192,64);doc.setLineWidth(0.4);doc.line(20,y+23,190,y+23);
-  var m2=data.montant_paye||0,ent=Math.floor(m2),cent=Math.round((m2-ent)*100);
-  var u=["zero","un","deux","trois","quatre","cinq","six","sept","huit","neuf","dix","onze","douze","treize","quatorze","quinze","seize","dix-sept","dix-huit","dix-neuf"];
-  var d2=["vingt","trente","quarante","cinquante","soixante","soixante-dix","quatre-vingts","quatre-vingt-dix"];
-  function mL(n){if(n<20)return u[Math.floor(n)];if(n<100){var di=Math.floor(n/10)-2,un=Math.floor(n%10);return d2[di]+(un>0?"-"+u[un]:"");}if(n<1000)return u[Math.floor(n/100)]+" cent"+(n%100>0?" "+mL(n%100):"");return Math.floor(n)+" ";}
-  var txt=mL(ent).charAt(0).toUpperCase()+mL(ent).slice(1)+" euro"+(ent>1?"s":"")+" et "+cent+" centime"+(cent>1?"s":"")+".";
-  doc.setFillColor(255,251,234);doc.setTextColor(122,85,0);doc.setFont("helvetica","italic");doc.setFontSize(9);
-  doc.text(txt,105,y+29,{align:"center",maxWidth:160});y+=32+5;
-  doc.setFillColor(...rouge);doc.rect(10,y,190,7,"F");doc.setTextColor(255,255,255);doc.setFont("helvetica","bold");doc.setFontSize(7.5);doc.text("DETAILS DU GARDIENNAGE",13,y+4.8);y+=7+1;
-  function pdfL2(y2,l,v){
-    doc.setFillColor(246,246,246);doc.rect(10,y2,190,7.5,"F");
-    doc.setTextColor(122,90,58);doc.setFont("helvetica","bold");doc.setFontSize(7);doc.text(l.toUpperCase(),13,y2+4.8);
-    doc.setTextColor(26,26,26);doc.setFont("helvetica","bold");doc.setFontSize(8.5);doc.text(String(v||"--"),65,y2+4.8);
-    doc.setDrawColor(224,224,224);doc.setLineWidth(0.3);doc.line(10,y2+7.5,200,y2+7.5);return y2+7.5;
-  }
-  y=pdfL2(y,"Client :",data.client||"--");
-  y=pdfL2(y,"Immatriculation :",data.immat||"--");
-  y=pdfL2(y,"Date entree :",data.date_entree||"--");
-  y=pdfL2(y,"Date de sortie :",data.date_sortie||"--");
-  y=pdfL2(y,"Duree :",(data.jours||1)+" jour(s)");
-  y=pdfL2(y,"Tarif/jour :",(data.tarif_jour||40).toFixed(2).replace(".",","+" €"));
-  y=pdfL2(y,"Total brut :",(data.montant_total||0).toFixed(2).replace(".",","+" €"));
-  if((data.remise||0)>0) y=pdfL2(y,"Remise :","-"+(data.remise||0).toFixed(2).replace(".",","+" €"));
-  y=pdfL2(y,"Net a encaisser :",(data.montant_net||0).toFixed(2).replace(".",","+" €"));
-  y=pdfL2(y,"Mode de paiement :",data.mode_paiement||"--");
-  y=pdfL2(y,"Montant paye :",(data.montant_paye||0).toFixed(2).replace(".",","+" €"));
-  if((data.solde_restant||0)>0) y=pdfL2(y,"Solde restant :",(data.solde_restant||0).toFixed(2).replace(".",","+" €"));
-  y+=5;
-  var cachetSize=46,cachetX=210-12-cachetSize,cachetY=195;
-  try{doc.addImage(CACHET_DATA,"PNG",cachetX,cachetY,cachetSize,cachetSize*0.72,"","FAST");}catch(e){}
-  var cx=cachetX+cachetSize/2,cy2=cachetY+cachetSize*0.72*0.43;
-  doc.setFont("helvetica","bold");doc.setFontSize(8.5);doc.setTextColor(26,37,64);doc.text("Paye le :",cx,cy2,{align:"center"});
-  var today=new Date();
-  var datePayee=("0"+today.getDate()).slice(-2)+"/"+("0"+(today.getMonth()+1)).slice(-2)+"/"+today.getFullYear();
-  doc.setTextColor(200,52,26);doc.setFontSize(10);doc.text(datePayee,cx,cy2+5.5,{align:"center"});
-  doc.setFillColor(253,236,235);doc.setDrawColor(...rouge);doc.setLineWidth(0.7);doc.roundedRect(10,248,190,8,2,2,"FD");
-  doc.setTextColor(...rouge);doc.setFont("helvetica","bold");doc.setFontSize(9);
-  doc.text("PAIEMENT CONFIRME — GARDIENNAGE",105,253.2,{align:"center"});
-  pdfPied(doc);
-  return doc;
-}
-
-function voirRecuMag(id){
-  loader(true,"Generation recu...");
-  db.collection("magasinage").doc(id).get().then(snap=>{
-    if(!snap.exists){loader(false);toast("Non trouve","err");return;}
-    const doc=genererRecuMagasinage({id,...snap.data()});
-    window.open(URL.createObjectURL(doc.output("blob")),"_blank");
-    loader(false);
-  }).catch(()=>{loader(false);toast("Erreur","err");});
 }
 
 function voirBL(id){
@@ -2890,54 +2429,6 @@ function exporterBonsPDF(){
   loader(false);toast(cochees.length>0?cochees.length+" BL exportés ✅":"Liste BL exportée ✅");
 }
 
-function _buildRecusRows(list){
-  const rows=[];let tot=0;
-  list.forEach(r=>{
-    const net=r.montant_net||r.montant||0, rem=r.remise||0; tot+=net;
-    rows.push([r.recu_num||"--",r.date||"--",r.chauffeur_nom||"Gardiennage",
-      r.nom_client||"--",(r.immatriculation||((r.marque||"")+" "+(r.modele||"")).trim()||"--"),
-      r.mission||"--",rem>0?"-"+fmtMontant(rem):"--",fmtMontant(net),r.mode_paiement||"--"]);
-  });
-  rows.push(["","","","","","","TOTAL",fmtMontant(tot),""]);
-  return rows;
-}
-function _pdfListeRecus(list,titre){
-  const {jsPDF}=window.jspdf;
-  const doc=new jsPDF("landscape","mm","a4");
-  const sel=G("rc-filtre-chauffeur");
-  const fl=sel&&sel.options[sel.selectedIndex]?sel.options[sel.selectedIndex].text:"Tous";
-  const d1=G("rc-date-debut")&&G("rc-date-debut").value||"";
-  const d2=G("rc-date-fin")&&G("rc-date-fin").value||"";
-  doc.setFont("helvetica","bold");doc.setFontSize(13);doc.setTextColor(200,52,26);
-  doc.text(titre+" -- "+SOC.nom,148,13,{align:"center"});
-  doc.setFontSize(8);doc.setTextColor(100,100,100);
-  let sub="Genere le "+new Date().toLocaleDateString("fr-FR");
-  if(d1||d2) sub+=" | Periode: "+(d1||"...")+" au "+(d2||"...");
-  sub+=" | Filtre: "+fl;
-  doc.text(sub,148,19,{align:"center"});
-  doc.autoTable({startY:24,
-    head:[["N Recu","Date","Chauffeur","Client","Vehicule","Mission","Remise","Montant","Paiement"]],
-    body:_buildRecusRows(list),
-    headStyles:{fillColor:[26,37,64],textColor:255,fontSize:6.5},
-    bodyStyles:{fontSize:6.5},
-    alternateRowStyles:{fillColor:[246,246,246]},
-    margin:{left:8,right:8}
-  });
-  pdfPied(doc);
-  return doc;
-}
-function exporterRecusFiltresPDF(){
-  const list=window._recusAffiches||[];
-  if(!list.length){toast("Aucun recu a exporter","err");return;}
-  _pdfListeRecus(list,"LISTE DES RECUS").save("recus-filtres.pdf");
-  toast("Liste exportee");
-}
-function imprimerListeRecus(){
-  const list=window._recusAffiches||[];
-  if(!list.length){toast("Aucun recu","err");return;}
-  const doc=_pdfListeRecus(list,"LISTE DES RECUS");
-  doc.autoPrint(); window.open(doc.output("bloburl"),"_blank");
-}
 function exporterRecusPDF(){
   loader(true,"Export reçus...");
   const {jsPDF}=window.jspdf;
@@ -3217,10 +2708,7 @@ function sauvegarderUtilisateur(){
   if(!nom||!identifiant){ toast("Nom et identifiant obligatoires","err"); return; }
   if(!editingUserId && mdp.length<6){ toast("Mot de passe minimum 6 caractères","err"); return; }
 
-  // Format email selon le rôle
-  const email = role === "chauffeur"
-    ? "somalan2000+" + identifiant + "@gmail.com"
-    : identifiant + "@multiauto.fr";
+  const email="somalan2000+"+identifiant+"@gmail.com";
   const userData={
     nom, identifiant, role, email, actif:true,
     updatedAt:firebase.firestore.FieldValue.serverTimestamp()
@@ -3263,43 +2751,40 @@ function sauvegarderUtilisateur(){
   }
 }
 
-async function creerNouvelUtilisateur(email, mdp, userData){
-  try {
-    // Utiliser une instance Firebase secondaire pour ne pas déconnecter l'admin
-    let appSecondaire;
-    try {
-      appSecondaire = firebase.app("secondaire");
-    } catch(e){
-      appSecondaire = firebase.initializeApp(firebase.app().options, "secondaire");
-    }
-    const authSecondaire = appSecondaire.auth();
+function creerNouvelUtilisateur(email, mdp, userData){
+  // Sauvegarder l'utilisateur actuel
+  const userActuel = auth.currentUser;
 
-    // Créer le compte via l'instance secondaire
-    const cred = await authSecondaire.createUserWithEmailAndPassword(email, mdp);
-    const uid = cred.user.uid;
-
-    // Déconnecter l'instance secondaire immédiatement
-    await authSecondaire.signOut();
-
-    // Créer le document Firestore (l'admin reste connecté)
-    userData.uid = uid;
-    userData.createdAt = firebase.firestore.FieldValue.serverTimestamp();
-    await db.collection("users").doc(uid).set(userData);
-
-    toast("Utilisateur créé ✅ — " + email);
-    fermerModal("modal-utilisateur");
-    chargerUtilisateurs();
-    chargerListeChauffeurs();
-    loader(false);
-
-  } catch(e){
-    if(e.code === "auth/email-already-in-use"){
-      toast("Cet identifiant existe déjà — choisissez un autre identifiant","err");
-    } else {
-      toast("Erreur: " + e.message,"err");
-    }
-    loader(false);
-  }
+  // Créer le nouveau compte
+  auth.createUserWithEmailAndPassword(email, mdp)
+    .then(cred=>{
+      const uid=cred.user.uid;
+      userData.uid=uid;
+      userData.createdAt=firebase.firestore.FieldValue.serverTimestamp();
+      return db.collection("users").doc(uid).set(userData);
+    })
+    .then(()=>{
+      // Se reconnecter avec le compte admin
+      return auth.signInWithEmailAndPassword(
+        "somalan2000+"+userAdmin.identifiant+"@gmail.com",
+        prompt("Ressaisissez votre mot de passe admin pour rester connecté :")
+      );
+    })
+    .then(()=>{
+      toast("Utilisateur créé ✅ — "+email);
+      fermerModal("modal-utilisateur");
+      chargerUtilisateurs();
+      chargerListeChauffeurs();
+      loader(false);
+    })
+    .catch(e=>{
+      if(e.code==="auth/email-already-in-use"){
+        toast("Cet identifiant existe déjà","err");
+      } else {
+        toast("Erreur: "+e.message,"err");
+      }
+      loader(false);
+    });
 }
 
 function toggleActifUser(uid, actuel){
