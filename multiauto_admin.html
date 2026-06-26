@@ -471,7 +471,9 @@ tr:hover td{background:var(--gris)}
         <div class="filtres">
           <input class="filtre-inp" type="date" id="bl-date-debut">
           <input class="filtre-inp" type="date" id="bl-date-fin">
-          <select class="filtre-inp" id="bl-filtre-chauffeur"><option value="">Tous chauffeurs</option></select>
+          <select class="filtre-inp" id="bl-filtre-type" onchange="majFiltreTypeBL()" style="min-width:160px"><option value="">Tous</option><option value="tous_clients">Tous les clients</option><option value="magasinage">Magasinage</option><option value="tous_chauffeurs">Tous les chauffeurs</option></select>
+          <select class="filtre-inp" id="bl-filtre-chauffeur"><option value="">— Chauffeur —</option></select>
+          <input class="filtre-inp" id="bl-filtre-client" placeholder="Nom client..." style="display:none;width:140px">
           <select class="filtre-inp" id="bl-filtre-tarif"><option value="">Tous tarifs</option><option>NORMAL</option><option>TN</option><option>TW</option></select>
           <button class="btn btn-primary" onclick="chargerBons()">🔍 Filtrer</button>
         </div>
@@ -506,7 +508,9 @@ tr:hover td{background:var(--gris)}
         <div class="filtres">
           <input class="filtre-inp" type="date" id="rc-date-debut">
           <input class="filtre-inp" type="date" id="rc-date-fin">
-          <select class="filtre-inp" id="rc-filtre-chauffeur"><option value="">Tous chauffeurs</option></select>
+          <select class="filtre-inp" id="rc-filtre-type" onchange="majFiltreTypeRC()" style="min-width:160px"><option value="">Tous</option><option value="tous_clients">Tous les clients</option><option value="magasinage">Magasinage</option><option value="tous_chauffeurs">Tous les chauffeurs</option></select>
+          <select class="filtre-inp" id="rc-filtre-chauffeur"><option value="">— Chauffeur —</option></select>
+          <input class="filtre-inp" id="rc-filtre-client" placeholder="Nom client..." style="display:none;width:140px">
           <button class="btn btn-primary" onclick="chargerRecus()">🔍 Filtrer</button>
         </div>
         <div class="table-wrap">
@@ -807,6 +811,8 @@ tr:hover td{background:var(--gris)}
               <div class="switch-row"><div class="switch-info"><div class="switch-label">Accès GPS & Trajets</div></div><label class="switch"><input type="checkbox" id="d-gps"><span class="sw-slider"></span></label></div>
               <div class="switch-row"><div class="switch-info"><div class="switch-label">Accès commissions</div></div><label class="switch"><input type="checkbox" id="d-commissions"><span class="sw-slider"></span></label></div>
               <div class="switch-row"><div class="switch-info"><div class="switch-label">Opérations carburant</div></div><label class="switch"><input type="checkbox" id="d-carburant"><span class="sw-slider"></span></label></div>
+              <div class="switch-row"><div class="switch-info"><div class="switch-label">Magasinage</div></div><label class="switch"><input type="checkbox" id="d-magasinage"><span class="sw-slider"></span></label></div>
+              <div class="switch-row"><div class="switch-info"><div class="switch-label">Prises en charge</div></div><label class="switch"><input type="checkbox" id="d-pc"><span class="sw-slider"></span></label></div>
             </div>
             <div class="perm-group">
               <div class="perm-group-title">Gestion flotte</div>
@@ -1156,18 +1162,38 @@ function majBoutonsSelection(type){
   btns.forEach(id=>{const b=G(id);if(b)b.disabled=nb===0;});
 }
 
+function majFiltreTypeBL(){
+  const type = G("bl-filtre-type").value;
+  const selCh = G("bl-filtre-chauffeur");
+  const inpCl = G("bl-filtre-client");
+  if(selCh) selCh.style.display = (type===""||type==="tous_chauffeurs") ? "inline-block" : "none";
+  if(inpCl) inpCl.style.display = (type===""||type==="tous_clients") ? "inline-block" : "none";
+}
+function majFiltreTypeRC(){
+  const type = G("rc-filtre-type").value;
+  const selCh = G("rc-filtre-chauffeur");
+  const inpCl = G("rc-filtre-client");
+  if(selCh) selCh.style.display = (type===""||type==="tous_chauffeurs") ? "inline-block" : "none";
+  if(inpCl) inpCl.style.display = (type===""||type==="tous_clients") ? "inline-block" : "none";
+}
 function chargerBons(){
   loader(true,"Chargement BL...");
   db.collection("bons").orderBy("timestamp","desc").limit(300).get().then(snap=>{
     let bons=[]; snap.forEach(d=>bons.push({id:d.id,...d.data()}));
     const ch=G("bl-filtre-chauffeur")?.value||"";
+    const type=G("bl-filtre-type")?.value||"";
+    const clientQ=(G("bl-filtre-client")?.value||"").toLowerCase();
     const tarif=G("bl-filtre-tarif")?.value||"";
     const debut=G("bl-date-debut")?.value||"";
     const fin=G("bl-date-fin")?.value||"";
     if(debut) bons=bons.filter(b=>toComp(b.date_bl)>=debut);
     if(fin)   bons=bons.filter(b=>toComp(b.date_bl)<=fin);
-    if(ch)    bons=bons.filter(b=>b.chauffeur_uid===ch);
-    if(tarif) bons=bons.filter(b=>b.tarif===tarif);
+    if(type==="tous_clients")    bons=bons.filter(b=>!b.type_bl||b.type_bl==="client");
+    if(type==="magasinage")      bons=bons.filter(b=>b.type_bl==="magasinage");
+    if(type==="tous_chauffeurs") bons=bons.filter(b=>b.type_bl==="chauffeur");
+    if(ch)      bons=bons.filter(b=>b.chauffeur_uid===ch);
+    if(clientQ) bons=bons.filter(b=>(b.nom_client||"").toLowerCase().includes(clientQ));
+    if(tarif)   bons=bons.filter(b=>b.tarif===tarif);
 
     // Totaux
     const totalBL=bons.length, totalEsp=bons.filter(b=>b.especes).reduce((s,b)=>s+(b.montant_especes||0),0);
@@ -1245,10 +1271,16 @@ function chargerRecus(){
   db.collection("recus").orderBy("timestamp","desc").limit(200).get().then(snap=>{
     let recus=[]; snap.forEach(d=>recus.push({id:d.id,...d.data()}));
     const ch=G("rc-filtre-chauffeur")?.value||"";
+    const rcType=G("rc-filtre-type")?.value||"";
+    const rcClientQ=(G("rc-filtre-client")?.value||"").toLowerCase();
     const debut=G("rc-date-debut")?.value||"", fin=G("rc-date-fin")?.value||"";
     if(debut) recus=recus.filter(r=>toComp(r.date)>=debut);
     if(fin)   recus=recus.filter(r=>toComp(r.date)<=fin);
-    if(ch)    recus=recus.filter(r=>r.chauffeur_uid===ch);
+    if(rcType==="tous_clients")    recus=recus.filter(r=>!r.type_bl||r.type_bl==="client");
+    if(rcType==="magasinage")      recus=recus.filter(r=>r.type_bl==="magasinage");
+    if(rcType==="tous_chauffeurs") recus=recus.filter(r=>r.type_bl==="chauffeur");
+    if(ch)        recus=recus.filter(r=>r.chauffeur_uid===ch);
+    if(rcClientQ) recus=recus.filter(r=>(r.nom_client||"").toLowerCase().includes(rcClientQ));
     const totalRC=recus.length, totalM=recus.reduce((s,r)=>s+(r.montant||0),0);
     if(G("rc-totaux")) G("rc-totaux").innerHTML=`
       <div class="total-badge"><div class="tb-num">${totalRC}</div><div class="tb-lbl">Total reçus</div></div>
@@ -2082,6 +2114,9 @@ function chargerGPS(){
     const ch=G("gps-chauffeur")?.value||"";
     const debut=G("gps-debut")?.value||"", fin=G("gps-fin")?.value||"";
     if(ch)    bons=bons.filter(b=>b.chauffeur_uid===ch);
+    if(type==="client")     bons=bons.filter(b=>!b.type_bl||b.type_bl==="client");
+    if(type==="magasinage") bons=bons.filter(b=>b.type_bl==="magasinage");
+    if(type==="chauffeur")  bons=bons.filter(b=>b.type_bl==="chauffeur");
     if(debut) bons=bons.filter(b=>toComp(b.date_bl)>=debut);
     if(fin)   bons=bons.filter(b=>toComp(b.date_bl)<=fin);
     bons=bons.filter(b=>b.lieu_embarquement||b.destination);
@@ -2200,6 +2235,9 @@ function chargerStats(){
   db.collection("bons").orderBy("timestamp","desc").limit(500).get().then(snap=>{
     let bons=[]; snap.forEach(d=>bons.push({id:d.id,...d.data()}));
     if(ch)    bons=bons.filter(b=>b.chauffeur_uid===ch);
+    if(type==="client")     bons=bons.filter(b=>!b.type_bl||b.type_bl==="client");
+    if(type==="magasinage") bons=bons.filter(b=>b.type_bl==="magasinage");
+    if(type==="chauffeur")  bons=bons.filter(b=>b.type_bl==="chauffeur");
     if(debut) bons=bons.filter(b=>toComp(b.date_bl)>=debut);
     if(fin)   bons=bons.filter(b=>toComp(b.date_bl)<=fin);
     const total=bons.length, espTotal=bons.filter(b=>b.especes).reduce((s,b)=>s+(b.montant_especes||0),0);
@@ -2333,6 +2371,9 @@ function chargerCommissions(){
       const ch=G("comm-chauffeur")?.value||"";
       const debut=G("comm-debut")?.value||"", fin=G("comm-fin")?.value||"";
       if(ch)    bons=bons.filter(b=>b.chauffeur_uid===ch);
+    if(type==="client")     bons=bons.filter(b=>!b.type_bl||b.type_bl==="client");
+    if(type==="magasinage") bons=bons.filter(b=>b.type_bl==="magasinage");
+    if(type==="chauffeur")  bons=bons.filter(b=>b.type_bl==="chauffeur");
       if(debut) bons=bons.filter(b=>toComp(b.date_bl)>=debut);
       if(fin)   bons=bons.filter(b=>toComp(b.date_bl)<=fin);
       let parCh={};
@@ -2425,7 +2466,7 @@ function chargerDroitsOnglet(idx){
   // Vider TOUS les switches avant de charger pour éviter la contamination entre onglets
   const tousLesIds = ["d-bl-creer","d-bl-voir","d-bl-imprimer","d-bl-telecharger",
     "d-rc-voir","d-rc-imprimer","d-rc-telecharger","d-stats","d-gps","d-commissions",
-    "d-carburant","d-chauffeurs-voir","d-camions-voir","d-clients","d-clients-ajouter",
+    "d-carburant","d-magasinage","d-pc","d-chauffeurs-voir","d-camions-voir","d-clients","d-clients-ajouter",
     "d-clients-modifier","d-solde"];
   tousLesIds.forEach(id=>{ const el=G(id); if(el) el.checked=false; });
   G("sec-droits-nom").textContent = "Chargement...";
@@ -2460,6 +2501,8 @@ function chargerDroitsOnglet(idx){
     s("d-gps",             d.secretaire_gps===true);
     s("d-commissions",     d.secretaire_commissions===true);
     s("d-carburant",       d.secretaire_carburant===true);
+    s("d-magasinage",      d.secretaire_magasinage===true);
+    s("d-pc",              d.secretaire_pc===true);
     s("d-chauffeurs-voir", d.secretaire_chauffeurs_voir===true);
     s("d-camions-voir",    d.secretaire_camions_voir===true);
     if(hasDroits){
@@ -2509,6 +2552,8 @@ function sauvegarderDroits(){
     secretaire_gps:            g("d-gps"),
     secretaire_commissions:    g("d-commissions"),
     secretaire_carburant:      g("d-carburant"),
+    secretaire_magasinage:     g("d-magasinage"),
+    secretaire_pc:             g("d-pc"),
     secretaire_chauffeurs_voir:g("d-chauffeurs-voir"),
     secretaire_camions_voir:   g("d-camions-voir"),
     secretaire_clients:        g("d-clients"),
