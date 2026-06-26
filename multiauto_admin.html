@@ -728,6 +728,7 @@ tr:hover td{background:var(--gris)}
         <div class="card"><div class="card-title">🚛 BL par camion</div><div class="chart-bar-wrap" id="chart-camions"></div></div>
         <div class="card"><div class="card-title">👤 BL par chauffeur</div><div class="chart-bar-wrap" id="chart-chauffeurs"></div></div>
       </div>
+      <div id="sec-droits-nom" style="font-size:13px;color:var(--gris3);margin-bottom:12px;font-style:italic">Chargement...</div>
       <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px">
         <div class="card"><div class="card-title">💰 Répartition tarifs</div><div class="chart-bar-wrap" id="chart-tarifs"></div></div>
         <div class="card"><div class="card-title">👥 Top clients</div><div class="chart-bar-wrap" id="chart-clients"></div></div>
@@ -766,6 +767,13 @@ tr:hover td{background:var(--gris)}
         <div><div class="page-title">🔛 Droits d'accès</div></div>
         <button class="btn btn-primary" onclick="sauvegarderDroits()">💾 Enregistrer</button>
       </div>
+      <!-- Onglets secrétaires -->
+      <div style="display:flex;gap:0;margin-bottom:16px;border-bottom:2px solid var(--gris2)">
+        <button id="tab-sec-btn-0" class="tab-sec-btn active" onclick="changerOngletSec(0)" style="padding:8px 20px;border:none;background:none;cursor:pointer;font-weight:700;font-size:13px;color:var(--rouge);border-bottom:2px solid var(--rouge);margin-bottom:-2px">Secrétaire 1</button>
+        <button id="tab-sec-btn-1" class="tab-sec-btn" onclick="changerOngletSec(1)" style="padding:8px 20px;border:none;background:none;cursor:pointer;font-weight:600;font-size:13px;color:var(--gris3);border-bottom:2px solid transparent;margin-bottom:-2px">Secrétaire 2</button>
+        <button id="tab-sec-btn-2" class="tab-sec-btn" onclick="changerOngletSec(2)" style="padding:8px 20px;border:none;background:none;cursor:pointer;font-weight:600;font-size:13px;color:var(--gris3);border-bottom:2px solid transparent;margin-bottom:-2px">Secrétaire 3</button>
+      </div>
+      <div id="sec-uid-actif" style="display:none"></div>
       <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px">
         <div>
           <div class="card">
@@ -797,6 +805,7 @@ tr:hover td{background:var(--gris)}
               <div class="perm-group-title">Statistiques et GPS</div>
               <div class="switch-row"><div class="switch-info"><div class="switch-label">Accès statistiques</div></div><label class="switch"><input type="checkbox" id="d-stats"><span class="sw-slider"></span></label></div>
               <div class="switch-row"><div class="switch-info"><div class="switch-label">Accès GPS & Trajets</div></div><label class="switch"><input type="checkbox" id="d-gps"><span class="sw-slider"></span></label></div>
+              <div class="switch-row"><div class="switch-info"><div class="switch-label">Accès commissions</div></div><label class="switch"><input type="checkbox" id="d-commissions"><span class="sw-slider"></span></label></div>
             </div>
             <div class="perm-group">
               <div class="perm-group-title">Gestion flotte</div>
@@ -2381,67 +2390,135 @@ function exporterCommissionsPDF(){
 }
 
 // ── DROITS ──
+// UIDs des 3 secrétaires — Sec1 = chargée dynamiquement, Sec2 et Sec3 fixes
+var SEC_UIDS = [null, "PyfZ4lCMwnd917MZgMsRAjDtZh13", "on1fPND6KmUlHNH68WOR1hIqhbE3"];
+var secOngletActif = 0;
+
 function chargerDroits(){
-  db.collection("parametres").doc("societe").get().then(snap=>{
-    const p=snap.data()||{}, d=p.droits||{};
-    const g=id=>{const el=G(id);if(el)el.checked=true;};
+  // Charger d'abord l'UID de la secrétaire 1 (la première trouvée)
+  db.collection("users").where("role","==","secretaire").orderBy("nom","asc").get().then(snap=>{
+    const secs = [];
+    snap.forEach(d=>secs.push({uid:d.id,...d.data()}));
+    // Exclure sec2 et sec3 déjà connus
+    const sec1 = secs.find(s=>s.uid!==SEC_UIDS[1] && s.uid!==SEC_UIDS[2]);
+    if(sec1) SEC_UIDS[0] = sec1.uid;
+    // Mettre à jour les noms des onglets
+    secs.forEach(s=>{
+      const idx = SEC_UIDS.indexOf(s.uid);
+      if(idx>=0){
+        const btn = G("tab-sec-btn-"+idx);
+        if(btn) btn.textContent = s.nom || "Secrétaire "+(idx+1);
+      }
+    });
+    chargerDroitsOnglet(secOngletActif);
+  }).catch(console.error);
+}
+
+function changerOngletSec(idx){
+  secOngletActif = idx;
+  document.querySelectorAll(".tab-sec-btn").forEach((btn,i)=>{
+    btn.style.color = i===idx ? "var(--rouge)" : "var(--gris3)";
+    btn.style.fontWeight = i===idx ? "700" : "600";
+    btn.style.borderBottom = i===idx ? "2px solid var(--rouge)" : "2px solid transparent";
+  });
+  chargerDroitsOnglet(idx);
+}
+
+function chargerDroitsOnglet(idx){
+  const uid = SEC_UIDS[idx];
+  if(!uid){ G("sec-droits-nom").textContent="⚠️ Secrétaire "+(idx+1)+" : compte non trouvé"; return; }
+  db.collection("users").doc(uid).get().then(snap=>{
+    const u = snap.exists ? snap.data() : {};
+    const d = u.droits || {};
+    G("sec-droits-nom").textContent = "Droits de : "+(u.nom||"Secrétaire "+(idx+1))+" — "+(u.email||"");
+    G("sec-uid-actif").textContent = uid;
     const s=(id,val)=>{const el=G(id);if(el)el.checked=val;};
-    s("d-bl-creer",d.secretaire_bl_creer!==false);
-    s("d-bl-voir",d.secretaire_bl_voir!==false);
-    s("d-bl-imprimer",d.secretaire_bl_imprimer!==false);
-    s("d-bl-telecharger",d.secretaire_bl_telecharger!==false);
-    s("d-rc-voir",d.secretaire_recu_voir!==false);
-    s("d-rc-imprimer",d.secretaire_recu_imprimer!==false);
-    s("d-rc-telecharger",d.secretaire_recu_telecharger!==false);
-    s("d-stats",d.secretaire_stats===true);
-    s("d-gps",d.secretaire_gps===true);
-    s("d-chauffeurs-voir",d.secretaire_chauffeurs_voir===true);
-    s("d-camions-voir",d.secretaire_camions_voir===true);
-    s("d-clients",d.secretaire_clients!==false);
-    s("d-clients-ajouter",d.secretaire_clients_ajouter!==false);
+    s("d-bl-creer",        d.secretaire_bl_creer!==false);
+    s("d-bl-voir",         d.secretaire_bl_voir!==false);
+    s("d-bl-imprimer",     d.secretaire_bl_imprimer!==false);
+    s("d-bl-telecharger",  d.secretaire_bl_telecharger!==false);
+    s("d-rc-voir",         d.secretaire_recu_voir!==false);
+    s("d-rc-imprimer",     d.secretaire_recu_imprimer!==false);
+    s("d-rc-telecharger",  d.secretaire_recu_telecharger!==false);
+    s("d-stats",           d.secretaire_stats===true);
+    s("d-gps",             d.secretaire_gps===true);
+    s("d-commissions",     d.secretaire_commissions===true);
+    s("d-chauffeurs-voir", d.secretaire_chauffeurs_voir===true);
+    s("d-camions-voir",    d.secretaire_camions_voir===true);
+    s("d-clients",         d.secretaire_clients!==false);
+    s("d-clients-ajouter", d.secretaire_clients_ajouter!==false);
     s("d-clients-modifier",d.secretaire_clients_modifier===true);
-    s("d-solde",d.secretaire_solde===true);
-    s("d-sans-immat",d.chauffeur_sans_immat===true);
-    s("d-sans-photo",d.chauffeur_sans_photo===true);
-    s("d-sans-emb",d.chauffeur_sans_embarquement===true);
-    const v=(id,val)=>{const el=G(id);if(el)el.value=val;};
-    v("taux-normal-inp",p.taux_commission_normal||3);
-    v("taux-tntw-inp",p.taux_commission_tn_tw||5);
-    v("taux-depenses-inp",p.taux_depenses_fixes||15);
-    v("resp-nom",p.resp_nom||"Responsable");
-    v("taux-resp-inp",p.taux_commission_resp||3);
-    v("mag-tarif1",p.mag_tarif1||20);
-    v("mag-tarif2",p.mag_tarif2||30);
-    v("mag-tarif3",p.mag_tarif3||40);
+    s("d-solde",           d.secretaire_solde===true);
+    // Droits chauffeur (globaux — pas par secrétaire)
+    if(idx===0){
+      db.collection("parametres").doc("societe").get().then(sp=>{
+        const p=sp.data()||{}, pg=p.droits||{};
+        s("d-sans-immat", pg.chauffeur_sans_immat===true);
+        s("d-sans-photo", pg.chauffeur_sans_photo===true);
+        s("d-sans-emb",   pg.chauffeur_sans_embarquement===true);
+        const v=(id,val)=>{const el=G(id);if(el)el.value=val;};
+        v("taux-normal-inp", p.taux_commission_normal||3);
+        v("taux-tntw-inp",   p.taux_commission_tn_tw||5);
+        v("taux-depenses-inp",p.taux_depenses_fixes||15);
+        v("resp-nom",        p.resp_nom||"Responsable");
+        v("taux-resp-inp",   p.taux_commission_resp||3);
+        v("mag-tarif1",      p.mag_tarif1||20);
+        v("mag-tarif2",      p.mag_tarif2||30);
+        v("mag-tarif3",      p.mag_tarif3||40);
+      });
+    }
   }).catch(console.error);
 }
 
 function sauvegarderDroits(){
+  const uid = G("sec-uid-actif").textContent.trim();
+  if(!uid){ toast("Secrétaire non identifiée","err"); return; }
   const g=id=>G(id)?G(id).checked:false;
   const v=id=>G(id)?parseFloat(G(id).value)||0:0;
   loader(true);
-  db.collection("parametres").doc("societe").set({
-    droits:{
-      secretaire_bl_creer:g("d-bl-creer"),secretaire_bl_voir:g("d-bl-voir"),
-      secretaire_bl_imprimer:g("d-bl-imprimer"),secretaire_bl_telecharger:g("d-bl-telecharger"),
-      secretaire_recu_voir:g("d-rc-voir"),secretaire_recu_imprimer:g("d-rc-imprimer"),
-      secretaire_recu_telecharger:g("d-rc-telecharger"),
-      secretaire_stats:g("d-stats"),secretaire_gps:g("d-gps"),
-      secretaire_chauffeurs_voir:g("d-chauffeurs-voir"),secretaire_camions_voir:g("d-camions-voir"),
-      secretaire_clients:g("d-clients"),secretaire_clients_ajouter:g("d-clients-ajouter"),
-      secretaire_clients_modifier:g("d-clients-modifier"),secretaire_solde:g("d-solde"),
-      chauffeur_sans_immat:g("d-sans-immat"),chauffeur_sans_photo:g("d-sans-photo"),
-      chauffeur_sans_embarquement:g("d-sans-emb")
-    },
-    taux_commission_normal:v("taux-normal-inp")||3,
-    taux_commission_tn_tw:v("taux-tntw-inp")||5,
-    taux_depenses_fixes:v("taux-depenses-inp")||15,
-    resp_nom:G("resp-nom")?G("resp-nom").value.trim():"Responsable",
-    taux_commission_resp:v("taux-resp-inp")||3,
-    mag_tarif1:v("mag-tarif1")||20,mag_tarif2:v("mag-tarif2")||30,mag_tarif3:v("mag-tarif3")||40,
-    updatedAt:firebase.firestore.FieldValue.serverTimestamp()
-  },{merge:true}).then(()=>{toast("Droits sauvegardés ✅");loader(false);}).catch(()=>{toast("Erreur","err");loader(false);});
+  // Droits propres à cette secrétaire → dans users/{uid}
+  const droits = {
+    secretaire_bl_creer:       g("d-bl-creer"),
+    secretaire_bl_voir:        g("d-bl-voir"),
+    secretaire_bl_imprimer:    g("d-bl-imprimer"),
+    secretaire_bl_telecharger: g("d-bl-telecharger"),
+    secretaire_recu_voir:      g("d-rc-voir"),
+    secretaire_recu_imprimer:  g("d-rc-imprimer"),
+    secretaire_recu_telecharger:g("d-rc-telecharger"),
+    secretaire_stats:          g("d-stats"),
+    secretaire_gps:            g("d-gps"),
+    secretaire_commissions:    g("d-commissions"),
+    secretaire_chauffeurs_voir:g("d-chauffeurs-voir"),
+    secretaire_camions_voir:   g("d-camions-voir"),
+    secretaire_clients:        g("d-clients"),
+    secretaire_clients_ajouter:g("d-clients-ajouter"),
+    secretaire_clients_modifier:g("d-clients-modifier"),
+    secretaire_solde:          g("d-solde")
+  };
+  const promises = [db.collection("users").doc(uid).update({droits})];
+  // Paramètres globaux (taux, droits chauffeur) → dans parametres/societe
+  if(secOngletActif===0){
+    promises.push(db.collection("parametres").doc("societe").set({
+      droits:{
+        chauffeur_sans_immat:        g("d-sans-immat"),
+        chauffeur_sans_photo:        g("d-sans-photo"),
+        chauffeur_sans_embarquement: g("d-sans-emb")
+      },
+      taux_commission_normal: v("taux-normal-inp")||3,
+      taux_commission_tn_tw:  v("taux-tntw-inp")||5,
+      taux_depenses_fixes:    v("taux-depenses-inp")||15,
+      resp_nom: G("resp-nom")?G("resp-nom").value.trim():"Responsable",
+      taux_commission_resp:   v("taux-resp-inp")||3,
+      mag_tarif1: v("mag-tarif1")||20,
+      mag_tarif2: v("mag-tarif2")||30,
+      mag_tarif3: v("mag-tarif3")||40
+    },{merge:true}));
+  }
+  Promise.all(promises)
+    .then(()=>{ toast("Droits enregistrés ✅"); loader(false); })
+    .catch(e=>{ toast("Erreur","err"); loader(false); console.error(e); });
 }
+
 
 // ── PARAMÈTRES ──
 function chargerParametres(){
