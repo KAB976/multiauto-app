@@ -373,6 +373,7 @@ tr:hover td{background:var(--gris)}
       <div class="sb-section">Gestion</div>
       <div class="sb-item" onclick="afficherPage('pg-chauffeurs')" id="nav-chauffeurs"><span class="ico">👤</span> Chauffeurs</div>
       <div class="sb-item" onclick="afficherPage('pg-camions')" id="nav-camions"><span class="ico">🚛</span> Camions</div>
+      <div class="sb-item" onclick="afficherPage('pg-vehicules')" id="nav-vehicules"><span class="ico">🚗</span> Véhicules</div>
       <div class="sb-item" onclick="afficherPage('pg-clients')" id="nav-clients"><span class="ico">👥</span> Clients</div>
       <div class="sb-item" onclick="afficherPage('pg-magasinage')" id="nav-magasinage"><span class="ico">🏠</span> Magasinage</div>
       <div class="sb-item" onclick="afficherPage('pg-pc')" id="nav-pc"><span class="ico">📄</span> Prises en charge</div>
@@ -570,6 +571,23 @@ tr:hover td{background:var(--gris)}
           <table>
             <thead><tr><th>Nom</th><th>Téléphone</th><th>Mode paiement</th><th>Solde</th><th>Actions</th></tr></thead>
             <tbody id="clients-tbody"></tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <!-- VÉHICULES -->
+    <div class="pg" id="pg-vehicules">
+      <div class="page-header">
+        <div><div class="page-title">🚗 Véhicules (Marques &amp; Modèles)</div></div>
+        <button class="btn btn-primary" onclick="ouvrirModalVehicule()">➕ Ajouter</button>
+      </div>
+      <div class="card">
+        <input class="filtre-inp" type="text" id="veh-search" placeholder="🔍 Rechercher une marque..." oninput="filtrerVehicules()" style="width:100%;margin-bottom:14px">
+        <div class="table-wrap">
+          <table>
+            <thead><tr><th>Marque</th><th>Modèles</th><th>Actions</th></tr></thead>
+            <tbody id="vehicules-tbody"></tbody>
           </table>
         </div>
       </div>
@@ -907,6 +925,20 @@ tr:hover td{background:var(--gris)}
 </div>
 
 <!-- Modal Client -->
+<div class="modal-bg" id="modal-vehicule">
+<div class="modal">
+  <div class="modal-title" id="modal-veh-titre">🚗 Ajouter un véhicule</div>
+  <input type="hidden" id="veh-edit-id">
+  <div class="form-group" style="margin-bottom:12px"><span class="fl">Marque</span><input class="inp" id="veh-marque" placeholder="Ex: Toyota"></div>
+  <div class="form-group" style="margin-bottom:12px"><span class="fl">Modèles</span><input class="inp" id="veh-modeles" placeholder="Ex: Hilux, Land Cruiser, Corolla"></div>
+  <div style="font-size:11px;color:var(--gris3);margin-bottom:12px">Séparez les modèles par des virgules</div>
+  <div class="modal-footer">
+    <button class="btn btn-secondary" onclick="fermerModal('modal-vehicule')">Annuler</button>
+    <button class="btn btn-primary" onclick="sauvegarderVehicule()">💾 Enregistrer</button>
+  </div>
+</div>
+</div>
+
 <div class="modal-bg" id="modal-client">
 <div class="modal">
   <div class="modal-title">👥 Ajouter un client</div>
@@ -964,6 +996,7 @@ function afficherPage(id){
   if(id==="pg-recus")      chargerRecus();
   if(id==="pg-chauffeurs") {chargerChauffeurs(); chargerPermChauffeursFn();}
   if(id==="pg-camions")    chargerCamions();
+  if(id==="pg-vehicules")  chargerVehicules();
   if(id==="pg-clients")    chargerClients();
   if(id==="pg-magasinage") chargerMagasinage();
   if(id==="pg-pc")         chargerPC();
@@ -1384,6 +1417,84 @@ function sauvegarderCamion(){
 function supprimerCamion(id){if(!confirm("Supprimer ?"))return;db.collection("vehicules").doc(id).delete().then(()=>{toast("Supprimé");chargerCamions();chargerListeCamions();});}
 
 // ── CLIENTS ──
+// ══════════════════════════════════════
+// VÉHICULES (Marques & Modèles)
+// ══════════════════════════════════════
+var vehiculesList = [];
+
+function chargerVehicules(){
+  db.collection("vehicules_clients").orderBy("marque","asc").get().then(snap=>{
+    vehiculesList = [];
+    snap.forEach(d => vehiculesList.push({id:d.id,...d.data()}));
+    afficherVehicules(vehiculesList);
+  }).catch(e=>{ toast("Erreur chargement","err"); console.error(e); });
+}
+
+function afficherVehicules(list){
+  let html = "";
+  list.forEach(v=>{
+    const modeles = (v.modeles||[]).join(", ") || "—";
+    html += `<tr>
+      <td><strong>${v.marque||"—"}</strong></td>
+      <td style="font-size:12px;color:var(--gris2)">${modeles}</td>
+      <td><div style="display:flex;gap:4px">
+        <button class="btn btn-secondary btn-sm" onclick="ouvrirModifierVehicule('${v.id}','${(v.marque||"").replace(/'/g,"\'")}','${(v.modeles||[]).join(", ").replace(/'/g,"\'")}')">✏️ Modifier</button>
+        <button class="btn btn-danger btn-sm" onclick="supprimerVehicule('${v.id}','${(v.marque||"").replace(/'/g,"\'")}')">🗑</button>
+      </div></td></tr>`;
+  });
+  G("vehicules-tbody").innerHTML = html || `<tr><td colspan="3" style="text-align:center;color:var(--gris3);padding:24px">Aucun véhicule — cliquez ➕ Ajouter</td></tr>`;
+}
+
+function filtrerVehicules(){
+  const q = G("veh-search").value.toLowerCase();
+  afficherVehicules(vehiculesList.filter(v=>(v.marque||"").toLowerCase().includes(q)||(v.modeles||[]).join(" ").toLowerCase().includes(q)));
+}
+
+function ouvrirModalVehicule(){
+  G("modal-veh-titre").textContent = "🚗 Ajouter un véhicule";
+  G("veh-edit-id").value = "";
+  G("veh-marque").value = "";
+  G("veh-modeles").value = "";
+  G("modal-vehicule").classList.add("on");
+  setTimeout(()=>G("veh-marque").focus(),100);
+}
+
+function ouvrirModifierVehicule(id, marque, modeles){
+  G("modal-veh-titre").textContent = "✏️ Modifier le véhicule";
+  G("veh-edit-id").value = id;
+  G("veh-marque").value = marque;
+  G("veh-modeles").value = modeles;
+  G("modal-vehicule").classList.add("on");
+  setTimeout(()=>G("veh-marque").focus(),100);
+}
+
+function sauvegarderVehicule(){
+  const marque = G("veh-marque").value.trim();
+  if(!marque){ toast("Marque obligatoire","err"); return; }
+  const modelesRaw = G("veh-modeles").value.trim();
+  const modeles = modelesRaw ? modelesRaw.split(",").map(m=>m.trim()).filter(m=>m) : [];
+  const id = G("veh-edit-id").value;
+  loader(true);
+  const data = { marque: marque.charAt(0).toUpperCase()+marque.slice(1), modeles };
+  const p = id
+    ? db.collection("vehicules_clients").doc(id).update(data)
+    : db.collection("vehicules_clients").add({...data, createdAt: firebase.firestore.FieldValue.serverTimestamp()});
+  p.then(()=>{
+    toast(id ? "Véhicule modifié ✅" : "Véhicule ajouté ✅");
+    fermerModal("modal-vehicule");
+    chargerVehicules();
+    loader(false);
+  }).catch(e=>{ toast("Erreur","err"); loader(false); console.error(e); });
+}
+
+function supprimerVehicule(id, marque){
+  if(!confirm("Supprimer la marque « "+marque+" » et tous ses modèles ?")) return;
+  db.collection("vehicules_clients").doc(id).delete()
+    .then(()=>{ toast("Supprimé"); chargerVehicules(); })
+    .catch(()=>toast("Erreur","err"));
+}
+
+// ══════════════════════════════════════
 function chargerClients(){
   db.collection("clients").orderBy("nom","asc").get().then(snap=>{
     clientsList=[];snap.forEach(d=>clientsList.push({id:d.id,...d.data()}));
