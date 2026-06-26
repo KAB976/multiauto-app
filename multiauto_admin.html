@@ -474,7 +474,7 @@ tr:hover td{background:var(--gris)}
           <input class="filtre-inp" type="date" id="bl-date-fin">
           <select class="filtre-inp" id="bl-filtre-type" onchange="majFiltreTypeBL()" style="min-width:160px"><option value="">Tous</option><option value="tous_clients">Tous les clients</option><option value="magasinage">Magasinage</option><option value="tous_chauffeurs">Tous les chauffeurs</option></select>
           <select class="filtre-inp" id="bl-filtre-chauffeur"><option value="">— Chauffeur —</option></select>
-          <select class="filtre-inp" id="bl-filtre-client" style="display:none;min-width:150px"><option value="">— Client —</option></select>
+          <select class="filtre-inp" id="bl-filtre-client" style="min-width:150px"><option value="">— Client —</option></select>
           <select class="filtre-inp" id="bl-filtre-tarif"><option value="">Tous tarifs</option><option>NORMAL</option><option>TN</option><option>TW</option></select>
           <button class="btn btn-primary" onclick="chargerBons()">🔍 Filtrer</button>
         </div>
@@ -511,7 +511,7 @@ tr:hover td{background:var(--gris)}
           <input class="filtre-inp" type="date" id="rc-date-fin">
           <select class="filtre-inp" id="rc-filtre-type" onchange="majFiltreTypeRC()" style="min-width:160px"><option value="">Tous</option><option value="tous_clients">Tous les clients</option><option value="magasinage">Magasinage</option><option value="tous_chauffeurs">Tous les chauffeurs</option></select>
           <select class="filtre-inp" id="rc-filtre-chauffeur"><option value="">— Chauffeur —</option></select>
-          <select class="filtre-inp" id="rc-filtre-client" style="display:none;min-width:150px"><option value="">— Client —</option></select>
+          <select class="filtre-inp" id="rc-filtre-client" style="min-width:150px"><option value="">— Client —</option></select>
           <button class="btn btn-primary" onclick="chargerRecus()">🔍 Filtrer</button>
         </div>
         <div class="table-wrap">
@@ -738,7 +738,7 @@ tr:hover td{background:var(--gris)}
         <input class="filtre-inp" type="date" id="stats-fin">
         <select class="filtre-inp" id="stats-type" style="min-width:160px"><option value="">Tous</option><option value="tous_clients">Tous les clients</option><option value="magasinage">Magasinage</option><option value="tous_chauffeurs">Tous les chauffeurs</option></select>
         <select class="filtre-inp" id="stats-chauffeur"><option value="">— Chauffeur —</option></select>
-        <select class="filtre-inp" id="stats-client" style="display:none;min-width:150px"><option value="">— Client —</option></select>
+        <select class="filtre-inp" id="stats-client" style="min-width:150px"><option value="">— Client —</option></select>
         <select class="filtre-inp" id="stats-mode"><option value="montant">📊 Résumé</option><option value="detail">📋 Avec détails</option></select>
         <button class="btn btn-primary" onclick="chargerStats()">📊 Calculer</button>
       </div>
@@ -1185,20 +1185,8 @@ function majBoutonsSelection(type){
   btns.forEach(id=>{const b=G(id);if(b)b.disabled=nb===0;});
 }
 
-function majFiltreTypeBL(){
-  const type = G("bl-filtre-type").value;
-  const selCh = G("bl-filtre-chauffeur");
-  const selCl = G("bl-filtre-client");
-  if(selCh) selCh.style.display = (type===""||type==="tous_chauffeurs") ? "inline-block" : "none";
-  if(selCl) selCl.style.display = (type===""||type==="tous_clients") ? "inline-block" : "none";
-}
-function majFiltreTypeRC(){
-  const type = G("rc-filtre-type").value;
-  const selCh = G("rc-filtre-chauffeur");
-  const selCl = G("rc-filtre-client");
-  if(selCh) selCh.style.display = (type===""||type==="tous_chauffeurs") ? "inline-block" : "none";
-  if(selCl) selCl.style.display = (type===""||type==="tous_clients") ? "inline-block" : "none";
-}
+function majFiltreTypeBL(){ /* type pré-filtre, chauffeur et client toujours visibles */ }
+function majFiltreTypeRC(){ /* idem */ }
 function chargerBons(){
   loader(true,"Chargement BL...");
   db.collection("bons").orderBy("timestamp","desc").limit(300).get().then(snap=>{
@@ -2174,6 +2162,8 @@ function chargerGPS(){
     if(statsType==="magasinage")      bons=bons.filter(b=>b.type_bl==="magasinage");
     if(statsType==="tous_chauffeurs") bons=bons.filter(b=>b.type_bl==="chauffeur");
     if(ch) bons=bons.filter(b=>b.chauffeur_uid===ch);
+    const statsCl=G("stats-client")?.value||"";
+    if(statsCl) bons=bons.filter(b=>b.nom_client===statsCl);
     if(debut) bons=bons.filter(b=>toComp(b.date_bl)>=debut);
     if(fin)   bons=bons.filter(b=>toComp(b.date_bl)<=fin);
     bons=bons.filter(b=>b.lieu_embarquement||b.destination);
@@ -2347,6 +2337,8 @@ function chargerStats(){
     if(statsType==="magasinage")      bons=bons.filter(b=>b.type_bl==="magasinage");
     if(statsType==="tous_chauffeurs") bons=bons.filter(b=>b.type_bl==="chauffeur");
     if(ch) bons=bons.filter(b=>b.chauffeur_uid===ch);
+    const statsCl=G("stats-client")?.value||"";
+    if(statsCl) bons=bons.filter(b=>b.nom_client===statsCl);
     if(debut) bons=bons.filter(b=>toComp(b.date_bl)>=debut);
     if(fin)   bons=bons.filter(b=>toComp(b.date_bl)<=fin);
     const total=bons.length, espTotal=bons.filter(b=>b.especes).reduce((s,b)=>s+(b.montant_especes||0),0);
@@ -2483,6 +2475,8 @@ function chargerCommissions(){
     if(statsType==="magasinage")      bons=bons.filter(b=>b.type_bl==="magasinage");
     if(statsType==="tous_chauffeurs") bons=bons.filter(b=>b.type_bl==="chauffeur");
     if(ch) bons=bons.filter(b=>b.chauffeur_uid===ch);
+    const statsCl=G("stats-client")?.value||"";
+    if(statsCl) bons=bons.filter(b=>b.nom_client===statsCl);
       if(debut) bons=bons.filter(b=>toComp(b.date_bl)>=debut);
       if(fin)   bons=bons.filter(b=>toComp(b.date_bl)<=fin);
       let parCh={};
