@@ -471,7 +471,9 @@ tr:hover td{background:var(--gris)}
         <div class="filtres">
           <input class="filtre-inp" type="date" id="bl-date-debut">
           <input class="filtre-inp" type="date" id="bl-date-fin">
-          <select class="filtre-inp" id="bl-filtre-chauffeur"><option value="">Tous chauffeurs</option></select>
+          <select class="filtre-inp" id="bl-filtre-type" onchange="majFiltreTypeBL()" style="min-width:160px"><option value="">Tous</option><option value="tous_chauffeurs">Tous les chauffeurs</option><option value="tous_clients">Tous les clients</option><option value="chauffeur">Chauffeur</option><option value="client">Client</option><option value="magasinage">Magasinage</option></select>
+          <select class="filtre-inp" id="bl-filtre-chauffeur" style="display:none;min-width:150px"><option value="">— Chauffeur —</option></select>
+          <select class="filtre-inp" id="bl-filtre-client" style="display:none;min-width:150px"><option value="">— Client —</option></select>
           <select class="filtre-inp" id="bl-filtre-tarif"><option value="">Tous tarifs</option><option>NORMAL</option><option>TN</option><option>TW</option></select>
           <button class="btn btn-primary" onclick="chargerBons()">🔍 Filtrer</button>
         </div>
@@ -506,7 +508,9 @@ tr:hover td{background:var(--gris)}
         <div class="filtres">
           <input class="filtre-inp" type="date" id="rc-date-debut">
           <input class="filtre-inp" type="date" id="rc-date-fin">
-          <select class="filtre-inp" id="rc-filtre-chauffeur"><option value="">Tous chauffeurs</option></select>
+          <select class="filtre-inp" id="rc-filtre-type" onchange="majFiltreTypeRC()" style="min-width:160px"><option value="">Tous</option><option value="tous_chauffeurs">Tous les chauffeurs</option><option value="tous_clients">Tous les clients</option><option value="chauffeur">Chauffeur</option><option value="client">Client</option><option value="magasinage">Magasinage</option></select>
+          <select class="filtre-inp" id="rc-filtre-chauffeur" style="display:none;min-width:150px"><option value="">— Chauffeur —</option></select>
+          <select class="filtre-inp" id="rc-filtre-client" style="display:none;min-width:150px"><option value="">— Client —</option></select>
           <button class="btn btn-primary" onclick="chargerRecus()">🔍 Filtrer</button>
         </div>
         <div class="table-wrap">
@@ -719,7 +723,9 @@ tr:hover td{background:var(--gris)}
       <div class="filtres">
         <input class="filtre-inp" type="date" id="stats-debut">
         <input class="filtre-inp" type="date" id="stats-fin">
-        <select class="filtre-inp" id="stats-chauffeur"><option value="">Tous chauffeurs</option></select>
+        <select class="filtre-inp" id="stats-type" onchange="majFiltreTypeST()" style="min-width:160px"><option value="">Tous</option><option value="tous_chauffeurs">Tous les chauffeurs</option><option value="tous_clients">Tous les clients</option><option value="chauffeur">Chauffeur</option><option value="client">Client</option><option value="magasinage">Magasinage</option></select>
+        <select class="filtre-inp" id="stats-chauffeur" style="display:none;min-width:150px"><option value="">— Chauffeur —</option></select>
+        <select class="filtre-inp" id="stats-client" style="display:none;min-width:150px"><option value="">— Client —</option></select>
         <select class="filtre-inp" id="stats-mode"><option value="montant">📊 Résumé</option><option value="detail">📋 Avec détails</option></select>
         <button class="btn btn-primary" onclick="chargerStats()">📊 Calculer</button>
       </div>
