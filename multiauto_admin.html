@@ -380,6 +380,7 @@ tr:hover td{background:var(--gris)}
       <div class="sb-section">Opérations</div>
       <div class="sb-item" onclick="afficherPage('pg-carburant')" id="nav-carburant"><span class="ico">⛽</span> Carburant</div>
       <div class="sb-item" onclick="afficherPage('pg-gps')" id="nav-gps"><span class="ico">🗺️</span> GPS & Trajets</div>
+      <div class="sb-item" onclick="afficherPage('pg-historique')" id="nav-historique"><span class="ico">🔍</span> Historique immat.</div>
       <div class="sb-section">Analyses</div>
       <div class="sb-item" onclick="afficherPage('pg-stats')" id="nav-stats"><span class="ico">📈</span> Statistiques</div>
       <div class="sb-item" onclick="afficherPage('pg-commissions')" id="nav-commissions"><span class="ico">💰</span> Commissions</div>
@@ -473,7 +474,7 @@ tr:hover td{background:var(--gris)}
           <input class="filtre-inp" type="date" id="bl-date-fin">
           <select class="filtre-inp" id="bl-filtre-type" onchange="majFiltreTypeBL()" style="min-width:160px"><option value="">Tous</option><option value="tous_clients">Tous les clients</option><option value="magasinage">Magasinage</option><option value="tous_chauffeurs">Tous les chauffeurs</option></select>
           <select class="filtre-inp" id="bl-filtre-chauffeur"><option value="">— Chauffeur —</option></select>
-          <input class="filtre-inp" id="bl-filtre-client" placeholder="Nom client..." style="display:none;width:140px">
+          <select class="filtre-inp" id="bl-filtre-client" style="display:none;min-width:150px"><option value="">— Client —</option></select>
           <select class="filtre-inp" id="bl-filtre-tarif"><option value="">Tous tarifs</option><option>NORMAL</option><option>TN</option><option>TW</option></select>
           <button class="btn btn-primary" onclick="chargerBons()">🔍 Filtrer</button>
         </div>
@@ -510,7 +511,7 @@ tr:hover td{background:var(--gris)}
           <input class="filtre-inp" type="date" id="rc-date-fin">
           <select class="filtre-inp" id="rc-filtre-type" onchange="majFiltreTypeRC()" style="min-width:160px"><option value="">Tous</option><option value="tous_clients">Tous les clients</option><option value="magasinage">Magasinage</option><option value="tous_chauffeurs">Tous les chauffeurs</option></select>
           <select class="filtre-inp" id="rc-filtre-chauffeur"><option value="">— Chauffeur —</option></select>
-          <input class="filtre-inp" id="rc-filtre-client" placeholder="Nom client..." style="display:none;width:140px">
+          <select class="filtre-inp" id="rc-filtre-client" style="display:none;min-width:150px"><option value="">— Client —</option></select>
           <button class="btn btn-primary" onclick="chargerRecus()">🔍 Filtrer</button>
         </div>
         <div class="table-wrap">
@@ -712,6 +713,18 @@ tr:hover td{background:var(--gris)}
     </div>
 
     <!-- STATISTIQUES -->
+    <div class="pg" id="pg-historique">
+      <div class="page-header"><div><div class="page-title">🔍 Historique par immatriculation</div></div></div>
+      <div class="card">
+        <div style="display:flex;gap:8px;margin-bottom:16px">
+          <input class="inp" id="hist-immat" placeholder="Ex: AB-123-CD" style="text-transform:uppercase;flex:1;max-width:200px" oninput="this.value=this.value.toUpperCase()">
+          <select class="filtre-inp" id="hist-client" style="min-width:150px"><option value="">— Tous clients —</option></select>
+          <button class="btn btn-primary" onclick="rechercherHistorique()">🔍 Rechercher</button>
+        </div>
+        <div id="hist-result"></div>
+      </div>
+    </div>
+
     <div class="pg" id="pg-stats">
       <div class="page-header">
         <div><div class="page-title">📈 Statistiques</div></div>
@@ -725,6 +738,7 @@ tr:hover td{background:var(--gris)}
         <input class="filtre-inp" type="date" id="stats-fin">
         <select class="filtre-inp" id="stats-type" style="min-width:160px"><option value="">Tous</option><option value="tous_clients">Tous les clients</option><option value="magasinage">Magasinage</option><option value="tous_chauffeurs">Tous les chauffeurs</option></select>
         <select class="filtre-inp" id="stats-chauffeur"><option value="">— Chauffeur —</option></select>
+        <select class="filtre-inp" id="stats-client" style="display:none;min-width:150px"><option value="">— Client —</option></select>
         <select class="filtre-inp" id="stats-mode"><option value="montant">📊 Résumé</option><option value="detail">📋 Avec détails</option></select>
         <button class="btn btn-primary" onclick="chargerStats()">📊 Calculer</button>
       </div>
@@ -1024,6 +1038,7 @@ function afficherPage(id){
   if(id==="pg-pc")         chargerPC();
   if(id==="pg-carburant")  chargerCarburant();
   if(id==="pg-gps")        chargerGPS();
+  if(id==="pg-historique")  rechercherHistorique();
   if(id==="pg-stats")      {}
   if(id==="pg-commissions") {}
   if(id==="pg-droits")     {chargerDroits(); chargerPermChauffeursFn();}
@@ -1112,6 +1127,11 @@ function chargerListeClients(){
   return db.collection("clients").orderBy("nom","asc").get().then(snap=>{
     clientsList=[];
     snap.forEach(d=>clientsList.push({id:d.id,...d.data()}));
+    ["bl-filtre-client","rc-filtre-client","stats-client","hist-client"].forEach(sid=>{
+      const sel=G(sid); if(!sel) return;
+      const first=sel.options[0]; sel.innerHTML=""; sel.appendChild(first);
+      clientsList.forEach(cl=>{const o=document.createElement("option");o.value=cl.nom;o.textContent=cl.nom;sel.appendChild(o);});
+    });
   });
 }
 
@@ -1168,16 +1188,16 @@ function majBoutonsSelection(type){
 function majFiltreTypeBL(){
   const type = G("bl-filtre-type").value;
   const selCh = G("bl-filtre-chauffeur");
-  const inpCl = G("bl-filtre-client");
+  const selCl = G("bl-filtre-client");
   if(selCh) selCh.style.display = (type===""||type==="tous_chauffeurs") ? "inline-block" : "none";
-  if(inpCl) inpCl.style.display = (type===""||type==="tous_clients") ? "inline-block" : "none";
+  if(selCl) selCl.style.display = (type===""||type==="tous_clients") ? "inline-block" : "none";
 }
 function majFiltreTypeRC(){
   const type = G("rc-filtre-type").value;
   const selCh = G("rc-filtre-chauffeur");
-  const inpCl = G("rc-filtre-client");
+  const selCl = G("rc-filtre-client");
   if(selCh) selCh.style.display = (type===""||type==="tous_chauffeurs") ? "inline-block" : "none";
-  if(inpCl) inpCl.style.display = (type===""||type==="tous_clients") ? "inline-block" : "none";
+  if(selCl) selCl.style.display = (type===""||type==="tous_clients") ? "inline-block" : "none";
 }
 function chargerBons(){
   loader(true,"Chargement BL...");
@@ -2264,6 +2284,57 @@ function ouvrirCarteGPS(bon){
 }
 
 // ── STATISTIQUES ──
+function rechercherHistorique(){
+  const immat=G("hist-immat").value.trim().toUpperCase();
+  const client=G("hist-client")?.value||"";
+  if(!immat && !client){ G("hist-result").innerHTML="<div style='color:var(--gris3);padding:24px;text-align:center'>Saisissez une immatriculation ou choisissez un client</div>"; return; }
+  G("hist-result").innerHTML="<div style='color:var(--gris3);padding:24px;text-align:center'>Recherche...</div>";
+  loader(true);
+  let query=db.collection("bons").orderBy("timestamp","desc").limit(500);
+  query.get().then(snap=>{
+    let bons=[]; snap.forEach(d=>bons.push({id:d.id,...d.data()}));
+    if(immat) bons=bons.filter(b=>(b.immatriculation||"").toUpperCase()===immat);
+    if(client) bons=bons.filter(b=>b.nom_client===client);
+    loader(false);
+    if(!bons.length){ G("hist-result").innerHTML=`<div style="color:var(--gris3);padding:24px;text-align:center">Aucun résultat pour ${immat||client}</div>`; return; }
+    // Récupérer les reçus liés
+    const bonNums=bons.map(b=>b.bon_num).filter(Boolean);
+    db.collection("recus").orderBy("timestamp","desc").limit(200).get().then(rSnap=>{
+      const recusMap={};
+      rSnap.forEach(d=>{ const r=d.data(); if(r.bon_num) recusMap[r.bon_num]=r; });
+      let html=`<div style="font-size:13px;font-weight:700;color:var(--gris3);margin-bottom:12px">${bons.length} résultat(s)</div>`;
+      html+=`<div class="table-wrap"><table><thead><tr>
+        <th>N° BL</th><th>N° Reçu</th><th>Date</th><th>Heure</th><th>Tarif</th>
+        <th>Chauffeur</th><th>Client</th><th>Immat</th><th>Véhicule</th>
+        <th>Embarquement</th><th>Destination</th><th>Espèces</th><th>Actions</th>
+      </tr></thead><tbody>`;
+      bons.forEach(b=>{
+        const recu=recusMap[b.bon_num]||{};
+        html+=`<tr>
+          <td style="font-weight:700;color:var(--bleu);font-size:11px">${b.bon_num||"—"}</td>
+          <td style="color:var(--vert);font-size:11px">${recu.recu_num||"—"}</td>
+          <td>${b.date_bl||"—"}</td><td>${b.heure_bl||"—"}</td>
+          <td><span class="badge ${b.tarif==="NORMAL"?"tarif-normal":b.tarif==="TN"?"tarif-tn":"tarif-tw"}">${b.tarif||"—"}</span></td>
+          <td>${b.chauffeur_nom||"—"}</td>
+          <td style="font-weight:600">${b.nom_client||"—"}</td>
+          <td style="font-weight:700">${b.immatriculation||"—"}</td>
+          <td style="font-size:11px">${b.marque||""} ${b.modele||""}</td>
+          <td style="font-size:11px">${b.lieu_embarquement||"—"}</td>
+          <td style="font-size:11px">${b.destination||"—"}</td>
+          <td style="font-weight:700;color:var(--vert)">${b.especes===true&&b.montant_especes>0?fmtMontant(b.montant_especes):"—"}</td>
+          <td><div style="display:flex;gap:3px">
+            <button class="btn btn-secondary btn-sm btn-icon" onclick="voirBL('${b.id}')">👁</button>
+            <button class="btn btn-secondary btn-sm btn-icon" onclick="imprimerBL('${b.id}')">🖨</button>
+            <button class="btn btn-secondary btn-sm btn-icon" onclick="telechargerBL('${b.id}')">⬇</button>
+          </div></td>
+        </tr>`;
+      });
+      html+=`</tbody></table></div>`;
+      G("hist-result").innerHTML=html;
+    });
+  }).catch(e=>{loader(false);toast("Erreur","err");console.error(e);});
+}
+
 function chargerStats(){
   loader(true,"Calcul statistiques...");
   const ch=G("stats-chauffeur")?.value||"";
