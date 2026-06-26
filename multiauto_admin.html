@@ -380,6 +380,7 @@ tr:hover td{background:var(--gris)}
       <div class="sb-section">Opérations</div>
       <div class="sb-item" onclick="afficherPage('pg-carburant')" id="nav-carburant"><span class="ico">⛽</span> Carburant</div>
       <div class="sb-item" onclick="afficherPage('pg-gps')" id="nav-gps"><span class="ico">🗺️</span> GPS & Trajets</div>
+      <div class="sb-item" onclick="afficherPage('pg-historique')" id="nav-historique"><span class="ico">🔍</span> Historique immat.</div>
       <div class="sb-section">Analyses</div>
       <div class="sb-item" onclick="afficherPage('pg-stats')" id="nav-stats"><span class="ico">📈</span> Statistiques</div>
       <div class="sb-item" onclick="afficherPage('pg-commissions')" id="nav-commissions"><span class="ico">💰</span> Commissions</div>
@@ -712,6 +713,24 @@ tr:hover td{background:var(--gris)}
     </div>
 
     <!-- STATISTIQUES -->
+    <div class="pg" id="pg-historique">
+      <div class="page-header">
+        <div><div class="page-title">🔍 Historique par immatriculation</div></div>
+        <div style="display:flex;gap:8px">
+          <button class="btn btn-secondary" onclick="selToutHistorique()">☑ Tout sélectionner</button>
+          <button class="btn btn-secondary" onclick="exporterHistoriquePDF()">⬇ Export PDF</button>
+        </div>
+      </div>
+      <div class="card">
+        <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:16px">
+          <input class="inp" id="hist-immat" placeholder="Immatriculation..." style="text-transform:uppercase;flex:1;max-width:200px" oninput="this.value=this.value.toUpperCase()">
+          <select class="filtre-inp" id="hist-client" style="min-width:160px"><option value="">— Tous clients —</option></select>
+          <button class="btn btn-primary" onclick="rechercherHistorique()">🔍 Rechercher</button>
+        </div>
+        <div id="hist-result"></div>
+      </div>
+    </div>
+
     <div class="pg" id="pg-stats">
       <div class="page-header">
         <div><div class="page-title">📈 Statistiques</div></div>
@@ -1021,6 +1040,7 @@ function afficherPage(id){
   if(id==="pg-pc")         chargerPC();
   if(id==="pg-carburant")  chargerCarburant();
   if(id==="pg-gps")        chargerGPS();
+  if(id==="pg-historique")  rechercherHistorique();
   if(id==="pg-stats")      {}
   if(id==="pg-commissions") {}
   if(id==="pg-droits")     {chargerDroits(); chargerPermChauffeursFn();}
@@ -1109,6 +1129,11 @@ function chargerListeClients(){
   return db.collection("clients").orderBy("nom","asc").get().then(snap=>{
     clientsList=[];
     snap.forEach(d=>clientsList.push({id:d.id,...d.data()}));
+    ["bl-filtre-client","rc-filtre-client","stats-client","hist-client"].forEach(sid=>{
+      const sel=G(sid); if(!sel) return;
+      const first=sel.options[0]; sel.innerHTML=""; sel.appendChild(first);
+      clientsList.forEach(cl=>{const o=document.createElement("option");o.value=cl.nom;o.textContent=cl.nom;sel.appendChild(o);});
+    });
   });
 }
 
