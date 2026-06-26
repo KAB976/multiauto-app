@@ -723,7 +723,8 @@ tr:hover td{background:var(--gris)}
       <div class="filtres">
         <input class="filtre-inp" type="date" id="stats-debut">
         <input class="filtre-inp" type="date" id="stats-fin">
-        <select class="filtre-inp" id="stats-chauffeur"><option value="">Tous chauffeurs</option></select>
+        <select class="filtre-inp" id="stats-type" style="min-width:160px"><option value="">Tous</option><option value="tous_clients">Tous les clients</option><option value="magasinage">Magasinage</option><option value="tous_chauffeurs">Tous les chauffeurs</option></select>
+        <select class="filtre-inp" id="stats-chauffeur"><option value="">— Chauffeur —</option></select>
         <select class="filtre-inp" id="stats-mode"><option value="montant">📊 Résumé</option><option value="detail">📋 Avec détails</option></select>
         <button class="btn btn-primary" onclick="chargerStats()">📊 Calculer</button>
       </div>
@@ -811,6 +812,8 @@ tr:hover td{background:var(--gris)}
               <div class="switch-row"><div class="switch-info"><div class="switch-label">Accès GPS & Trajets</div></div><label class="switch"><input type="checkbox" id="d-gps"><span class="sw-slider"></span></label></div>
               <div class="switch-row"><div class="switch-info"><div class="switch-label">Accès commissions</div></div><label class="switch"><input type="checkbox" id="d-commissions"><span class="sw-slider"></span></label></div>
               <div class="switch-row"><div class="switch-info"><div class="switch-label">Opérations carburant</div></div><label class="switch"><input type="checkbox" id="d-carburant"><span class="sw-slider"></span></label></div>
+            <div class="perm-group">
+              <div class="perm-group-title">Magasinage &amp; Prises en charge</div>
               <div class="switch-row"><div class="switch-info"><div class="switch-label">Magasinage</div></div><label class="switch"><input type="checkbox" id="d-magasinage"><span class="sw-slider"></span></label></div>
               <div class="switch-row"><div class="switch-info"><div class="switch-label">Prises en charge</div></div><label class="switch"><input type="checkbox" id="d-pc"><span class="sw-slider"></span></label></div>
             </div>
@@ -2230,6 +2233,7 @@ function ouvrirCarteGPS(bon){
 function chargerStats(){
   loader(true,"Calcul statistiques...");
   const ch=G("stats-chauffeur")?.value||"";
+  const statsType=G("stats-type")?.value||"";
   const debut=G("stats-debut")?.value||"", fin=G("stats-fin")?.value||"";
   const mode=G("stats-mode")?.value||"montant";
   db.collection("bons").orderBy("timestamp","desc").limit(500).get().then(snap=>{
