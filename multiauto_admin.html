@@ -1923,14 +1923,48 @@ function ouvrirLivraison(id){
 
 function confirmerLivraison(){
   const id=G("livraison-mag-id").value, dateSortie=G("mag-date-sortie").value;
+  loader(true);
   db.collection("magasinage").doc(id).get().then(snap=>{
     const m=snap.data();
     const e=new Date(m.date_entree), s=new Date(dateSortie);
     const jours=Math.max(1,Math.ceil((s-e)/(1000*60*60*24)));
     const total=jours*(m.tarif_jour||40), net=total-(m.remise||0);
-    return db.collection("magasinage").doc(id).update({statut:"livre",date_sortie:dateSortie,jours,montant_total:total,montant_net:net});
-  }).then(()=>{toast("Véhicule restitué ✅");fermerModal("modal-livraison-mag");chargerMagasinage();})
-  .catch(()=>toast("Erreur","err"));
+    // Générer numéro reçu magasinage
+    return db.collection("parametres").doc("mag_compteur").get().then(cs=>{
+      const n=(cs.exists?cs.data().val||0:0)+1;
+      const recuNum="Mag/"+("000000"+n).slice(-6);
+      const today=new Date();
+      const dateStr=today.toLocaleDateString("fr-FR");
+      const heureStr=today.toLocaleTimeString("fr-FR",{hour:"2-digit",minute:"2-digit"});
+      const batch=db.batch();
+      batch.set(db.collection("parametres").doc("mag_compteur"),{val:n});
+      batch.update(db.collection("magasinage").doc(id),{
+        statut:"livre",date_sortie:dateSortie,jours,
+        montant_total:total,montant_net:net,recu_num:recuNum
+      });
+      batch.set(db.collection("recus").doc(),{
+        recu_num:recuNum,
+        type_bl:"magasinage",
+        nom_client:m.client||"—",
+        immatriculation:m.immat||"—",
+        vehicule:m.vehicule||"—",
+        date:dateStr,
+        heure:heureStr,
+        montant:net,
+        jours,
+        date_entree:m.date_entree||"—",
+        date_sortie:dateSortie,
+        mission:"Magasinage — "+m.date_entree+" → "+dateSortie,
+        createdAt:firebase.firestore.FieldValue.serverTimestamp()
+      });
+      return batch.commit();
+    });
+  }).then(()=>{
+    toast("Véhicule restitué ✅");
+    fermerModal("modal-livraison-mag");
+    chargerMagasinage();
+    loader(false);
+  }).catch(e=>{toast("Erreur","err");loader(false);console.error(e);});
 }
 
 function supprimerMag(id){if(!confirm("Supprimer ?"))return;db.collection("magasinage").doc(id).delete().then(()=>{toast("Supprimé");chargerMagasinage();});}
