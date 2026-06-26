@@ -714,7 +714,13 @@ tr:hover td{background:var(--gris)}
 
     <!-- STATISTIQUES -->
     <div class="pg" id="pg-historique">
-      <div class="page-header"><div><div class="page-title">🔍 Historique par immatriculation</div></div></div>
+      <div class="page-header">
+        <div><div class="page-title">🔍 Historique par immatriculation</div></div>
+        <div style="display:flex;gap:8px">
+          <button class="btn btn-secondary" onclick="selToutHistorique()">☑ Tout sélectionner</button>
+          <button class="btn btn-secondary" onclick="exporterHistoriquePDF()">⬇ Export PDF</button>
+        </div>
+      </div>
       <div class="card">
         <div style="display:flex;gap:8px;margin-bottom:16px">
           <input class="inp" id="hist-immat" placeholder="Ex: AB-123-CD" style="text-transform:uppercase;flex:1;max-width:200px" oninput="this.value=this.value.toUpperCase()">
@@ -1287,11 +1293,11 @@ function chargerRecus(){
     const debut=G("rc-date-debut")?.value||"", fin=G("rc-date-fin")?.value||"";
     if(debut) recus=recus.filter(r=>toComp(r.date)>=debut);
     if(fin)   recus=recus.filter(r=>toComp(r.date)<=fin);
-    if(rcType==="tous_clients")    recus=recus.filter(r=>!r.type_bl||r.type_bl==="client");
-    if(rcType==="magasinage")      recus=recus.filter(r=>r.type_bl==="magasinage");
     if(rcType==="tous_chauffeurs") recus=recus.filter(r=>r.type_bl==="chauffeur");
-    if(ch)        recus=recus.filter(r=>r.chauffeur_uid===ch);
-    if(rcClientQ) recus=recus.filter(r=>(r.nom_client||"").toLowerCase().includes(rcClientQ));
+    if(rcType==="tous_clients")   recus=recus.filter(r=>!r.type_bl||r.type_bl==="client");
+    if(rcType==="chauffeur"){ if(ch) recus=recus.filter(r=>r.chauffeur_uid===ch); else recus=recus.filter(r=>r.type_bl==="chauffeur"); }
+    if(rcType==="client"){ const cQ=G("rc-filtre-client")?.value||""; if(cQ) recus=recus.filter(r=>r.nom_client===cQ); else recus=recus.filter(r=>!r.type_bl||r.type_bl==="client"); }
+    if(rcType==="magasinage") recus=recus.filter(r=>r.type_bl==="magasinage");
     const totalRC=recus.length, totalM=recus.reduce((s,r)=>s+(r.montant||0),0);
     if(G("rc-totaux")) G("rc-totaux").innerHTML=`
       <div class="total-badge"><div class="tb-num">${totalRC}</div><div class="tb-lbl">Total reçus</div></div>
@@ -2274,6 +2280,46 @@ function ouvrirCarteGPS(bon){
 }
 
 // ── STATISTIQUES ──
+function selToutHistorique(){
+  const all=G("hist-check-all");
+  document.querySelectorAll(".hist-cb").forEach(cb=>cb.checked=all?all.checked:true);
+}
+function exporterHistoriquePDF(){
+  const cbs=document.querySelectorAll(".hist-cb:checked");
+  if(!cbs.length){ toast("Sélectionnez au moins un BL","err"); return; }
+  loader(true,"Export PDF...");
+  Promise.all([...cbs].map(cb=>db.collection("bons").doc(cb.dataset.id).get())).then(snaps=>{
+    const {jsPDF}=window.jspdf;
+    const doc=new jsPDF('landscape','mm','a4');
+    doc.setFontSize(13);doc.setFont('helvetica','bold');
+    doc.text('Historique des bons de livraison',148,14,{align:'center'});
+    doc.setFontSize(8);doc.setFont('helvetica','normal');
+    doc.text('Édité le '+new Date().toLocaleDateString('fr-FR'),148,20,{align:'center'});
+    const widths=[22,22,18,16,28,28,20,25,28,28,18];
+    let y=28;
+    doc.setFillColor(200,52,26);doc.rect(10,y,277,6,'F');
+    doc.setTextColor(255,255,255);doc.setFont('helvetica','bold');doc.setFontSize(7);
+    let x=10;
+    ['N° BL','N° Reçu','Date','Heure','Chauffeur','Client','Immat','Véhicule','Embarquement','Destination','Espèces'].forEach((h,i)=>{doc.text(h,x+1,y+4.2);x+=widths[i];});
+    y+=6;doc.setTextColor(26,26,26);doc.setFont('helvetica','normal');
+    snaps.forEach((snap,idx)=>{
+      if(!snap.exists)return;
+      const b=snap.data();
+      if(y>190){doc.addPage();y=14;}
+      doc.setFillColor(idx%2===0?248:255,idx%2===0?248:255,idx%2===0?248:255);
+      doc.rect(10,y,277,5.5,'F');doc.setFontSize(6.5);
+      let xi=10;
+      [b.bon_num||'—','—',b.date_bl||'—',b.heure_bl||'—',b.chauffeur_nom||'—',b.nom_client||'—',
+       b.immatriculation||'—',(b.marque||'')+' '+(b.modele||''),
+       b.lieu_embarquement||'—',b.destination||'—',
+       b.especes&&b.montant_especes>0?b.montant_especes.toFixed(2)+' €':'—'
+      ].forEach((v,i)=>{doc.text(String(v).substring(0,20),xi+1,y+3.8);xi+=widths[i];});
+      y+=5.5;
+    });
+    doc.save('historique-bl.pdf');
+    loader(false);toast("PDF exporté ✅");
+  }).catch(e=>{loader(false);toast("Erreur","err");console.error(e);});
+}
 function rechercherHistorique(){
   const immat=G("hist-immat").value.trim().toUpperCase();
   const client=G("hist-client")?.value||"";
@@ -2294,6 +2340,7 @@ function rechercherHistorique(){
       rSnap.forEach(d=>{ const r=d.data(); if(r.bon_num) recusMap[r.bon_num]=r; });
       let html=`<div style="font-size:13px;font-weight:700;color:var(--gris3);margin-bottom:12px">${bons.length} résultat(s)</div>`;
       html+=`<div class="table-wrap"><table><thead><tr>
+        <th><input type="checkbox" id="hist-check-all" onclick="selToutHistorique()"></th>
         <th>N° BL</th><th>N° Reçu</th><th>Date</th><th>Heure</th><th>Tarif</th>
         <th>Chauffeur</th><th>Client</th><th>Immat</th><th>Véhicule</th>
         <th>Embarquement</th><th>Destination</th><th>Espèces</th><th>Actions</th>
@@ -2301,6 +2348,7 @@ function rechercherHistorique(){
       bons.forEach(b=>{
         const recu=recusMap[b.bon_num]||{};
         html+=`<tr>
+          <td><input type="checkbox" class="hist-cb" data-id="${b.id}"></td>
           <td style="font-weight:700;color:var(--bleu);font-size:11px">${b.bon_num||"—"}</td>
           <td style="color:var(--vert);font-size:11px">${recu.recu_num||"—"}</td>
           <td>${b.date_bl||"—"}</td><td>${b.heure_bl||"—"}</td>
