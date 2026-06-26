@@ -2150,10 +2150,10 @@ function chargerGPS(){
     let bons=[]; snap.forEach(d=>bons.push({id:d.id,...d.data()}));
     const ch=G("gps-chauffeur")?.value||"";
     const debut=G("gps-debut")?.value||"", fin=G("gps-fin")?.value||"";
-    if(ch)    bons=bons.filter(b=>b.chauffeur_uid===ch);
-    if(type==="client")     bons=bons.filter(b=>!b.type_bl||b.type_bl==="client");
-    if(type==="magasinage") bons=bons.filter(b=>b.type_bl==="magasinage");
-    if(type==="chauffeur")  bons=bons.filter(b=>b.type_bl==="chauffeur");
+    if(statsType==="tous_clients")    bons=bons.filter(b=>!b.type_bl||b.type_bl==="client");
+    if(statsType==="magasinage")      bons=bons.filter(b=>b.type_bl==="magasinage");
+    if(statsType==="tous_chauffeurs") bons=bons.filter(b=>b.type_bl==="chauffeur");
+    if(ch) bons=bons.filter(b=>b.chauffeur_uid===ch);
     if(debut) bons=bons.filter(b=>toComp(b.date_bl)>=debut);
     if(fin)   bons=bons.filter(b=>toComp(b.date_bl)<=fin);
     bons=bons.filter(b=>b.lieu_embarquement||b.destination);
@@ -2272,10 +2272,10 @@ function chargerStats(){
   const mode=G("stats-mode")?.value||"montant";
   db.collection("bons").orderBy("timestamp","desc").limit(500).get().then(snap=>{
     let bons=[]; snap.forEach(d=>bons.push({id:d.id,...d.data()}));
-    if(ch)    bons=bons.filter(b=>b.chauffeur_uid===ch);
-    if(type==="client")     bons=bons.filter(b=>!b.type_bl||b.type_bl==="client");
-    if(type==="magasinage") bons=bons.filter(b=>b.type_bl==="magasinage");
-    if(type==="chauffeur")  bons=bons.filter(b=>b.type_bl==="chauffeur");
+    if(statsType==="tous_clients")    bons=bons.filter(b=>!b.type_bl||b.type_bl==="client");
+    if(statsType==="magasinage")      bons=bons.filter(b=>b.type_bl==="magasinage");
+    if(statsType==="tous_chauffeurs") bons=bons.filter(b=>b.type_bl==="chauffeur");
+    if(ch) bons=bons.filter(b=>b.chauffeur_uid===ch);
     if(debut) bons=bons.filter(b=>toComp(b.date_bl)>=debut);
     if(fin)   bons=bons.filter(b=>toComp(b.date_bl)<=fin);
     const total=bons.length, espTotal=bons.filter(b=>b.especes).reduce((s,b)=>s+(b.montant_especes||0),0);
@@ -2408,10 +2408,10 @@ function chargerCommissions(){
       let bons=[]; snap2.forEach(d=>bons.push({id:d.id,...d.data()}));
       const ch=G("comm-chauffeur")?.value||"";
       const debut=G("comm-debut")?.value||"", fin=G("comm-fin")?.value||"";
-      if(ch)    bons=bons.filter(b=>b.chauffeur_uid===ch);
-    if(type==="client")     bons=bons.filter(b=>!b.type_bl||b.type_bl==="client");
-    if(type==="magasinage") bons=bons.filter(b=>b.type_bl==="magasinage");
-    if(type==="chauffeur")  bons=bons.filter(b=>b.type_bl==="chauffeur");
+      if(statsType==="tous_clients")    bons=bons.filter(b=>!b.type_bl||b.type_bl==="client");
+    if(statsType==="magasinage")      bons=bons.filter(b=>b.type_bl==="magasinage");
+    if(statsType==="tous_chauffeurs") bons=bons.filter(b=>b.type_bl==="chauffeur");
+    if(ch) bons=bons.filter(b=>b.chauffeur_uid===ch);
       if(debut) bons=bons.filter(b=>toComp(b.date_bl)>=debut);
       if(fin)   bons=bons.filter(b=>toComp(b.date_bl)<=fin);
       let parCh={};
