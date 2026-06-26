@@ -806,6 +806,7 @@ tr:hover td{background:var(--gris)}
               <div class="switch-row"><div class="switch-info"><div class="switch-label">Accès statistiques</div></div><label class="switch"><input type="checkbox" id="d-stats"><span class="sw-slider"></span></label></div>
               <div class="switch-row"><div class="switch-info"><div class="switch-label">Accès GPS & Trajets</div></div><label class="switch"><input type="checkbox" id="d-gps"><span class="sw-slider"></span></label></div>
               <div class="switch-row"><div class="switch-info"><div class="switch-label">Accès commissions</div></div><label class="switch"><input type="checkbox" id="d-commissions"><span class="sw-slider"></span></label></div>
+              <div class="switch-row"><div class="switch-info"><div class="switch-label">Opérations carburant</div></div><label class="switch"><input type="checkbox" id="d-carburant"><span class="sw-slider"></span></label></div>
             </div>
             <div class="perm-group">
               <div class="perm-group-title">Gestion flotte</div>
@@ -2427,28 +2428,54 @@ function changerOngletSec(idx){
 function chargerDroitsOnglet(idx){
   const uid = SEC_UIDS[idx];
   if(!uid){ G("sec-droits-nom").textContent="⚠️ Secrétaire "+(idx+1)+" : compte non trouvé"; return; }
+  
+  // Vider TOUS les switches avant de charger pour éviter la contamination entre onglets
+  const tousLesIds = ["d-bl-creer","d-bl-voir","d-bl-imprimer","d-bl-telecharger",
+    "d-rc-voir","d-rc-imprimer","d-rc-telecharger","d-stats","d-gps","d-commissions",
+    "d-carburant","d-chauffeurs-voir","d-camions-voir","d-clients","d-clients-ajouter",
+    "d-clients-modifier","d-solde"];
+  tousLesIds.forEach(id=>{ const el=G(id); if(el) el.checked=false; });
+  G("sec-droits-nom").textContent = "Chargement...";
+  G("sec-uid-actif").textContent = uid;
+
   db.collection("users").doc(uid).get().then(snap=>{
     const u = snap.exists ? snap.data() : {};
-    const d = u.droits || {};
+    // Si pas de droits définis → nouveaux compte → tout à false par défaut
+    const hasDroits = snap.exists && u.droits;
+    const d = hasDroits ? u.droits : {};
     G("sec-droits-nom").textContent = "Droits de : "+(u.nom||"Secrétaire "+(idx+1))+" — "+(u.email||"");
-    G("sec-uid-actif").textContent = uid;
+    
     const s=(id,val)=>{const el=G(id);if(el)el.checked=val;};
-    s("d-bl-creer",        d.secretaire_bl_creer!==false);
-    s("d-bl-voir",         d.secretaire_bl_voir!==false);
-    s("d-bl-imprimer",     d.secretaire_bl_imprimer!==false);
-    s("d-bl-telecharger",  d.secretaire_bl_telecharger!==false);
-    s("d-rc-voir",         d.secretaire_recu_voir!==false);
-    s("d-rc-imprimer",     d.secretaire_recu_imprimer!==false);
-    s("d-rc-telecharger",  d.secretaire_recu_telecharger!==false);
+    
+    if(hasDroits){
+      // Droits existants — charger exactement ce qui est en base
+      s("d-bl-creer",        d.secretaire_bl_creer===true);
+      s("d-bl-voir",         d.secretaire_bl_voir===true);
+      s("d-bl-imprimer",     d.secretaire_bl_imprimer===true);
+      s("d-bl-telecharger",  d.secretaire_bl_telecharger===true);
+      s("d-rc-voir",         d.secretaire_recu_voir===true);
+      s("d-rc-imprimer",     d.secretaire_recu_imprimer===true);
+      s("d-rc-telecharger",  d.secretaire_recu_telecharger===true);
+    } else {
+      // Nouveau compte — BL et reçus cochés par défaut
+      s("d-bl-creer",true); s("d-bl-voir",true);
+      s("d-bl-imprimer",true); s("d-bl-telecharger",true);
+      s("d-rc-voir",true); s("d-rc-imprimer",true); s("d-rc-telecharger",true);
+      s("d-clients",true); s("d-clients-ajouter",true);
+    }
     s("d-stats",           d.secretaire_stats===true);
     s("d-gps",             d.secretaire_gps===true);
     s("d-commissions",     d.secretaire_commissions===true);
+    s("d-carburant",       d.secretaire_carburant===true);
     s("d-chauffeurs-voir", d.secretaire_chauffeurs_voir===true);
     s("d-camions-voir",    d.secretaire_camions_voir===true);
-    s("d-clients",         d.secretaire_clients!==false);
-    s("d-clients-ajouter", d.secretaire_clients_ajouter!==false);
+    if(hasDroits){
+      s("d-clients",         d.secretaire_clients===true);
+      s("d-clients-ajouter", d.secretaire_clients_ajouter===true);
+    }
     s("d-clients-modifier",d.secretaire_clients_modifier===true);
     s("d-solde",           d.secretaire_solde===true);
+
     // Droits chauffeur (globaux — pas par secrétaire)
     if(idx===0){
       db.collection("parametres").doc("societe").get().then(sp=>{
@@ -2488,6 +2515,7 @@ function sauvegarderDroits(){
     secretaire_stats:          g("d-stats"),
     secretaire_gps:            g("d-gps"),
     secretaire_commissions:    g("d-commissions"),
+    secretaire_carburant:      g("d-carburant"),
     secretaire_chauffeurs_voir:g("d-chauffeurs-voir"),
     secretaire_camions_voir:   g("d-camions-voir"),
     secretaire_clients:        g("d-clients"),
