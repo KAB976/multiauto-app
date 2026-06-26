@@ -2391,25 +2391,18 @@ function exporterCommissionsPDF(){
 }
 
 // ── DROITS ──
-// UIDs des 3 secrétaires — Sec1 = chargée dynamiquement, Sec2 et Sec3 fixes
-var SEC_UIDS = [null, "fFvuAlNHiBdIOaJWxPeFwFLvK162", "YZ3jl7wCGcMaPsJ2pXgQ1XuRSx92"];
+// UIDs fixes des 3 secrétaires
+var SEC_UIDS = ["uiBvjickYuQy9rZfzS7783W9oVE2", "fFvuAlNHiBdIOaJWxPeFwFLvK162", "YZ3jl7wCGcMaPsJ2pXgQ1XuRSx92"];
 var secOngletActif = 0;
 
 function chargerDroits(){
-  // Charger d'abord l'UID de la secrétaire 1 (la première trouvée)
-  db.collection("users").where("role","==","secretaire").orderBy("nom","asc").get().then(snap=>{
-    const secs = [];
-    snap.forEach(d=>secs.push({uid:d.id,...d.data()}));
-    // Exclure sec2 et sec3 déjà connus
-    const sec1 = secs.find(s=>s.uid!==SEC_UIDS[1] && s.uid!==SEC_UIDS[2]);
-    if(sec1) SEC_UIDS[0] = sec1.uid;
-    // Mettre à jour les noms des onglets
-    secs.forEach(s=>{
-      const idx = SEC_UIDS.indexOf(s.uid);
-      if(idx>=0){
-        const btn = G("tab-sec-btn-"+idx);
-        if(btn) btn.textContent = s.nom || "Secrétaire "+(idx+1);
-      }
+  // Charger les noms des 3 secrétaires pour les onglets
+  const promises = SEC_UIDS.map(uid => db.collection("users").doc(uid).get());
+  Promise.all(promises).then(snaps=>{
+    snaps.forEach((snap, idx)=>{
+      const nom = snap.exists ? (snap.data().nom || "Secrétaire "+(idx+1)) : "Secrétaire "+(idx+1);
+      const btn = G("tab-sec-btn-"+idx);
+      if(btn) btn.textContent = nom;
     });
     chargerDroitsOnglet(secOngletActif);
   }).catch(console.error);
