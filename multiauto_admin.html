@@ -1308,13 +1308,20 @@ function chargerBons(){
   loader(true,"Chargement BL...");
   db.collection("bons").orderBy("timestamp","desc").limit(300).get().then(snap=>{
     let bons=[]; snap.forEach(d=>bons.push({id:d.id,...d.data()}));
+    const type=G("bl-filtre-type")?.value||"";
     const ch=G("bl-filtre-chauffeur")?.value||"";
+    const cl=G("bl-filtre-client")?.value||"";
     const tarif=G("bl-filtre-tarif")?.value||"";
     const debut=G("bl-date-debut")?.value||"";
     const fin=G("bl-date-fin")?.value||"";
     if(debut) bons=bons.filter(b=>toComp(b.date_bl)>=debut);
     if(fin)   bons=bons.filter(b=>toComp(b.date_bl)<=fin);
-    if(ch)    bons=bons.filter(b=>b.chauffeur_uid===ch);
+    if(type==="tous_chauffeurs") bons=bons.filter(b=>b.type_bl==="chauffeur");
+    else if(type==="tous_clients") bons=bons.filter(b=>!b.type_bl||b.type_bl==="client");
+    else if(type==="chauffeur"){ if(ch) bons=bons.filter(b=>b.chauffeur_uid===ch); else bons=bons.filter(b=>b.type_bl==="chauffeur"); }
+    else if(type==="client"){ if(cl) bons=bons.filter(b=>b.nom_client===cl); else bons=bons.filter(b=>!b.type_bl||b.type_bl==="client"); }
+    else if(type==="magasinage") bons=bons.filter(b=>b.type_bl==="magasinage");
+    else if(ch) bons=bons.filter(b=>b.chauffeur_uid===ch);
     if(tarif) bons=bons.filter(b=>b.tarif===tarif);
 
     // Totaux
@@ -1392,11 +1399,18 @@ function chargerRecus(){
   loader(true);
   db.collection("recus").orderBy("timestamp","desc").limit(200).get().then(snap=>{
     let recus=[]; snap.forEach(d=>recus.push({id:d.id,...d.data()}));
+    const rcType=G("rc-filtre-type")?.value||"";
     const ch=G("rc-filtre-chauffeur")?.value||"";
+    const rcCl=G("rc-filtre-client")?.value||"";
     const debut=G("rc-date-debut")?.value||"", fin=G("rc-date-fin")?.value||"";
     if(debut) recus=recus.filter(r=>toComp(r.date)>=debut);
     if(fin)   recus=recus.filter(r=>toComp(r.date)<=fin);
-    if(ch)    recus=recus.filter(r=>r.chauffeur_uid===ch);
+    if(rcType==="tous_chauffeurs") recus=recus.filter(r=>r.type_bl==="chauffeur");
+    else if(rcType==="tous_clients") recus=recus.filter(r=>!r.type_bl||r.type_bl==="client");
+    else if(rcType==="chauffeur"){ if(ch) recus=recus.filter(r=>r.chauffeur_uid===ch); else recus=recus.filter(r=>r.type_bl==="chauffeur"); }
+    else if(rcType==="client"){ if(rcCl) recus=recus.filter(r=>r.nom_client===rcCl); else recus=recus.filter(r=>!r.type_bl||r.type_bl==="client"); }
+    else if(rcType==="magasinage") recus=recus.filter(r=>r.type_bl==="magasinage");
+    else if(ch) recus=recus.filter(r=>r.chauffeur_uid===ch);
     const totalRC=recus.length, totalM=recus.reduce((s,r)=>s+(r.montant||0),0);
     if(G("rc-totaux")) G("rc-totaux").innerHTML=`
       <div class="total-badge"><div class="tb-num">${totalRC}</div><div class="tb-lbl">Total reçus</div></div>
