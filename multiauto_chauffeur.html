@@ -658,6 +658,21 @@ var user = null;
 var photoData = null;
 var sigSigned = false;
 var espActif = false;
+var typeIntervention = "normal";
+
+function setTypeIntervention(type){
+  typeIntervention = type;
+  var btnN=G("btn-type-normal"), btnP=G("btn-type-pc"), badge=G("pc-badge");
+  if(type==="normal"){
+    btnN.style.background="var(--or)"; btnN.style.color="white"; btnN.style.borderColor="var(--or)";
+    btnP.style.background="white"; btnP.style.color="#888"; btnP.style.borderColor="#ccc";
+    if(badge) badge.style.display="none";
+  } else {
+    btnP.style.background="#1565c0"; btnP.style.color="white"; btnP.style.borderColor="#1565c0";
+    btnN.style.background="white"; btnN.style.color="#888"; btnN.style.borderColor="#ccc";
+    if(badge) badge.style.display="block";
+  }
+}
 var gpsEmb = {lat:"",lng:"",lieu:""};
 var gpsDest = {lat:"",lng:"",lieu:""};
 var heureEmb = null;
@@ -1160,6 +1175,7 @@ function soumettre(){
       date_bl:fmtDate(now), heure_bl:fmtHeure(now),
       tarif:calculerTarif(),
       immatriculation:G("inp-immat").value.trim().toUpperCase(),
+      type_bl: typeIntervention==="pc" ? "pc" : "client",
       marque:G("sel-marque").value, modele:G("sel-modele").value,
       nom_client:G("sel-client").value, tel_client:G("inp-tel").value.trim(),
       lieu_embarquement:G("inp-emb").value.trim(),
@@ -1220,6 +1236,7 @@ function nouveauBon(){
   G("sig-zone-validee").style.display = "none";
   if(G("sig-preview")) G("sig-preview").src="";
   espActif=false; G("esp-switch").classList.remove("on"); G("esp-box").style.display="none";
+  typeIntervention="normal"; setTypeIntervention("normal");
   G("form-alert").style.display="none"; G("form-alert2").classList.remove("on");
   gpsEmb={lat:"",lng:"",lieu:""}; gpsDest={lat:"",lng:"",lieu:""};
   resetTrajet();
@@ -1680,6 +1697,7 @@ window.enregistrer = async function(){
     timestamp: serverTimestamp(),
     // Véhicule
     immatriculation: G("inp-immat").value.trim().toUpperCase(),
+    type_bl: (typeof typeIntervention !== "undefined" && typeIntervention === "pc") ? "pc" : "client",
     marque:  G("sel-marque").value,
     modele:  G("sel-modele").value,
     // Client
