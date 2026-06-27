@@ -308,6 +308,23 @@ self.addEventListener('fetch', e => {
     </button>
   </div>
 
+  <!-- ── TYPE INTERVENTION ── -->
+  <div id="div-type-intervention" style="padding:10px 14px 0;display:none">
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px">
+      <button id="btn-type-normal" onclick="setTypeIntervention('normal')"
+        style="padding:12px;border-radius:12px;border:2.5px solid var(--or);background:var(--or);color:white;font-size:13px;font-weight:900;cursor:pointer;font-family:inherit">
+        🚛 Normal
+      </button>
+      <button id="btn-type-pc" onclick="setTypeIntervention('pc')"
+        style="padding:12px;border-radius:12px;border:2.5px solid #ccc;background:white;color:#888;font-size:13px;font-weight:900;cursor:pointer;font-family:inherit">
+        📋 PC Assurance
+      </button>
+    </div>
+    <div id="pc-badge" style="display:none;margin-top:8px;padding:7px 10px;background:#e8f4fd;border-radius:8px;font-size:11px;color:#1565c0;font-weight:600;text-align:center">
+      📋 Prise en charge assurance — dossier complété par la secrétaire
+    </div>
+  </div>
+
   <!-- Numéro BL -->
   <div class="bl-badge" id="bl-badge">
     <div class="bl-left">
@@ -372,26 +389,6 @@ self.addEventListener('fetch', e => {
 
   <div id="section-bl" class="content">
     <div class="alert on" id="form-alert" style="display:none"></div>
-
-    <!-- ── TYPE INTERVENTION ── -->
-    <div class="card" style="margin-bottom:12px">
-      <div style="padding:12px 14px">
-        <div style="font-size:13px;font-weight:700;color:var(--gris2);margin-bottom:10px">Type d'intervention</div>
-        <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
-          <button id="btn-type-normal" onclick="setTypeIntervention('normal')"
-            style="padding:14px;border-radius:12px;border:2.5px solid var(--or);background:var(--or);color:white;font-size:14px;font-weight:900;cursor:pointer;font-family:inherit">
-            🚛 Normal
-          </button>
-          <button id="btn-type-pc" onclick="setTypeIntervention('pc')"
-            style="padding:14px;border-radius:12px;border:2.5px solid #ccc;background:white;color:#888;font-size:14px;font-weight:900;cursor:pointer;font-family:inherit">
-            📋 PC Assurance
-          </button>
-        </div>
-        <div id="pc-badge" style="display:none;margin-top:10px;padding:8px 12px;background:#e8f4fd;border-radius:8px;font-size:12px;color:#1565c0;font-weight:600;text-align:center">
-          📋 Prise en charge assurance — Le dossier sera complété par la secrétaire
-        </div>
-      </div>
-    </div>
 
     <!-- ── ÉTAPE 1 : VÉHICULE ── -->
     <div class="step-header">
@@ -1263,6 +1260,7 @@ function nouveauBon(){
   majTarif();
   majNums();
   window.scrollTo(0,0);
+  if(G("div-type-intervention")) G("div-type-intervention").style.display="block";
   captureGPS(function(g){ gpsEmb=g; });
 }
 
@@ -1362,6 +1360,7 @@ function afficherMenu(section){
   G("section-bl").style.display         = isBL ? "block" : "none";
   G("bl-badge").style.display           = isBL ? "block" : "none";
   G("section-carburant-rapide").style.display = isBL ? "none" : "block";
+  if(G("div-type-intervention")) G("div-type-intervention").style.display = isBL ? "block" : "none";
 
   // Style boutons menu
   G("btn-menu-bl").style.background   = isBL ? "var(--or)"  : "rgba(200,52,26,.15)";
