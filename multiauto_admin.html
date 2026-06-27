@@ -1194,7 +1194,7 @@ function seConnecter(){
   if(!id||!pw){ G("login-err").classList.add("on"); return; }
   loader(true,"Connexion...");
   auth.signInWithEmailAndPassword(
-      id==="admin" ? "admin@multiauto.fr" : "somalan2000+"+id+"@gmail.com",
+      id==="kab" ? "admin@multiauto.fr" : "somalan2000+"+id+"@gmail.com",
       pw
     )
     .then(cred=>db.collection("users").doc(cred.user.uid).get())
