@@ -1148,7 +1148,7 @@ function seConnecter(){
       G("sb-nom").textContent=userAdmin.nom||"—";
       G("sb-role").textContent=userAdmin.role==="admin"?"Administrateur":"Secrétaire";
       G("login-err").classList.remove("on");
-      return Promise.all([chargerListeChauffeurs(),chargerListeCamions(),chargerListeClients()]);
+      return Promise.all([chargerListeChauffeurs(),chargerListeCamions(),chargerListeClients(),chargerVehiculesData()]);
     })
     .then(()=>{
       loader(false);
@@ -1755,6 +1755,12 @@ async function importerListeReference(){
 }
 
 
+function chargerVehiculesData(){
+  return db.collection("vehicules_clients").orderBy("marque","asc").get().then(snap=>{
+    vehiculesList=[];
+    snap.forEach(d=>vehiculesList.push({id:d.id,...d.data()}));
+  }).catch(()=>{});
+}
 function chargerVehicules(){
   db.collection("vehicules_clients").orderBy("marque","asc").get().then(snap=>{
     vehiculesList = [];
