@@ -373,6 +373,26 @@ self.addEventListener('fetch', e => {
   <div id="section-bl" class="content">
     <div class="alert on" id="form-alert" style="display:none"></div>
 
+    <!-- ── TYPE INTERVENTION ── -->
+    <div class="card" style="margin-bottom:12px">
+      <div style="padding:12px 14px">
+        <div style="font-size:13px;font-weight:700;color:var(--gris2);margin-bottom:10px">Type d'intervention</div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
+          <button id="btn-type-normal" onclick="setTypeIntervention('normal')"
+            style="padding:14px;border-radius:12px;border:2.5px solid var(--or);background:var(--or);color:white;font-size:14px;font-weight:900;cursor:pointer;font-family:inherit">
+            🚛 Normal
+          </button>
+          <button id="btn-type-pc" onclick="setTypeIntervention('pc')"
+            style="padding:14px;border-radius:12px;border:2.5px solid #ccc;background:white;color:#888;font-size:14px;font-weight:900;cursor:pointer;font-family:inherit">
+            📋 PC Assurance
+          </button>
+        </div>
+        <div id="pc-badge" style="display:none;margin-top:10px;padding:8px 12px;background:#e8f4fd;border-radius:8px;font-size:12px;color:#1565c0;font-weight:600;text-align:center">
+          📋 Prise en charge assurance — Le dossier sera complété par la secrétaire
+        </div>
+      </div>
+    </div>
+
     <!-- ── ÉTAPE 1 : VÉHICULE ── -->
     <div class="step-header">
       <div class="step-num">1</div>
