@@ -769,9 +769,10 @@ tr:hover td{background:var(--gris)}
             <option value="pc">PC Assurance</option>
           </select>
           <select class="filtre-inp" id="soldes-statut" style="min-width:130px">
-            <option value="impaye">Impayés</option>
             <option value="">Tous</option>
-            <option value="paye">Payés</option>
+            <option value="impaye">🔴 Impayés</option>
+            <option value="partiel">🟣 Partiels</option>
+            <option value="solde">✅ Soldés</option>
           </select>
           <input class="filtre-inp" type="date" id="soldes-debut">
           <input class="filtre-inp" type="date" id="soldes-fin">
@@ -2589,7 +2590,7 @@ async function chargerSoldes(prefix){
   const pfx = prefix||"";
   const clientSel = G(pfx+"soldes-client")?.value||"";
   const typeSel   = G(pfx+"soldes-type")?.value||"";
-  const statutSel = G(pfx+"soldes-statut")?.value||"impaye";
+  const statutSel = G(pfx+"soldes-statut")?.value||"";
   const debut     = G(pfx+"soldes-debut")?.value||"";
   const fin       = G(pfx+"soldes-fin")?.value||"";
   loader(true,"Chargement soldes...");
