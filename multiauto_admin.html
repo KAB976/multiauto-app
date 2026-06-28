@@ -2582,41 +2582,14 @@ function chargerGPS(){
       if(b.gps_emb_lat&&b.gps_dest_lat) mapsUrl="https://www.google.com/maps/dir/"+b.gps_emb_lat+","+b.gps_emb_lng+"/"+b.gps_dest_lat+","+b.gps_dest_lng;
       else if(b.lieu_embarquement&&b.destination) mapsUrl="https://www.google.com/maps/dir/"+encodeURIComponent(b.lieu_embarquement+", Mayotte")+"/"+encodeURIComponent(b.destination+", Mayotte");
       const bonData=JSON.stringify({lieu_embarquement:b.lieu_embarquement||"",destination:b.destination||"",chauffeur_nom:b.chauffeur_nom||"",date_bl:b.date_bl||"",heure_bl:b.heure_bl||"",tarif:b.tarif||"",duree_trajet_min:b.duree_trajet_min||0,gps_emb_lat:b.gps_emb_lat||null,gps_emb_lng:b.gps_emb_lng||null,gps_dest_lat:b.gps_dest_lat||null,gps_dest_lng:b.gps_dest_lng||null}).replace(/'/g,"\'");
-      // Logique statut correcte
-      let stBadge, peutPayer=false;
-      if(item.montant===0){
-        stBadge=`<span class="badge" style="background:#fff8e1;color:#f57c00;border:1px solid #f57c00">⚠️ À compléter</span>`;
-      } else if(item.statut==="solde"){
-        stBadge=`<span class="badge" style="background:#e8f5e9;color:#2e7d32;border:1px solid #2e7d32">✅ Soldé</span>`;
-      } else if(item.statut==="partiel"){
-        stBadge=`<span class="badge" style="background:#f3e5f5;color:#7b1fa2;border:1px solid #7b1fa2">🟣 Partiel</span>`;
-        peutPayer=true;
-      } else {
-        stBadge=`<span class="badge" style="background:#ffebee;color:#c62828;border:1px solid #c62828">🔴 Impayé</span>`;
-        peutPayer=true;
-      }
-      const modeLabel=item.mode==="especes (chauffeur)"?`🚛 Chauffeur<br><span style="color:var(--vert);font-size:10px">${item.recu||""}</span>`:item.mode==="cb"?"💳 CB":item.mode==="virement"?"🏦 Virement":item.mode==="cheque"?"📝 Chèque":item.mode==="especes"?"💵 Espèces":item.mode||"—";
-      html+=`<tr style="${item.montant===0?'background:#fff8e1':''}">
-        <td><input type="checkbox" class="soldes-cb" data-idx="${idx}"></td>
-        <td style="font-size:11px">${item.date||"—"}</td>
-        <td style="font-weight:700">${item.client}</td>
-        <td>${typeLabel}</td>
-        <td style="font-size:11px;color:var(--bleu);font-weight:700">${item.doc}</td>
-        <td style="font-size:11px;color:var(--gris3)">${item.designation.substring(0,45)}</td>
-        <td style="font-weight:700;color:${item.montant>0?'var(--rouge)':'#f57c00'}">${item.montant>0?fmtMontant(item.montant):"—"}</td>
-        <td style="font-weight:700;color:var(--vert)">${fmtMontant(item.paye)}</td>
-        <td style="font-size:11px">${modeLabel}${item.date_paiement?`<br><span style="font-size:10px;color:var(--gris3)">${item.date_paiement}</span>`:""}</td>
-        <td style="font-weight:700;color:${(item.montant-item.paye)>0?'var(--rouge)':'var(--vert)'}">${item.montant>0?fmtMontant(item.montant-item.paye):"—"}</td>
-        <td style="font-size:11px;color:var(--vert)">${item.sec_recu_num||item.recu||"—"}</td>
-        <td>${stBadge}</td>
-        <td><div style="display:flex;gap:3px;flex-wrap:wrap">
-          ${item.montant===0
-            ?`<button class="btn btn-warning btn-sm" style="background:#f57c00;color:white" onclick="ouvrirSaisirMontant('${item.id}','${item.doc}','${item.client}')">✏️ Montant</button>`
-            :peutPayer
-            ?`<button class="btn btn-success btn-sm" onclick="ouvrirPaiement('${item.id}','${item.type}','${item.collection}',${item.montant},${item.paye},'${item.client}','${item.doc}')">💰 Payer</button>`
-            :`<button class="btn btn-secondary btn-sm" onclick="annulerPaiement('${item.id}','${item.collection}')">↩</button>`
-          }
-        </div></td>
+            html+=`<tr>
+        <td style="font-size:11px">${b.date_bl||"—"}</td>
+        <td>${b.chauffeur_nom||"—"}</td>
+        <td style="font-size:11px">${b.lieu_embarquement||"—"} → ${b.destination||"—"}</td>
+        <td style="font-size:11px">${duree}</td>
+        <td style="font-size:11px;font-family:monospace">${b.immatriculation||"—"}</td>
+        <td>${b.bon_num||"—"}</td>
+        <td>${mapsUrl?`<a href="${mapsUrl}" target="_blank" class="btn btn-secondary btn-sm">🗺️ Carte</a>`:"—"}</td>
       </tr>`;
     });
     G("gps-tbody").innerHTML=html||`<tr><td colspan="7" style="text-align:center;color:var(--gris3);padding:24px">Cliquez sur Filtrer</td></tr>`;
