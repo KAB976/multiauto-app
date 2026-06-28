@@ -1206,12 +1206,17 @@ function seConnecter(){
       G("sb-nom").textContent=userAdmin.nom||"—";
       G("sb-role").textContent=userAdmin.role==="admin"?"Administrateur":"Secrétaire";
       G("login-err").classList.remove("on");
-      return Promise.all([chargerListeChauffeurs(),chargerListeCamions(),chargerListeClients(),chargerVehiculesData()]);
+      return Promise.all([chargerListeChauffeurs(),chargerListeCamions(),chargerListeClients()]);
     })
     .then(()=>{
       loader(false);
       G("pg-login").style.display="none";
       G("pg-app").classList.add("on");
+      // Charger vehicules en arrière plan
+      db.collection("vehicules_clients").orderBy("marque","asc").get().then(snap=>{
+        vehiculesList=[];
+        snap.forEach(d=>vehiculesList.push({id:d.id,...d.data()}));
+      }).catch(()=>{});
       chargerDashboard();
       chargerBons();
       chargerRecus();
