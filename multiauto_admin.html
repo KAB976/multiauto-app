@@ -772,7 +772,6 @@ tr:hover td{background:var(--gris)}
           </select>
           <select class="filtre-inp" id="soldes-statut" style="min-width:130px">
             <option value="">Tous</option>
-            <option value="incomplet">⚠️ À compléter</option>
             <option value="impaye">🔴 Impayés</option>
             <option value="partiel">🟣 Partiels</option>
             <option value="solde">✅ Soldés</option>
@@ -787,10 +786,9 @@ tr:hover td{background:var(--gris)}
             <thead><tr>
               <th><input type="checkbox" id="soldes-check-all" onclick="selToutSoldes()"></th>
               <th>Date</th><th>Client</th><th>Type</th><th>N° Document</th>
-              <th>Désignation</th><th>Montant</th><th>Payé</th><th>Solde</th>
-              <th>Mode paiement</th><th>Statut</th><th>Actions</th>
-            </tr></thead>
-            <tbody id="soldes-tbody"></tbody>
+              <th>Désignation</th><th>Montant</th><th>Payé / Mode</th><th>Solde</th>
+              <th>N° Reçu</th><th>Statut</th><th>Actions</th>
+            </tr></thead>            <tbody id="soldes-tbody"></tbody>
           </table>
         </div>
       </div>
@@ -2345,8 +2343,13 @@ function peuplerMarquesPC(){
 function chercherRecuPC(){
   const bl=G("pc-bl").value.trim();
   if(!bl){if(G("pc-recu"))G("pc-recu").value="";return;}
-  db.collection("recus").where("bon_num","==",bl).limit(1).get().then(snap=>{
-    G("pc-recu").value=snap.empty?"":snap.docs[0].data().recu_num||"";
+  db.collection("bons").where("bon_num","==",bl).limit(1).get().then(snap=>{
+    if(snap.empty){if(G("pc-recu"))G("pc-recu").value="";return;}
+    const especes=parseFloat(snap.docs[0].data().montant_especes)||0;
+    if(especes<=0){if(G("pc-recu"))G("pc-recu").value="";return;}
+    db.collection("recus").where("bon_num","==",bl).limit(1).get().then(rSnap=>{
+      if(G("pc-recu"))G("pc-recu").value=rSnap.empty?"":rSnap.docs[0].data().recu_num||"";
+    });
   });
 }
 function ouvrirModalPC(){
@@ -2674,174 +2677,140 @@ function ouvrirCarteGPS(bon){
 var soldesData = [];
 
 async function chargerSoldes(prefix){
-  const pfx = prefix||"";
-  const clientSel = G(pfx+"soldes-client")?.value||"";
-  const typeSel   = G(pfx+"soldes-type")?.value||"";
-  const statutSel = G(pfx+"soldes-statut")?.value||"";
-  const debut     = G(pfx+"soldes-debut")?.value||"";
-  const fin       = G(pfx+"soldes-fin")?.value||"";
+  var pfx=prefix||"";
+  var clientSel=G(pfx+"soldes-client")?.value||"";
+  var typeSel=G(pfx+"soldes-type")?.value||"";
+  var statutSel=G(pfx+"soldes-statut")?.value||"";
+  var debut=G(pfx+"soldes-debut")?.value||"";
+  var fin=G(pfx+"soldes-fin")?.value||"";
   loader(true,"Chargement soldes...");
-
-  try {
-    const items = [];
-
-    function calcStatutSolde(montant, paye, paye_solde){
-      if(montant===0) return "incomplet";
-      if(paye_solde || paye>=montant) return "solde";
+  try{
+    var items=[];
+    function calcSt(montant,paye,paye_solde){
+      if(!montant||montant===0) return "incomplet";
+      if(paye_solde||paye>=montant) return "solde";
       if(paye>0) return "partiel";
       return "impaye";
     }
-
-    // 1. BL remorquage — TOUS les BL
-    const blSnap = await db.collection("bons").orderBy("timestamp","desc").limit(500).get();
-    blSnap.forEach(d=>{
-      const b=d.data();
-      const montant = parseFloat(b.montant)||0;
-      const especes = parseFloat(b.montant_especes)||0;
-      // Les espèces du chauffeur comptent comme payé
-      const paye = parseFloat(b.paye_montant)||especes;
-      const clientNom = b.nom_client||b.client||"—";
-      const mode = b.mode_paiement_solde||(especes>0&&paye<=especes?"especes (chauffeur)":"");
-      items.push({
-        id:d.id, type:"bl",
-        date:b.date_bl||"",
-        client:clientNom,
+    var blSnap=await db.collection("bons").orderBy("timestamp","desc").limit(500).get();
+    blSnap.forEach(function(d){
+      var b=d.data();
+      var montant=parseFloat(b.montant)||0;
+      var especes=parseFloat(b.montant_especes)||0;
+      var paye=parseFloat(b.paye_montant)||(b.paye_solde?montant:especes);
+      var mode=b.mode_paiement_solde||(especes>0&&!b.paye_montant?"especes (chauffeur)":"");
+      items.push({id:d.id,type:"bl",date:b.date_bl||"",
+        client:b.nom_client||b.client||"—",
         doc:b.bon_num||"—",
-        designation:`Remorquage — ${b.immatriculation||""} ${b.lieu_embarquement||""} → ${b.destination||""}`,
-        montant, paye, mode,
+        designation:"Remorquage "+(b.immatriculation||"")+" "+(b.lieu_embarquement||"")+" → "+(b.destination||""),
+        montant:montant,paye:paye,mode:mode,
         date_paiement:b.date_paiement_solde||"",
-        statut:calcStatutSolde(montant,paye,b.paye_solde),
-        sec_recu_num:b.sec_recu_num||"",
-        recu:b.recu_num||"",
-        collection:"bons"
-      });
+        statut:calcSt(montant,paye,b.paye_solde),
+        sec_recu_num:b.sec_recu_num||"",recu:b.recu_num||"",collection:"bons"});
     });
-
-    // 2. Magasinage livré
-    const magSnap = await db.collection("magasinage").orderBy("date_entree","desc").limit(200).get();
-    magSnap.forEach(d=>{
-      const m=d.data();
+    var magSnap=await db.collection("magasinage").orderBy("date_entree","desc").limit(200).get();
+    magSnap.forEach(function(d){
+      var m=d.data();
       if(m.statut!=="livre") return;
-      const montant = parseFloat(m.montant_net||m.montant_total)||0;
-      if(montant<=0) return;
-      const paye = parseFloat(m.paye_montant)||0;
-      items.push({
-        id:d.id, type:"magasinage",
-        date:m.date_sortie||m.date_entree||"",
-        client:m.client||"—",
+      var montant=parseFloat(m.montant_net||m.montant_total)||0;
+      if(!montant) return;
+      var paye=parseFloat(m.paye_montant)||0;
+      items.push({id:d.id,type:"magasinage",
+        date:m.date_sortie||m.date_entree||"",client:m.client||"—",
         doc:m.recu_num||"—",
-        designation:`Magasinage — ${m.immat||""} ${m.date_entree||""} → ${m.date_sortie||""}`,
-        montant, paye, mode:m.mode_paiement_solde||"",
+        designation:"Magasinage "+(m.immat||"")+" "+(m.date_entree||"")+" → "+(m.date_sortie||""),
+        montant:montant,paye:paye,mode:m.mode_paiement_solde||"",
         date_paiement:m.date_paiement_solde||"",
-        statut:calcStatutSolde(montant,paye,m.paye_solde),
-        sec_recu_num:m.sec_recu_num||m.recu_num||"",
-        recu:m.recu_num||"",
-        collection:"magasinage"
-      });
+        statut:calcSt(montant,paye,m.paye_solde),
+        sec_recu_num:m.sec_recu_num||m.recu_num||"",recu:m.recu_num||"",collection:"magasinage"});
     });
-
-    // 3. PC — part client uniquement
-    const pcSnap = await db.collection("prises_en_charge").orderBy("date","desc").limit(200).get();
-    pcSnap.forEach(d=>{
-      const p=d.data();
-      const montant = parseFloat(p.montant_client)||0;
-      if(montant<=0) return;
-      const paye = parseFloat(p.montant_client_paye||p.paye_client)||0;
-      const modePC = p.paye_par_chauffeur===true?"especes (chauffeur)":p.mode_paiement_client||"";
-      items.push({
-        id:d.id, type:"pc",
-        date:p.date||"",
-        client:p.client||"—",
+    var pcSnap=await db.collection("prises_en_charge").orderBy("date","desc").limit(200).get();
+    pcSnap.forEach(function(d){
+      var p=d.data();
+      var montant=parseFloat(p.montant_client)||0;
+      if(!montant) return;
+      var paye=parseFloat(p.montant_client_paye||p.paye_client)||0;
+      var mode=p.paye_par_chauffeur===true?"especes (chauffeur)":p.mode_paiement_client||"";
+      items.push({id:d.id,type:"pc",date:p.date||"",client:p.client||"—",
         doc:p.dossier||"—",
-        designation:`PC ${p.assureur||""} — ${p.marque||""} ${p.modele||""} ${p.immat||""}`,
-        montant, paye, mode:modePC,
+        designation:"PC "+(p.assureur||"")+" "+(p.immat||""),
+        montant:montant,paye:paye,mode:mode,
         date_paiement:p.date_paiement_client||"",
-        statut:calcStatutSolde(montant,paye,false),
-        sec_recu_num:p.sec_recu_num||"",
-        recu:p.recu_num||"",
-        collection:"prises_en_charge"
-      });
+        statut:calcSt(montant,paye,false),
+        sec_recu_num:p.sec_recu_num||"",recu:p.recu_num||"",collection:"prises_en_charge"});
     });
-
-    // Filtrer
-    let filtered = items;
-    if(clientSel) filtered = filtered.filter(i=>i.client===clientSel);
-    if(typeSel)   filtered = filtered.filter(i=>i.type===typeSel);
-    if(statutSel) filtered = filtered.filter(i=>i.statut===statutSel);
-    if(debut)     filtered = filtered.filter(i=>(i.date||"")>=debut);
-    if(fin)       filtered = filtered.filter(i=>(i.date||"")<=fin);
-    filtered.sort((a,b)=>(b.date||"").localeCompare(a.date||""));
-    soldesData = filtered;
-
-    // Stats
-    const totalMontant = filtered.filter(i=>i.montant>0).reduce((s,i)=>s+i.montant,0);
-    const totalPaye    = filtered.reduce((s,i)=>s+i.paye,0);
-    const totalSolde   = totalMontant - totalPaye;
-    const nbIncomplet  = filtered.filter(i=>i.statut==="incomplet").length;
-    const nbImpaye     = filtered.filter(i=>i.statut==="impaye").length;
-    const nbPartiel    = filtered.filter(i=>i.statut==="partiel").length;
-    const statsEl = G(pfx+"soldes-stats");
-    if(statsEl) statsEl.innerHTML=`
-      <div style="background:white;border-radius:8px;padding:8px 14px"><div style="font-size:16px;font-weight:900;color:var(--rouge)">${fmtMontant(totalMontant)}</div><div style="font-size:11px;color:var(--gris3)">Total facturé</div></div>
-      <div style="background:white;border-radius:8px;padding:8px 14px"><div style="font-size:16px;font-weight:900;color:var(--vert)">${fmtMontant(totalPaye)}</div><div style="font-size:11px;color:var(--gris3)">Total encaissé</div></div>
-      <div style="background:white;border-radius:8px;padding:8px 14px"><div style="font-size:16px;font-weight:900;color:var(--bleu)">${fmtMontant(totalSolde)}</div><div style="font-size:11px;color:var(--gris3)">Solde restant</div></div>
-      <div style="background:#fff8e1;border-radius:8px;padding:8px 14px"><div style="font-size:16px;font-weight:900;color:#f57c00">${nbIncomplet}</div><div style="font-size:11px;color:var(--gris3)">⚠️ À compléter</div></div>
-      <div style="background:#ffebee;border-radius:8px;padding:8px 14px"><div style="font-size:16px;font-weight:900;color:#c62828">${nbImpaye}</div><div style="font-size:11px;color:var(--gris3)">🔴 Impayés</div></div>
-      <div style="background:#f3e5f5;border-radius:8px;padding:8px 14px"><div style="font-size:16px;font-weight:900;color:#7b1fa2">${nbPartiel}</div><div style="font-size:11px;color:var(--gris3)">🟣 Partiels</div></div>`;
-
-    // Peupler select client
-    const selCl = G(pfx+"soldes-client");
+    var filtered=items.slice();
+    if(clientSel) filtered=filtered.filter(function(i){return i.client===clientSel;});
+    if(typeSel) filtered=filtered.filter(function(i){return i.type===typeSel;});
+    if(statutSel) filtered=filtered.filter(function(i){return i.statut===statutSel;});
+    if(debut) filtered=filtered.filter(function(i){return (i.date||"")>=debut;});
+    if(fin) filtered=filtered.filter(function(i){return (i.date||"")<=fin;});
+    filtered.sort(function(a,b){return (b.date||"").localeCompare(a.date||"");});
+    soldesData=filtered;
+    var totM=filtered.filter(function(i){return i.montant>0;}).reduce(function(s,i){return s+i.montant;},0);
+    var totP=filtered.reduce(function(s,i){return s+i.paye;},0);
+    var nbInc=filtered.filter(function(i){return i.statut==="incomplet";}).length;
+    var nbImp=filtered.filter(function(i){return i.statut==="impaye";}).length;
+    var nbPar=filtered.filter(function(i){return i.statut==="partiel";}).length;
+    var statsEl=G(pfx+"soldes-stats");
+    if(statsEl) statsEl.innerHTML=
+      '<div style="background:white;border-radius:8px;padding:8px 14px"><div style="font-size:16px;font-weight:900;color:var(--rouge)">'+fmtMontant(totM)+'</div><div style="font-size:11px;color:var(--gris3)">Total facturé</div></div>'+
+      '<div style="background:white;border-radius:8px;padding:8px 14px"><div style="font-size:16px;font-weight:900;color:var(--vert)">'+fmtMontant(totP)+'</div><div style="font-size:11px;color:var(--gris3)">Total encaissé</div></div>'+
+      '<div style="background:white;border-radius:8px;padding:8px 14px"><div style="font-size:16px;font-weight:900;color:var(--bleu)">'+fmtMontant(totM-totP)+'</div><div style="font-size:11px;color:var(--gris3)">Solde restant</div></div>'+
+      '<div style="background:#fff8e1;border-radius:8px;padding:8px 14px"><div style="font-size:16px;font-weight:900;color:#f57c00">'+nbInc+'</div><div style="font-size:11px;color:var(--gris3)">⚠️ À compléter</div></div>'+
+      '<div style="background:#ffebee;border-radius:8px;padding:8px 14px"><div style="font-size:16px;font-weight:900;color:#c62828">'+nbImp+'</div><div style="font-size:11px;color:var(--gris3)">🔴 Impayés</div></div>'+
+      '<div style="background:#f3e5f5;border-radius:8px;padding:8px 14px"><div style="font-size:16px;font-weight:900;color:#7b1fa2">'+nbPar+'</div><div style="font-size:11px;color:var(--gris3)">🟣 Partiels</div></div>';
+    var selCl=G(pfx+"soldes-client");
     if(selCl){
-      const clients = [...new Set(items.map(i=>i.client).filter(c=>c&&c!=="—"))].sort();
-      const curVal = selCl.value;
+      var clients=[...new Set(items.map(function(i){return i.client;}).filter(function(c){return c&&c!=="—";}))].sort();
+      var cur=selCl.value;
       selCl.innerHTML="<option value=''>Tous les clients</option>";
-      clients.forEach(c=>{const o=document.createElement("option");o.value=c;o.textContent=c;selCl.appendChild(o);});
-      selCl.value=curVal;
+      clients.forEach(function(c){var o=document.createElement("option");o.value=c;o.textContent=c;selCl.appendChild(o);});
+      selCl.value=cur;
     }
-
-    // Tableau
-    let html="";
-    filtered.forEach((item,idx)=>{
-      const solde = item.montant - item.paye;
-      let stBadge;
-      if(item.statut==="incomplet") stBadge=`<span class="badge" style="background:#fff8e1;color:#f57c00;border:1px solid #f57c00">⚠️ À compléter</span>`;
-      else if(item.statut==="solde") stBadge=`<span class="badge" style="background:#e8f5e9;color:#2e7d32;border:1px solid #2e7d32">✅ Soldé</span>`;
-      else if(item.statut==="partiel") stBadge=`<span class="badge" style="background:#f3e5f5;color:#7b1fa2;border:1px solid #7b1fa2">🟣 Partiel</span>`;
-      else stBadge=`<span class="badge" style="background:#ffebee;color:#c62828;border:1px solid #c62828">🔴 Impayé</span>`;
-      const typeLabel = item.type==="bl"?"🚛 BL":item.type==="magasinage"?"🏠 Mag":"📋 PC";
-      const modeLabel = item.mode==="especes (chauffeur)"?`🚛 Chauffeur<br><span style="color:var(--vert);font-size:10px">${item.recu}</span>`:item.mode==="cb"?"💳 CB":item.mode==="virement"?"🏦 Virement":item.mode==="cheque"?"📝 Chèque":item.mode==="especes"?"💵 Espèces":item.mode||"—";
-      const rowBg = item.statut==="incomplet"?"background:#fff8e1":"";
-      html+=`<tr style="${rowBg}">
-        <td><input type="checkbox" class="soldes-cb" data-idx="${idx}"></td>
-        <td style="font-size:11px">${item.date||"—"}</td>
-        <td style="font-weight:700">${item.client}</td>
-        <td>${typeLabel}</td>
-        <td style="font-size:11px;color:var(--bleu);font-weight:700">${item.doc}</td>
-        <td style="font-size:11px;color:var(--gris3)">${item.designation.substring(0,45)}</td>
-        <td style="font-weight:700;color:${item.montant>0?"var(--rouge)":"#f57c00"}">${item.montant>0?fmtMontant(item.montant):"—"}</td>
-        <td style="font-weight:700;color:var(--vert)">${fmtMontant(item.paye)}${item.mode?`<br><span style="font-size:10px;color:var(--gris3)">${modeLabel}</span>`:""}</td>
-        <td style="font-weight:700;color:${solde>0&&item.montant>0?"var(--rouge)":"var(--vert)"}">${item.montant>0?fmtMontant(solde):"—"}</td>
-        <td style="font-size:11px;color:var(--vert)">${item.sec_recu_num||item.recu||"—"}</td>
-        <td>${stBadge}</td>
-        <td>
-          ${item.statut==="incomplet"
-            ?`<button class="btn btn-sm" style="background:#f57c00;color:white" onclick="ouvrirSaisirMontant('${item.id}','${item.doc}','${item.client}')">✏️ Montant</button>`
-            :item.statut==="solde"
-            ?`<button class="btn btn-secondary btn-sm" onclick="annulerPaiement('${item.id}','${item.collection}')">↩</button>`
-            :`<button class="btn btn-success btn-sm" onclick="ouvrirPaiement('${item.id}','${item.type}','${item.collection}',${item.montant},${item.paye},'${item.client}','${item.doc}')">💰 Payer</button>`
-          }
-        </td>
-      </tr>`;
+    var html="";
+    filtered.forEach(function(item,rowIdx){
+      var solde=item.montant-item.paye;
+      var stBadge;
+      if(item.statut==="incomplet") stBadge='<span class="badge" style="background:#fff8e1;color:#f57c00;border:1px solid #f57c00">⚠️ À compléter</span>';
+      else if(item.statut==="solde") stBadge='<span class="badge" style="background:#e8f5e9;color:#2e7d32;border:1px solid #2e7d32">✅ Soldé</span>';
+      else if(item.statut==="partiel") stBadge='<span class="badge" style="background:#f3e5f5;color:#7b1fa2;border:1px solid #7b1fa2">🟣 Partiel</span>';
+      else stBadge='<span class="badge" style="background:#ffebee;color:#c62828;border:1px solid #c62828">🔴 Impayé</span>';
+      var typeLabel=item.type==="bl"?"🚛 BL":item.type==="magasinage"?"🏠 Mag":"📋 PC";
+      var modeLabel=item.mode==="especes (chauffeur)"?"🚛 Chauffeur":item.mode==="cb"?"💳 CB":item.mode==="virement"?"🏦 Vir.":item.mode==="cheque"?"📝 Chq":item.mode==="especes"?"💵 Esp.":item.mode||"—";
+      var montantAff=item.montant>0?fmtMontant(item.montant):"—";
+      var soldeAff=item.montant>0?fmtMontant(Math.max(0,solde)):"—";
+      var rowBg=item.statut==="incomplet"?"background:#fff8e1":"";
+      var actionBtn;
+      if(item.statut==="incomplet"){
+        actionBtn="<button class='btn btn-sm' style='background:#f57c00;color:white' data-id='"+item.id+"' data-doc='"+item.doc+"' data-client='"+item.client+"' onclick='ouvrirSaisirMontant(this.dataset.id,this.dataset.doc,this.dataset.client)'>✏️ Montant</button>";
+      } else if(item.statut==="solde"){
+        actionBtn="<button class='btn btn-secondary btn-sm' data-id='"+item.id+"' data-col='"+item.collection+"' onclick='annulerPaiement(this.dataset.id,this.dataset.col)'>↩</button>";
+      } else {
+        actionBtn="<button class='btn btn-success btn-sm' data-id='"+item.id+"' data-type='"+item.type+"' data-col='"+item.collection+"' data-m='"+item.montant+"' data-p='"+item.paye+"' data-client='"+item.client+"' data-doc='"+item.doc+"' onclick='ouvrirPaiement(this.dataset.id,this.dataset.type,this.dataset.col,parseFloat(this.dataset.m),parseFloat(this.dataset.p),this.dataset.client,this.dataset.doc)'>💰 Payer</button>";
+      }
+      html+="<tr style='"+rowBg+"'>"
+        +"<td><input type='checkbox' class='soldes-cb' data-idx='"+rowIdx+"'></td>"
+        +"<td style='font-size:11px'>"+(item.date||"—")+"</td>"
+        +"<td style='font-weight:700'>"+item.client+"</td>"
+        +"<td>"+typeLabel+"</td>"
+        +"<td style='font-size:11px;color:var(--bleu);font-weight:700'>"+item.doc+"</td>"
+        +"<td style='font-size:11px;color:var(--gris3)'>"+item.designation.substring(0,45)+"</td>"
+        +"<td style='font-weight:700;color:"+(item.montant>0?"var(--rouge)":"#f57c00")+"'>"+montantAff+"</td>"
+        +"<td style='font-weight:700;color:var(--vert)'>"+fmtMontant(item.paye)+(item.mode?"<br><span style='font-size:10px;color:var(--gris3)'>"+modeLabel+(item.date_paiement?" — "+item.date_paiement:"")+"</span>":"")+"</td>"
+        +"<td style='font-weight:700;color:"+(solde>0&&item.montant>0?"var(--rouge)":"var(--vert)")+"'>"+soldeAff+"</td>"
+        +"<td style='font-size:11px;color:var(--vert)'>"+(item.sec_recu_num||item.recu||"—")+"</td>"
+        +"<td>"+stBadge+"</td>"
+        +"<td>"+actionBtn+"</td>"
+        +"</tr>";
     });
-    const tbody = G(pfx+"soldes-tbody");
-    if(tbody) tbody.innerHTML=html||`<tr><td colspan="12" style="text-align:center;color:var(--gris3);padding:24px">Aucune opération trouvée</td></tr>`;
+    var tbody=G(pfx+"soldes-tbody");
+    if(tbody) tbody.innerHTML=html||"<tr><td colspan='12' style='text-align:center;color:var(--gris3);padding:24px'>Aucune opération trouvée</td></tr>";
     loader(false);
-  } catch(e){
-    loader(false); toast("Erreur chargement","err"); console.error(e);
-  }
+  }catch(e){loader(false);toast("Erreur chargement","err");console.error(e);}
 }
 
-function chargerSoldesSec(){ chargerSoldes("soldes-sec-"); }
+function chargerSoldesSec(){ chargerSoldes(""); }
 
 function ouvrirPaiement(id,type,collection,montant,paye,client,doc){
   G("paiement-doc-id").value=id;
