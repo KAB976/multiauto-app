@@ -772,6 +772,7 @@ tr:hover td{background:var(--gris)}
           </select>
           <select class="filtre-inp" id="soldes-statut" style="min-width:130px">
             <option value="">Tous</option>
+            <option value="incomplet">⚠️ À compléter</option>
             <option value="impaye">🔴 Impayés</option>
             <option value="partiel">🟣 Partiels</option>
             <option value="solde">✅ Soldés</option>
@@ -2682,50 +2683,83 @@ async function chargerSoldes(prefix){
   loader(true,"Chargement soldes...");
 
   try {
-    // 1. BL remorquage
-    const blSnap = await db.collection("bons").orderBy("timestamp","desc").limit(500).get();
     const items = [];
+
+    function calcStatutSolde(montant, paye, paye_solde){
+      if(montant===0) return "incomplet";
+      if(paye_solde || paye>=montant) return "solde";
+      if(paye>0) return "partiel";
+      return "impaye";
+    }
+
+    // 1. BL remorquage — TOUS les BL
+    const blSnap = await db.collection("bons").orderBy("timestamp","desc").limit(500).get();
     blSnap.forEach(d=>{
       const b=d.data();
       const montant = parseFloat(b.montant)||0;
+      const especes = parseFloat(b.montant_especes)||0;
+      // Les espèces du chauffeur comptent comme payé
+      const paye = parseFloat(b.paye_montant)||especes;
       const clientNom = b.nom_client||b.client||"—";
+      const mode = b.mode_paiement_solde||(especes>0&&paye<=especes?"especes (chauffeur)":"");
       items.push({
-        id: d.id, type:"bl", date:b.date_bl||"", client:clientNom,
-        doc: b.bon_num||"—", designation:`Remorquage — ${b.immatriculation||""} ${b.lieu_embarquement||""} → ${b.destination||""}`,
-        montant, paye: b.paye_montant||0, mode: b.mode_paiement_solde||"",
-        date_paiement: b.date_paiement_solde||"",
-        statut: b.paye_solde?"paye":"impaye", collection:"bons"
+        id:d.id, type:"bl",
+        date:b.date_bl||"",
+        client:clientNom,
+        doc:b.bon_num||"—",
+        designation:`Remorquage — ${b.immatriculation||""} ${b.lieu_embarquement||""} → ${b.destination||""}`,
+        montant, paye, mode,
+        date_paiement:b.date_paiement_solde||"",
+        statut:calcStatutSolde(montant,paye,b.paye_solde),
+        sec_recu_num:b.sec_recu_num||"",
+        recu:b.recu_num||"",
+        collection:"bons"
       });
     });
 
-    // 2. Magasinage
+    // 2. Magasinage livré
     const magSnap = await db.collection("magasinage").orderBy("date_entree","desc").limit(200).get();
     magSnap.forEach(d=>{
       const m=d.data();
       if(m.statut!=="livre") return;
-      const montant = m.montant_net||m.montant_total||0;
+      const montant = parseFloat(m.montant_net||m.montant_total)||0;
       if(montant<=0) return;
+      const paye = parseFloat(m.paye_montant)||0;
       items.push({
-        id: d.id, type:"magasinage", date:m.date_sortie||m.date_entree||"", client:m.client||"—",
-        doc: m.recu_num||"—", designation:`Magasinage — ${m.immat||""} ${m.date_entree||""} → ${m.date_sortie||""}`,
-        montant, paye: m.paye_montant||0, mode: m.mode_paiement_solde||"",
-        date_paiement: m.date_paiement_solde||"",
-        statut: m.paye_solde?"paye":"impaye", collection:"magasinage"
+        id:d.id, type:"magasinage",
+        date:m.date_sortie||m.date_entree||"",
+        client:m.client||"—",
+        doc:m.recu_num||"—",
+        designation:`Magasinage — ${m.immat||""} ${m.date_entree||""} → ${m.date_sortie||""}`,
+        montant, paye, mode:m.mode_paiement_solde||"",
+        date_paiement:m.date_paiement_solde||"",
+        statut:calcStatutSolde(montant,paye,m.paye_solde),
+        sec_recu_num:m.sec_recu_num||m.recu_num||"",
+        recu:m.recu_num||"",
+        collection:"magasinage"
       });
     });
 
-    // 3. PC — part client
+    // 3. PC — part client uniquement
     const pcSnap = await db.collection("prises_en_charge").orderBy("date","desc").limit(200).get();
     pcSnap.forEach(d=>{
       const p=d.data();
-      const montant = p.montant_client||0;
+      const montant = parseFloat(p.montant_client)||0;
       if(montant<=0) return;
+      const paye = parseFloat(p.montant_client_paye||p.paye_client)||0;
+      const modePC = p.paye_par_chauffeur===true?"especes (chauffeur)":p.mode_paiement_client||"";
       items.push({
-        id: d.id, type:"pc", date:p.date||"", client:p.client||p.assureur||"—",
-        doc: p.dossier||"—", designation:`PC ${p.assureur||""} — ${p.marque||""} ${p.modele||""} ${p.immat||""}`,
-        montant, paye: p.paye_client||0, mode: p.mode_paiement_solde||"",
-        date_paiement: p.date_paiement_solde||"",
-        statut: (p.paye_client||0)>=(p.montant_client||0)?"paye":"impaye", collection:"prises_en_charge"
+        id:d.id, type:"pc",
+        date:p.date||"",
+        client:p.client||"—",
+        doc:p.dossier||"—",
+        designation:`PC ${p.assureur||""} — ${p.marque||""} ${p.modele||""} ${p.immat||""}`,
+        montant, paye, mode:modePC,
+        date_paiement:p.date_paiement_client||"",
+        statut:calcStatutSolde(montant,paye,false),
+        sec_recu_num:p.sec_recu_num||"",
+        recu:p.recu_num||"",
+        collection:"prises_en_charge"
       });
     });
 
@@ -2734,23 +2768,26 @@ async function chargerSoldes(prefix){
     if(clientSel) filtered = filtered.filter(i=>i.client===clientSel);
     if(typeSel)   filtered = filtered.filter(i=>i.type===typeSel);
     if(statutSel) filtered = filtered.filter(i=>i.statut===statutSel);
-    if(debut)     filtered = filtered.filter(i=>i.date>=debut);
-    if(fin)       filtered = filtered.filter(i=>i.date<=fin);
-
-    // Trier par date
-    filtered.sort((a,b)=>b.date.localeCompare(a.date));
+    if(debut)     filtered = filtered.filter(i=>(i.date||"")>=debut);
+    if(fin)       filtered = filtered.filter(i=>(i.date||"")<=fin);
+    filtered.sort((a,b)=>(b.date||"").localeCompare(a.date||""));
     soldesData = filtered;
 
     // Stats
-    const totalDu  = filtered.reduce((s,i)=>s+i.montant,0);
-    const totalPaye = filtered.reduce((s,i)=>s+i.paye,0);
-    const totalSolde = totalDu - totalPaye;
+    const totalMontant = filtered.filter(i=>i.montant>0).reduce((s,i)=>s+i.montant,0);
+    const totalPaye    = filtered.reduce((s,i)=>s+i.paye,0);
+    const totalSolde   = totalMontant - totalPaye;
+    const nbIncomplet  = filtered.filter(i=>i.statut==="incomplet").length;
+    const nbImpaye     = filtered.filter(i=>i.statut==="impaye").length;
+    const nbPartiel    = filtered.filter(i=>i.statut==="partiel").length;
     const statsEl = G(pfx+"soldes-stats");
     if(statsEl) statsEl.innerHTML=`
-      <div style="background:white;border-radius:8px;padding:8px 14px;font-size:12px"><div style="font-size:18px;font-weight:900;color:var(--rouge)">${fmtMontant(totalDu)}</div><div style="color:var(--gris3)">Total dû</div></div>
-      <div style="background:white;border-radius:8px;padding:8px 14px;font-size:12px"><div style="font-size:18px;font-weight:900;color:var(--vert)">${fmtMontant(totalPaye)}</div><div style="color:var(--gris3)">Total payé</div></div>
-      <div style="background:white;border-radius:8px;padding:8px 14px;font-size:12px"><div style="font-size:18px;font-weight:900;color:var(--bleu)">${fmtMontant(totalSolde)}</div><div style="color:var(--gris3)">Solde restant</div></div>
-      <div style="background:white;border-radius:8px;padding:8px 14px;font-size:12px"><div style="font-size:18px;font-weight:900">${filtered.length}</div><div style="color:var(--gris3)">Opérations</div></div>`;
+      <div style="background:white;border-radius:8px;padding:8px 14px"><div style="font-size:16px;font-weight:900;color:var(--rouge)">${fmtMontant(totalMontant)}</div><div style="font-size:11px;color:var(--gris3)">Total facturé</div></div>
+      <div style="background:white;border-radius:8px;padding:8px 14px"><div style="font-size:16px;font-weight:900;color:var(--vert)">${fmtMontant(totalPaye)}</div><div style="font-size:11px;color:var(--gris3)">Total encaissé</div></div>
+      <div style="background:white;border-radius:8px;padding:8px 14px"><div style="font-size:16px;font-weight:900;color:var(--bleu)">${fmtMontant(totalSolde)}</div><div style="font-size:11px;color:var(--gris3)">Solde restant</div></div>
+      <div style="background:#fff8e1;border-radius:8px;padding:8px 14px"><div style="font-size:16px;font-weight:900;color:#f57c00">${nbIncomplet}</div><div style="font-size:11px;color:var(--gris3)">⚠️ À compléter</div></div>
+      <div style="background:#ffebee;border-radius:8px;padding:8px 14px"><div style="font-size:16px;font-weight:900;color:#c62828">${nbImpaye}</div><div style="font-size:11px;color:var(--gris3)">🔴 Impayés</div></div>
+      <div style="background:#f3e5f5;border-radius:8px;padding:8px 14px"><div style="font-size:16px;font-weight:900;color:#7b1fa2">${nbPartiel}</div><div style="font-size:11px;color:var(--gris3)">🟣 Partiels</div></div>`;
 
     // Peupler select client
     const selCl = G(pfx+"soldes-client");
@@ -2766,39 +2803,45 @@ async function chargerSoldes(prefix){
     let html="";
     filtered.forEach((item,idx)=>{
       const solde = item.montant - item.paye;
-      const stBadge = item.statut==="paye"
-        ?`<span class="badge badge-vert">✅ Payé</span>`
-        :`<span class="badge badge-rouge">⏳ Impayé</span>`;
+      let stBadge;
+      if(item.statut==="incomplet") stBadge=`<span class="badge" style="background:#fff8e1;color:#f57c00;border:1px solid #f57c00">⚠️ À compléter</span>`;
+      else if(item.statut==="solde") stBadge=`<span class="badge" style="background:#e8f5e9;color:#2e7d32;border:1px solid #2e7d32">✅ Soldé</span>`;
+      else if(item.statut==="partiel") stBadge=`<span class="badge" style="background:#f3e5f5;color:#7b1fa2;border:1px solid #7b1fa2">🟣 Partiel</span>`;
+      else stBadge=`<span class="badge" style="background:#ffebee;color:#c62828;border:1px solid #c62828">🔴 Impayé</span>`;
       const typeLabel = item.type==="bl"?"🚛 BL":item.type==="magasinage"?"🏠 Mag":"📋 PC";
-      const modeLabel = item.mode==="especes"?"💵":item.mode==="virement"?"🏦":item.mode==="cheque"?"📝":"";
-            html+=`<tr style="${item.montant===0?'background:#fff8e1':''}">
+      const modeLabel = item.mode==="especes (chauffeur)"?`🚛 Chauffeur<br><span style="color:var(--vert);font-size:10px">${item.recu}</span>`:item.mode==="cb"?"💳 CB":item.mode==="virement"?"🏦 Virement":item.mode==="cheque"?"📝 Chèque":item.mode==="especes"?"💵 Espèces":item.mode||"—";
+      const rowBg = item.statut==="incomplet"?"background:#fff8e1":"";
+      html+=`<tr style="${rowBg}">
         <td><input type="checkbox" class="soldes-cb" data-idx="${idx}"></td>
         <td style="font-size:11px">${item.date||"—"}</td>
         <td style="font-weight:700">${item.client}</td>
         <td>${typeLabel}</td>
         <td style="font-size:11px;color:var(--bleu);font-weight:700">${item.doc}</td>
         <td style="font-size:11px;color:var(--gris3)">${item.designation.substring(0,45)}</td>
-        <td style="font-weight:700">${item.montant>0?fmtMontant(item.montant):"—"}</td>
-        <td style="font-weight:700;color:var(--vert)">${fmtMontant(item.paye)}${item.mode?`<br><span style="font-size:10px;color:var(--gris3)">${
-          item.mode==="cb"?"💳 CB":item.mode==="virement"?"🏦 Vir.":item.mode==="cheque"?"📝 Chq":item.mode==="especes"?"💵 Esp.":item.mode==="especes (chauffeur)"?"🚛 Ch.":item.mode
-        }${item.date_paiement?" — "+item.date_paiement:""}</span>`:""}</td>
-        <td style="font-weight:700;color:${solde>0?"var(--rouge)":"var(--vert)"}">${fmtMontant(solde)}</td>
+        <td style="font-weight:700;color:${item.montant>0?"var(--rouge)":"#f57c00"}">${item.montant>0?fmtMontant(item.montant):"—"}</td>
+        <td style="font-weight:700;color:var(--vert)">${fmtMontant(item.paye)}${item.mode?`<br><span style="font-size:10px;color:var(--gris3)">${modeLabel}</span>`:""}</td>
+        <td style="font-weight:700;color:${solde>0&&item.montant>0?"var(--rouge)":"var(--vert)"}">${item.montant>0?fmtMontant(solde):"—"}</td>
         <td style="font-size:11px;color:var(--vert)">${item.sec_recu_num||item.recu||"—"}</td>
         <td>${stBadge}</td>
-        <td>${item.montant>0?(item.statut!=="solde"
-          ?`<button class="btn btn-success btn-sm" onclick="ouvrirPaiement('${item.id}','${item.type}','${item.collection}',${item.montant},${item.paye},'${item.client}','${item.doc}')">💰 Payer</button>`
-          :`<button class="btn btn-secondary btn-sm" onclick="annulerPaiement('${item.id}','${item.collection}')">↩</button>`)
-          :"<span style='font-size:11px;color:#f57c00'>⚠️ Saisir montant</span>"
-        }</td>
+        <td>
+          ${item.statut==="incomplet"
+            ?`<button class="btn btn-sm" style="background:#f57c00;color:white" onclick="ouvrirSaisirMontant('${item.id}','${item.doc}','${item.client}')">✏️ Montant</button>`
+            :item.statut==="solde"
+            ?`<button class="btn btn-secondary btn-sm" onclick="annulerPaiement('${item.id}','${item.collection}')">↩</button>`
+            :`<button class="btn btn-success btn-sm" onclick="ouvrirPaiement('${item.id}','${item.type}','${item.collection}',${item.montant},${item.paye},'${item.client}','${item.doc}')">💰 Payer</button>`
+          }
+        </td>
       </tr>`;
     });
     const tbody = G(pfx+"soldes-tbody");
-    if(tbody) tbody.innerHTML=html||`<tr><td colspan="12" style="text-align:center;color:var(--gris3);padding:24px">Aucune opération</td></tr>`;
+    if(tbody) tbody.innerHTML=html||`<tr><td colspan="12" style="text-align:center;color:var(--gris3);padding:24px">Aucune opération trouvée</td></tr>`;
     loader(false);
   } catch(e){
     loader(false); toast("Erreur chargement","err"); console.error(e);
   }
 }
+
+function chargerSoldesSec(){ chargerSoldes("soldes-sec-"); }
 
 function ouvrirPaiement(id,type,collection,montant,paye,client,doc){
   G("paiement-doc-id").value=id;
