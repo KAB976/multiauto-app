@@ -1311,7 +1311,10 @@ function majFiltreTypeST(){
 
 function selToutHistorique(){
   const all=G("hist-check-all");
-  document.querySelectorAll(".hist-cb").forEach(cb=>cb.checked=all?all.checked:true);
+  const cbs=document.querySelectorAll(".hist-cb");
+  if(!cbs.length){toast("Faites d'abord une recherche","err");return;}
+  const val=all?all.checked:true;
+  cbs.forEach(cb=>cb.checked=val);
 }
 
 function exporterHistoriquePDF(){
