@@ -327,6 +327,7 @@ tr:hover td{background:var(--gris)}
       <option value="especes">💵 Espèces</option>
       <option value="virement">🏦 Virement</option>
       <option value="cheque">📝 Chèque</option>
+      <option value="cb">💳 CB</option>
     </select>
   </div>
   <div class="form-group"><span class="fl">Date paiement</span><input class="inp" id="ppc-date" type="date"></div>
@@ -1172,7 +1173,11 @@ function seConnecter(){
       G("sb-nom").textContent=userAdmin.nom||"—";
       G("sb-role").textContent=userAdmin.role==="admin"?"Administrateur":"Secrétaire";
       G("login-err").classList.remove("on");
-      return Promise.all([chargerListeChauffeurs(),chargerListeCamions(),chargerListeClients()]);
+      // Charger vehicules en arrière-plan
+    db.collection("vehicules_clients").orderBy("marque","asc").get().then(snap=>{
+      vehiculesList=[]; snap.forEach(d=>vehiculesList.push({id:d.id,...d.data()}));
+    }).catch(()=>{});
+    return Promise.all([chargerListeChauffeurs(),chargerListeCamions(),chargerListeClients()]);
     })
     .then(()=>{
       loader(false);
@@ -2156,14 +2161,36 @@ function ouvrirLivraison(id){
 
 function confirmerLivraison(){
   const id=G("livraison-mag-id").value, dateSortie=G("mag-date-sortie").value;
+  loader(true);
   db.collection("magasinage").doc(id).get().then(snap=>{
     const m=snap.data();
     const e=new Date(m.date_entree), s=new Date(dateSortie);
     const jours=Math.max(1,Math.ceil((s-e)/(1000*60*60*24)));
     const total=jours*(m.tarif_jour||40), net=total-(m.remise||0);
-    return db.collection("magasinage").doc(id).update({statut:"livre",date_sortie:dateSortie,jours,montant_total:total,montant_net:net});
-  }).then(()=>{toast("Véhicule restitué ✅");fermerModal("modal-livraison-mag");chargerMagasinage();})
-  .catch(()=>toast("Erreur","err"));
+    return db.collection("parametres").doc("mag_compteur").get().then(cs=>{
+      const n=(cs.exists?cs.data().val||0:0)+1;
+      const recuNum="SEC/MAG-"+("000000"+n).slice(-6);
+      const today=new Date();
+      const batch=db.batch();
+      batch.set(db.collection("parametres").doc("mag_compteur"),{val:n});
+      batch.update(db.collection("magasinage").doc(id),{
+        statut:"livre",date_sortie:dateSortie,jours,montant_total:total,montant_net:net,recu_num:recuNum
+      });
+      batch.set(db.collection("recus").doc(),{
+        recu_num:recuNum,type_bl:"magasinage",
+        nom_client:m.client||"—",immatriculation:m.immat||"—",
+        date:today.toLocaleDateString("fr-FR"),heure:today.toLocaleTimeString("fr-FR",{hour:"2-digit",minute:"2-digit"}),
+        montant:net,jours,date_entree:m.date_entree||"—",date_sortie:dateSortie,
+        createdAt:firebase.firestore.FieldValue.serverTimestamp()
+      });
+      return batch.commit();
+    });
+  }).then(()=>{
+    toast("Restitué ✅ — Reçu SEC/MAG généré");
+    fermerModal("modal-livraison-mag");
+    chargerMagasinage();
+    loader(false);
+  }).catch(e=>{toast("Erreur","err");loader(false);console.error(e);});
 }
 
 function supprimerMag(id){if(!confirm("Supprimer ?"))return;db.collection("magasinage").doc(id).delete().then(()=>{toast("Supprimé");chargerMagasinage();});}
@@ -2285,6 +2312,10 @@ function ouvrirModalPC(){
   G("pc-date").value=new Date().toISOString().split("T")[0];
   if(G("pc-date-intervention"))G("pc-date-intervention").value="";
   G("btn-annuler-pc").style.display="none";
+  peuplerMarquesPC();
+  if(G("pc-modele"))G("pc-modele").innerHTML="<option value=''>— Modèle —</option>";
+  resetPaieParChauffeur("pc-");
+  if(G("pc-statut-assureur"))G("pc-statut-assureur").value="en_attente";
   const sel=G("pc-client");sel.innerHTML="<option value=''>— Client (facultatif) —</option>";
   clientsList.forEach(cl=>{const o=document.createElement("option");o.value=cl.nom;o.textContent=cl.nom;sel.appendChild(o);});
   const selCh=G("pc-chauffeur");selCh.innerHTML="<option value=''>— Choisir —</option>";
@@ -2601,8 +2632,8 @@ async function chargerSoldes(prefix){
     const items = [];
     blSnap.forEach(d=>{
       const b=d.data();
-      const montant = b.montant || 0;
-      if(montant<=0) return; // BL sans montant ignoré (PC etc)
+      if(!b.nom_client||b.nom_client==="—") return;
+      const montant = parseFloat(b.montant)||0;
       items.push({
         id: d.id, type:"bl", date:b.date_bl||"", client:b.nom_client||"—",
         doc: b.bon_num||"—", designation:`Remorquage — ${b.immatriculation||""} ${b.lieu_embarquement||""} → ${b.destination||""}`,
@@ -2685,22 +2716,27 @@ async function chargerSoldes(prefix){
         :`<span class="badge badge-rouge">⏳ Impayé</span>`;
       const typeLabel = item.type==="bl"?"🚛 BL":item.type==="magasinage"?"🏠 Mag":"📋 PC";
       const modeLabel = item.mode==="especes"?"💵":item.mode==="virement"?"🏦":item.mode==="cheque"?"📝":"";
-      html+=`<tr>
+      const montantCell=item.type==="bl"&&item.montant===0
+        ?`<input type="number" class="inp" placeholder="Montant..." style="width:90px;font-size:11px;padding:4px" step="0.01" min="0" onchange="saisirMontantBL('${item.id}',this.value)">`
+        :`<span style="font-weight:700;color:var(--rouge)">${fmtMontant(item.montant)}</span>`;
+      html+=`<tr style="${item.montant===0?'background:#fff8e1':''}">
         <td><input type="checkbox" class="soldes-cb" data-idx="${idx}"></td>
         <td style="font-size:11px">${item.date||"—"}</td>
         <td style="font-weight:700">${item.client}</td>
         <td>${typeLabel}</td>
         <td style="font-size:11px;color:var(--bleu);font-weight:700">${item.doc}</td>
         <td style="font-size:11px;color:var(--gris3)">${item.designation.substring(0,45)}</td>
-        <td style="font-weight:700;color:var(--rouge)">${fmtMontant(item.montant)}</td>
-        <td style="font-weight:700;color:var(--vert)">${fmtMontant(item.paye)}</td>
-        <td style="font-size:11px">${item.mode==="especes (chauffeur)"?`🚛 Chauffeur<br><span style="color:var(--vert);font-size:10px">${item.recu||""}</span>`:item.mode==="cb"?"💳 CB":item.mode==="virement"?"🏦 Virement":item.mode==="cheque"?"📝 Chèque":item.mode==="especes"?"💵 Espèces":item.mode||"—"}${item.date_paiement?`<br><span style="font-size:10px;color:var(--gris3)">${item.date_paiement}</span>`:""}</td>
+        <td>${montantCell}</td>
+        <td style="font-weight:700;color:var(--vert)">${fmtMontant(item.paye)}${item.mode?`<br><span style="font-size:10px;color:var(--gris3)">${
+          item.mode==="cb"?"💳 CB":item.mode==="virement"?"🏦 Vir.":item.mode==="cheque"?"📝 Chq":item.mode==="especes"?"💵 Esp.":item.mode==="especes (chauffeur)"?"🚛 Ch.":item.mode
+        }${item.date_paiement?" — "+item.date_paiement:""}</span>`:""}</td>
         <td style="font-weight:700;color:${solde>0?"var(--rouge)":"var(--vert)"}">${fmtMontant(solde)}</td>
-        <td style="font-size:11px;color:var(--vert)">${item.recu||"—"}</td>
+        <td style="font-size:11px;color:var(--vert)">${item.sec_recu_num||item.recu||"—"}</td>
         <td>${stBadge}</td>
-        <td>${item.statut!=="solde"
+        <td>${item.montant>0?(item.statut!=="solde"
           ?`<button class="btn btn-success btn-sm" onclick="ouvrirPaiement('${item.id}','${item.type}','${item.collection}',${item.montant},${item.paye},'${item.client}','${item.doc}')">💰 Payer</button>`
-          :`<button class="btn btn-secondary btn-sm" onclick="annulerPaiement('${item.id}','${item.collection}')">↩</button>`
+          :`<button class="btn btn-secondary btn-sm" onclick="annulerPaiement('${item.id}','${item.collection}')">↩</button>`)
+          :"<span style='font-size:11px;color:#f57c00'>⚠️ Saisir montant</span>"
         }</td>
       </tr>`;
     });
@@ -2729,21 +2765,28 @@ function confirmerPaiement(){
   const date=G("paiement-date").value;
   if(!montant){toast("Montant obligatoire","err");return;}
   loader(true);
-  // Récupérer le document pour cumuler
   db.collection(col).doc(id).get().then(snap=>{
     const data=snap.data();
-    const dejaPaye = col==="prises_en_charge"?(data.paye_client||0):(data.paye_montant||0);
-    const newPaye = dejaPaye + montant;
-    const montantTotal = col==="prises_en_charge"?(data.montant_client||0):(data.montant||data.montant_net||0);
-    const soldé = newPaye >= montantTotal;
-    const update = col==="prises_en_charge"
-      ?{paye_client:newPaye, paye_solde:soldé, mode_paiement_solde:mode, date_paiement_solde:date}
-      :{paye_montant:newPaye, paye_solde:soldé, mode_paiement_solde:mode, date_paiement_solde:date};
-    return db.collection(col).doc(id).update(update);
+    const dejaPaye=col==="prises_en_charge"?(data.paye_client||0):(data.paye_montant||0);
+    const newPaye=dejaPaye+montant;
+    const montantTotal=col==="prises_en_charge"?(data.montant_client||0):(data.montant||data.montant_net||0);
+    const solde=newPaye>=montantTotal;
+    const update=col==="prises_en_charge"
+      ?{paye_client:newPaye,paye_solde:solde,mode_paiement_solde:mode,date_paiement_solde:date}
+      :{paye_montant:newPaye,paye_solde:solde,mode_paiement_solde:mode,date_paiement_solde:date};
+    return db.collection("parametres").doc("sec_recu_compteur").get().then(cs=>{
+      const n=(cs.exists?cs.data().val||0:0)+1;
+      const recuNum="SEC/R-"+("000000"+n).slice(-6);
+      const modeLabel=mode==="cb"?"CB":mode==="virement"?"Vir.":mode==="cheque"?"Chq.":"Esp.";
+      update.sec_recu_num=recuNum+" ("+modeLabel+")";
+      const batch=db.batch();
+      batch.set(db.collection("parametres").doc("sec_recu_compteur"),{val:n});
+      batch.update(db.collection(col).doc(id),update);
+      return batch.commit();
+    });
   }).then(()=>{
     toast("Paiement enregistré ✅");
     fermerModal("modal-paiement-solde");
-    // Passer à "Tous" pour voir le solde mis à jour
     if(G("soldes-statut")) G("soldes-statut").value="";
     if(G("soldes-sec-statut")) G("soldes-sec-statut").value="";
     if(G("soldes-tbody")) chargerSoldes("");
@@ -2814,6 +2857,13 @@ function exporterSoldesPDFSec(){ exporterSoldesPDF("soldes-sec-"); }
 // Wrappers pour les 2 contextes
 function chargerSoldesSec(){ chargerSoldes("soldes-sec-"); }
 
+function saisirMontantBL(id,montant){
+  const m=parseFloat(montant)||0;
+  if(m<=0){toast("Montant invalide","err");return;}
+  db.collection("bons").doc(id).update({montant:m}).then(()=>{
+    toast("Montant enregistré ✅"); chargerSoldes("");
+  }).catch(()=>toast("Erreur","err"));
+}
 function chargerStats(){
   loader(true,"Calcul statistiques...");
   const stType=G("stats-type")?.value||"";
