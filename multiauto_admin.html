@@ -742,7 +742,7 @@ tr:hover td{background:var(--gris)}
           <table>
             <thead><tr>
               <th><input type="checkbox" id="gps-check-all" onclick="toutCocherGPS()"></th>
-              <th>Date</th><th>Chauffeur</th><th>Embarquement</th><th>Destination</th><th>Durée</th><th>Tarif</th><th>Carte</th>
+              <th>Date</th><th>Chauffeur</th><th>Trajet</th><th>Durée</th><th>Immat</th><th>N° BL</th><th>Carte</th>
             </tr></thead>
             <tbody id="gps-tbody"><tr><td colspan="7" style="text-align:center;color:var(--gris3);padding:24px">Cliquez sur Filtrer</td></tr></tbody>
           </table>
@@ -2583,12 +2583,13 @@ function chargerGPS(){
       else if(b.lieu_embarquement&&b.destination) mapsUrl="https://www.google.com/maps/dir/"+encodeURIComponent(b.lieu_embarquement+", Mayotte")+"/"+encodeURIComponent(b.destination+", Mayotte");
       const bonData=JSON.stringify({lieu_embarquement:b.lieu_embarquement||"",destination:b.destination||"",chauffeur_nom:b.chauffeur_nom||"",date_bl:b.date_bl||"",heure_bl:b.heure_bl||"",tarif:b.tarif||"",duree_trajet_min:b.duree_trajet_min||0,gps_emb_lat:b.gps_emb_lat||null,gps_emb_lng:b.gps_emb_lng||null,gps_dest_lat:b.gps_dest_lat||null,gps_dest_lng:b.gps_dest_lng||null}).replace(/'/g,"\'");
             html+=`<tr>
+        <td><input type="checkbox" class="gps-cb" data-id="${b.id}"></td>
         <td style="font-size:11px">${b.date_bl||"—"}</td>
-        <td>${b.chauffeur_nom||"—"}</td>
-        <td style="font-size:11px">${b.lieu_embarquement||"—"} → ${b.destination||"—"}</td>
+        <td style="font-weight:600">${b.chauffeur_nom||"—"}</td>
+        <td style="font-size:11px;color:var(--bleu)">${b.lieu_embarquement||"—"} → ${b.destination||"—"}</td>
         <td style="font-size:11px">${duree}</td>
-        <td style="font-size:11px;font-family:monospace">${b.immatriculation||"—"}</td>
-        <td>${b.bon_num||"—"}</td>
+        <td style="font-size:11px;font-family:monospace;font-weight:700">${b.immatriculation||"—"}</td>
+        <td style="font-size:11px;color:var(--bleu)">${b.bon_num||"—"}</td>
         <td>${mapsUrl?`<a href="${mapsUrl}" target="_blank" class="btn btn-secondary btn-sm">🗺️ Carte</a>`:"—"}</td>
       </tr>`;
     });
