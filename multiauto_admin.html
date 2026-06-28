@@ -2683,16 +2683,20 @@ async function chargerSoldes(prefix){
       html+=`<tr>
         <td><input type="checkbox" class="soldes-cb" data-idx="${idx}"></td>
         <td style="font-size:11px">${item.date||"—"}</td>
-        <td style="font-weight:600">${item.client}</td>
+        <td style="font-weight:700">${item.client}</td>
         <td>${typeLabel}</td>
         <td style="font-size:11px;color:var(--bleu);font-weight:700">${item.doc}</td>
-        <td style="font-size:11px;color:var(--gris3)">${item.designation.substring(0,50)}</td>
+        <td style="font-size:11px;color:var(--gris3)">${item.designation.substring(0,45)}</td>
         <td style="font-weight:700;color:var(--rouge)">${fmtMontant(item.montant)}</td>
-        <td style="font-weight:700;color:var(--vert)">${fmtMontant(item.paye)}${item.date_paiement?`<br><span style="font-size:10px;color:var(--gris3)">${item.date_paiement}</span>`:""}</td>
+        <td style="font-weight:700;color:var(--vert)">${fmtMontant(item.paye)}</td>
+        <td style="font-size:11px">${item.mode==="especes (chauffeur)"?`🚛 Chauffeur<br><span style="color:var(--vert);font-size:10px">${item.recu||""}</span>`:item.mode==="cb"?"💳 CB":item.mode==="virement"?"🏦 Virement":item.mode==="cheque"?"📝 Chèque":item.mode==="especes"?"💵 Espèces":item.mode||"—"}${item.date_paiement?`<br><span style="font-size:10px;color:var(--gris3)">${item.date_paiement}</span>`:""}</td>
         <td style="font-weight:700;color:${solde>0?"var(--rouge)":"var(--vert)"}">${fmtMontant(solde)}</td>
-        <td style="font-size:12px">${modeLabel} ${item.mode||"—"}</td>
+        <td style="font-size:11px;color:var(--vert)">${item.recu||"—"}</td>
         <td>${stBadge}</td>
-        <td>${item.statut!=="paye"?`<button class="btn btn-success btn-sm" onclick="ouvrirPaiement('${item.id}','${item.type}','${item.collection}',${item.montant},${item.paye},'${item.client}','${item.doc}')">💰 Payer</button>`:`<button class="btn btn-secondary btn-sm" onclick="annulerPaiement('${item.id}','${item.collection}')">↩ Annuler</button>`}</td>
+        <td>${item.statut!=="solde"
+          ?`<button class="btn btn-success btn-sm" onclick="ouvrirPaiement('${item.id}','${item.type}','${item.collection}',${item.montant},${item.paye},'${item.client}','${item.doc}')">💰 Payer</button>`
+          :`<button class="btn btn-secondary btn-sm" onclick="annulerPaiement('${item.id}','${item.collection}')">↩</button>`
+        }</td>
       </tr>`;
     });
     const tbody = G(pfx+"soldes-tbody");
