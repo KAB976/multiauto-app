@@ -2734,7 +2734,9 @@ function confirmerPaiement(){
   }).then(()=>{
     toast("Paiement enregistré ✅");
     fermerModal("modal-paiement-solde");
-    // Recharger selon le contexte
+    // Passer à "Tous" pour voir le solde mis à jour
+    if(G("soldes-statut")) G("soldes-statut").value="";
+    if(G("soldes-sec-statut")) G("soldes-sec-statut").value="";
     if(G("soldes-tbody")) chargerSoldes("");
     if(G("soldes-sec-tbody")) chargerSoldes("soldes-sec-");
     loader(false);
