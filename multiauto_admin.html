@@ -1884,12 +1884,27 @@ function sauvegarderCamion(){
   const chVal=G("cam-chauffeur").value;
   const chObj=chauffeursList.find(c=>c.id===chVal||c.nom===chVal);
   const ch=chObj?chObj.nom:chVal;
+  const chId=chObj?chObj.id:null;
   if(!nom){toast("Nom obligatoire","err");return;}
   loader(true);
   const data={nom,immat,marque,modele,annee,chauffeur_defaut:ch,actif:true};
   const p=editingId?db.collection("vehicules").doc(editingId).update(data):db.collection("vehicules").add({...data,createdAt:firebase.firestore.FieldValue.serverTimestamp()});
-  p.then(()=>{toast(editingId?"Modifié ✅":"Ajouté ✅");fermerModal("modal-camion");chargerCamions();chargerListeCamions();loader(false);})
-  .catch(()=>{toast("Erreur","err");loader(false);});
+  p.then(async()=>{
+    // Sync: mettre à jour le champ camion dans le doc users du chauffeur assigné
+    if(chId){
+      try{ await db.collection("users").doc(chId).update({camion:nom, immat_camion:immat}); }catch(e){}
+    }
+    // Si on a changé le chauffeur assigné, retirer l'ancien camion de l'ancien chauffeur
+    if(editingId){
+      const camSnap=await db.collection("vehicules").doc(editingId).get().catch(()=>null);
+      // Chercher d'autres chauffeurs qui auraient encore ce camion assigné et le retirer
+      const oldNom=(camSnap&&camSnap.exists)?camSnap.data().nom:nom;
+      const usersSnap=await db.collection("users").where("camion","==",oldNom).get().catch(()=>null);
+      if(usersSnap) usersSnap.forEach(d=>{ if(d.id!==chId) db.collection("users").doc(d.id).update({camion:"",immat_camion:""}); });
+    }
+    toast(editingId?"Modifié ✅":"Ajouté ✅");
+    fermerModal("modal-camion");chargerCamions();chargerListeCamions();chargerChauffeurs();loader(false);
+  }).catch(()=>{toast("Erreur","err");loader(false);});
 }
 function supprimerCamion(id){if(!confirm("Supprimer ?"))return;db.collection("vehicules").doc(id).delete().then(()=>{toast("Supprimé");chargerCamions();chargerListeCamions();});}
 
@@ -2591,11 +2606,16 @@ function exporterMagasinagePDF(){
 // ── PRISES EN CHARGE ──
 function chargerPC(){
   const statut=G("pc-filtre-statut")?.value||"";
+  const debut=G("pc-date-debut")?.value||"";
+  const fin=G("pc-date-fin")?.value||"";
   db.collection("prises_en_charge").orderBy("date","desc").limit(200).get().then(snap=>{
     let list=[]; snap.forEach(d=>list.push({id:d.id,...d.data()}));
     const filtAss=G("pc-filtre-assureur")?.value||"";
     const filtCl=G("pc-filtre-client")?.value||"";
     if(statut) list=list.filter(p=>p.statut===statut);
+    // Filtre dates — le champ date est au format DD/MM/YYYY, on compare en YYYY-MM-DD
+    if(debut) list=list.filter(p=>{ const d=p.date||""; const parts=d.split("/"); return parts.length===3?(parts[2]+"-"+parts[1]+"-"+parts[0])>=debut:true; });
+    if(fin)   list=list.filter(p=>{ const d=p.date||""; const parts=d.split("/"); return parts.length===3?(parts[2]+"-"+parts[1]+"-"+parts[0])<=fin:true; });
     if(filtAss) list=list.filter(p=>(p.statut_assureur||"en_attente")===filtAss);
     if(filtCl==="paye")    list=list.filter(p=>(parseFloat(p.montant_client_paye||p.paye_client)||0)>=(p.montant_client||0)&&(p.montant_client||0)>0);
     else if(filtCl==="partiel") list=list.filter(p=>(parseFloat(p.montant_client_paye||p.paye_client)||0)>0&&(parseFloat(p.montant_client_paye||p.paye_client)||0)<(p.montant_client||0));
