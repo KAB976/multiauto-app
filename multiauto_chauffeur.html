@@ -1803,8 +1803,46 @@ window.enregistrer = async function(){
   };
 
   try {
+    // Si type PC : marquer deplace_en_pc + paye_montant depuis espèces
+    if(payload.type_bl === "pc"){
+      payload.deplace_en_pc = true;
+      // Le paiement espèces du chauffeur = part client payée
+      if(espActif && payload.montant_especes > 0){
+        payload.paye_montant = payload.montant_especes;
+        payload.mode_paiement_client = "especes";
+        payload.paye_par_chauffeur = true;
+      }
+    }
+
     // Sauvegarder le BL dans Firestore
     await addDoc(collection(db,"bons"), payload);
+
+    // Si type PC → créer aussi un doc dans prises_en_charge
+    if(payload.type_bl === "pc"){
+      const pcData = {
+        dossier: "BL→PC " + bonNum,
+        date: payload.date_bl,
+        assureur: payload.nom_client || "",
+        client: payload.nom_client || "",
+        tel: payload.tel_client || "",
+        marque: payload.marque || "",
+        modele: payload.modele || "",
+        immat: payload.immatriculation || "",
+        bon_num: bonNum,
+        montant_assurance: 0,
+        montant_client: 0,
+        montant_reel: 0,
+        montant_client_paye: espActif ? payload.montant_especes : 0,
+        statut_assureur: "en_attente",
+        statut_paiement_client: espActif && payload.montant_especes > 0 ? "partiel" : "impaye",
+        statut: "en_cours",
+        paye_par_chauffeur: espActif && payload.montant_especes > 0,
+        mode_paiement_client: espActif ? "especes" : "",
+        notes: "Créé par chauffeur " + payload.chauffeur_nom + " — BL: " + bonNum,
+        createdAt: serverTimestamp()
+      };
+      await addDoc(collection(db,"prises_en_charge"), pcData);
+    }
 
     // Sauvegarder le reçu séparément si espèces
     if(espActif && payload.montant_especes > 0){
