@@ -301,16 +301,56 @@ tr:hover td{background:var(--gris)}
 </div>
 </div>
 
-<!-- Modal Livraison Magasinage -->
+<!-- Modal Livraison + Paiement Magasinage -->
 <div class="modal-bg" id="modal-livraison-mag">
-<div class="modal">
-  <div class="modal-title">✅ Restituer le véhicule</div>
+<div class="modal" style="max-width:520px">
+  <div class="modal-title">💰 Restitution & Paiement magasinage</div>
   <input type="hidden" id="livraison-mag-id">
-  <div class="form-group" style="margin-bottom:14px"><span class="fl">Date de sortie</span><input class="inp inp-sm" id="mag-date-sortie" type="date"></div>
+  <div class="form-group" style="margin-bottom:14px"><span class="fl">Date de sortie</span><input class="inp inp-sm" id="mag-date-sortie" type="date" onchange="majCalcLivraison()"></div>
   <div id="livraison-calcul" style="background:var(--jaune-lt);border:1.5px solid var(--jaune-bd);border-radius:8px;padding:14px;margin-bottom:14px;font-size:13px;line-height:2"></div>
+  <div style="background:var(--gris);border-radius:8px;padding:14px;margin-bottom:14px">
+    <div style="font-size:11px;font-weight:800;color:var(--gris4);text-transform:uppercase;margin-bottom:10px">💳 Paiement</div>
+    <div class="form-grid">
+      <div class="form-group"><span class="fl">Montant encaissé (€)</span><input class="inp inp-sm" id="mag-paiement-montant" type="number" step="0.01" min="0" placeholder="0.00"></div>
+      <div class="form-group"><span class="fl">Mode de paiement</span>
+        <select class="inp inp-sm" id="mag-paiement-mode">
+          <option value="especes">💵 Espèces</option>
+          <option value="cb">💳 CB</option>
+          <option value="cheque">📝 Chèque</option>
+          <option value="virement">🏦 Virement</option>
+        </select>
+      </div>
+      <div class="form-group"><span class="fl">Date paiement</span><input class="inp inp-sm" id="mag-paiement-date" type="date"></div>
+      <div class="form-group"><span class="fl">Remise supplémentaire (€)</span><input class="inp inp-sm" id="mag-paiement-remise" type="number" step="0.01" min="0" placeholder="0.00" value="0" onchange="majCalcLivraison()"></div>
+    </div>
+    <div id="mag-paiement-recap" style="margin-top:8px;font-size:12px;color:var(--gris4)"></div>
+  </div>
   <div class="modal-footer">
     <button class="btn btn-secondary" onclick="fermerModal('modal-livraison-mag')">Annuler</button>
-    <button class="btn btn-primary" onclick="confirmerLivraison()">✅ Confirmer restitution</button>
+    <button class="btn btn-primary" onclick="confirmerLivraison()">✅ Confirmer & Générer reçu</button>
+  </div>
+</div>
+</div>
+
+<!-- Modal Paiement Magasinage (véhicule déjà restitué) -->
+<div class="modal-bg" id="modal-paiement-mag">
+<div class="modal" style="max-width:440px">
+  <div class="modal-title">💰 Encaisser paiement magasinage</div>
+  <input type="hidden" id="paiement-mag-id">
+  <div id="paiement-mag-info" style="background:var(--gris);border-radius:8px;padding:12px;margin-bottom:14px;font-size:13px;line-height:1.8"></div>
+  <div class="form-group" style="margin-bottom:12px"><span class="fl">Montant encaissé (€)</span><input class="inp" id="paiement-mag-montant" type="number" step="0.01" min="0" placeholder="0.00"></div>
+  <div class="form-group" style="margin-bottom:12px"><span class="fl">Mode de paiement</span>
+    <select class="inp" id="paiement-mag-mode">
+      <option value="especes">💵 Espèces</option>
+      <option value="cb">💳 CB</option>
+      <option value="cheque">📝 Chèque</option>
+      <option value="virement">🏦 Virement</option>
+    </select>
+  </div>
+  <div class="form-group" style="margin-bottom:12px"><span class="fl">Date paiement</span><input class="inp" id="paiement-mag-date" type="date"></div>
+  <div class="modal-footer">
+    <button class="btn btn-secondary" onclick="fermerModal('modal-paiement-mag')">Annuler</button>
+    <button class="btn btn-primary" onclick="confirmerPaiementMag()">✅ Enregistrer & Reçu</button>
   </div>
 </div>
 </div>
@@ -449,22 +489,37 @@ tr:hover td{background:var(--gris)}
     <!-- DASHBOARD -->
     <div class="pg on" id="pg-dashboard">
       <div class="page-header">
-        <div><div class="page-title">📊 Tableau de bord</div><div class="page-sub" id="dash-date">—</div></div>
-        <button class="btn btn-secondary" onclick="chargerDashboard()">🔄 Actualiser</button>
+        <div>
+          <div class="page-title">📊 Tableau de bord
+            <span id="dash-notif-badge" style="display:none;background:var(--rouge);color:white;font-size:11px;font-weight:900;padding:2px 8px;border-radius:20px;margin-left:8px;animation:pulse-badge 1s infinite">🔔 NOUVEAU</span>
+          </div>
+          <div class="page-sub" id="dash-date">—</div>
+        </div>
+        <div style="display:flex;gap:8px;align-items:center">
+          <span id="dash-live-dot" style="width:10px;height:10px;background:var(--vert);border-radius:50%;display:inline-block;animation:pulse-dot 2s infinite" title="Temps réel actif"></span>
+          <span style="font-size:11px;color:var(--gris3)">Temps réel</span>
+        </div>
       </div>
+      <style>
+        @keyframes pulse-badge{0%,100%{opacity:1}50%{opacity:.4}}
+        @keyframes pulse-dot{0%,100%{opacity:1;transform:scale(1)}50%{opacity:.5;transform:scale(1.4)}}
+      </style>
       <div class="stats-grid">
-        <div class="stat-card"><div class="stat-num" id="s-bl">—</div><div class="stat-label">BL aujourd'hui</div><div class="stat-sub" id="s-bl-mois">—</div></div>
-        <div class="stat-card" style="border-left-color:var(--vert)"><div class="stat-num" id="s-especes">—</div><div class="stat-label">Espèces aujourd'hui</div><div class="stat-sub" id="s-esp-mois">—</div></div>
+        <div class="stat-card"><div class="stat-num" id="s-bl">—</div><div class="stat-label">BL aujourd'hui</div><div class="stat-sub" id="s-bl-mois" style="font-size:11px;color:var(--gris3);margin-top:2px">—</div></div>
+        <div class="stat-card" style="border-left-color:var(--vert)"><div class="stat-num" id="s-especes">—</div><div class="stat-label">Espèces aujourd'hui</div><div class="stat-sub" id="s-esp-mois" style="font-size:11px;color:var(--gris3);margin-top:2px">—</div></div>
         <div class="stat-card" style="border-left-color:var(--bleu)"><div class="stat-num" id="s-chauffeurs">—</div><div class="stat-label">Chauffeurs actifs</div></div>
         <div class="stat-card" style="border-left-color:var(--jaune)"><div class="stat-num" id="s-camions">—</div><div class="stat-label">Camions</div></div>
       </div>
       <div style="display:grid;grid-template-columns:2fr 1fr;gap:16px">
         <div class="card">
-          <div class="card-title">📋 Derniers bons</div>
+          <div class="card-title" style="display:flex;align-items:center;justify-content:space-between">
+            <span>📋 8 derniers bons de livraison</span>
+            <span id="dash-last-update" style="font-size:10px;color:var(--gris3);font-weight:400"></span>
+          </div>
           <div id="dash-bons-list"></div>
         </div>
         <div class="card">
-          <div class="card-title">👤 BL par chauffeur</div>
+          <div class="card-title">👤 BL par chauffeur (mois)</div>
           <div class="chart-bar-wrap" id="dash-chart"></div>
         </div>
       </div>
@@ -632,15 +687,25 @@ tr:hover td{background:var(--gris)}
       </div>
       <div class="stats-grid" id="mag-stats"></div>
       <div class="card" style="padding:0">
-        <div style="padding:12px 16px;border-bottom:1px solid var(--gris2);display:flex;gap:8px;align-items:center">
+        <div style="padding:12px 16px;border-bottom:1px solid var(--gris2);display:flex;gap:8px;align-items:center;flex-wrap:wrap">
           <select class="filtre-inp" id="mag-filtre-statut" onchange="chargerMagasinage()">
-            <option value="">Tous statuts</option><option value="en_cours">En cours</option><option value="livre">Livré</option>
+            <option value="">Tous statuts</option>
+            <option value="en_cours">🔄 En gardiennage</option>
+            <option value="impaye">🔴 Impayé</option>
+            <option value="partiel">🟣 Partiel</option>
+            <option value="paye">✅ Payé</option>
           </select>
+          <button class="btn btn-secondary btn-sm" onclick="selToutMag()">☑ Tout</button>
+          <span id="mag-sel-lbl" style="font-size:12px;font-weight:700;color:var(--rouge)"></span>
           <button class="btn btn-secondary btn-sm" onclick="exporterMagasinagePDF()">⬇ Export PDF</button>
+          <button class="btn btn-secondary btn-sm" onclick="window.print()">🖨 Imprimer</button>
         </div>
         <div class="table-wrap">
           <table>
-            <thead><tr><th>Immat.</th><th>Client</th><th>Entrée</th><th>Sortie</th><th>Jours</th><th>Tarif/j</th><th>Total</th><th>Remise</th><th>Net</th><th>Statut</th><th>Actions</th></tr></thead>
+            <thead><tr>
+              <th><input type="checkbox" id="mag-check-all" onclick="selToutMag()"></th>
+              <th>Immat.</th><th>Client</th><th>Entrée</th><th>Sortie</th><th>Jours</th><th>Tarif/j</th><th>Total</th><th>Remise</th><th>Net</th><th>Payé</th><th>Reste</th><th>Statut</th><th>N° Reçu</th><th>Actions</th>
+            </tr></thead>
             <tbody id="mag-tbody"></tbody>
           </table>
         </div>
@@ -658,31 +723,16 @@ tr:hover td{background:var(--gris)}
         <div style="padding:12px 16px;border-bottom:1px solid var(--gris2);display:flex;gap:8px;flex-wrap:wrap">
           <input class="filtre-inp" type="date" id="pc-date-debut">
           <input class="filtre-inp" type="date" id="pc-date-fin">
-          <select class="filtre-inp" id="pc-filtre-paiement" style="min-width:130px">
-            <option value="">Tous statuts</option>
-            <option value="impaye">🔴 Impayé</option>
-            <option value="partiel">🟣 Partiel</option>
-            <option value="solde">✅ Soldé</option>
-            <option value="annule">❌ Annulé</option>
-          </select>
-          <select class="filtre-inp" id="pc-filtre-assureur" style="min-width:120px">
-            <option value="">Assureur: Tous</option>
-            <option value="en_attente">⏳ En attente</option>
-            <option value="recu">✅ Reçu</option>
-          </select>
-          <select class="filtre-inp" id="pc-filtre-client" style="min-width:110px">
-            <option value="">Client: Tous</option>
-            <option value="impaye">🔴 Impayé</option>
-            <option value="partiel">🟣 Partiel</option>
-            <option value="paye">✅ Payé</option>
+          <select class="filtre-inp" id="pc-filtre-statut" onchange="chargerPC()">
+            <option value="">Tous statuts</option><option value="en_cours">En cours</option><option value="livre">Livré</option><option value="annule">Annulé</option>
           </select>
           <button class="btn btn-primary" onclick="chargerPC()">🔍 Filtrer</button>
-          <button class="btn btn-secondary" onclick="selToutPC()">☑ Tout</button>
-          <button class="btn btn-secondary" onclick="exporterPCPDF()">⬇ PDF</button>
+          <button class="btn btn-secondary btn-sm" onclick="exporterPCPDF()">⬇ Export PDF</button>
         </div>
         <div class="table-wrap">
           <table>
-            <thead><tr><th><input type="checkbox" id="pc-check-all" onclick="selToutPC()"></th><th>N° Dossier</th><th>Date</th><th>Assureur</th><th>Client</th><th>Véhicule/Immat</th><th>Réel</th><th>Part Ass.</th><th>St.Ass</th><th>Part Cli.</th><th>St.Cli</th><th>N° BL</th><th>N° Reçu</th><th>Obs.</th><th>Notes</th><th>Statut</th><th>Actions</th></tr></thead>            <tbody id="pc-tbody"></tbody>
+            <thead><tr><th>N° Dossier</th><th>Date</th><th>Assureur</th><th>Client</th><th>Véhicule/Immat</th><th>Montant Réel</th><th>Part Assur.</th><th>Part Client</th><th>N° BL</th><th>N° Reçu</th><th>Statut</th><th>Actions</th></tr></thead>
+            <tbody id="pc-tbody"></tbody>
           </table>
         </div>
       </div>
@@ -735,9 +785,9 @@ tr:hover td{background:var(--gris)}
           <table>
             <thead><tr>
               <th><input type="checkbox" id="gps-check-all" onclick="toutCocherGPS()"></th>
-              <th>Date</th><th>Chauffeur</th><th>Embarquement</th><th>Destination</th><th>Durée</th><th>Tarif</th><th>Carte</th>
+              <th>N° BL</th><th>Date</th><th>Chauffeur</th><th>Embarquement</th><th>Destination</th><th>Durée</th><th>Tarif</th><th>Carte</th>
             </tr></thead>
-            <tbody id="gps-tbody"><tr><td colspan="7" style="text-align:center;color:var(--gris3);padding:24px">Cliquez sur Filtrer</td></tr></tbody>
+            <tbody id="gps-tbody"><tr><td colspan="9" style="text-align:center;color:var(--gris3);padding:24px">Chargement...</td></tr></tbody>
           </table>
         </div>
       </div>
@@ -763,9 +813,11 @@ tr:hover td{background:var(--gris)}
             <option value="pc">PC Assurance</option>
           </select>
           <select class="filtre-inp" id="soldes-statut" style="min-width:130px">
-            <option value="impaye">Impayés</option>
+            <option value="impaye">🔴 Impayés</option>
             <option value="">Tous</option>
-            <option value="paye">Payés</option>
+            <option value="solde">✅ Soldés</option>
+            <option value="partiel">🟣 Partiel</option>
+            <option value="incomplet">⚠️ Sans montant</option>
           </select>
           <input class="filtre-inp" type="date" id="soldes-debut">
           <input class="filtre-inp" type="date" id="soldes-fin">
@@ -778,7 +830,7 @@ tr:hover td{background:var(--gris)}
               <th><input type="checkbox" id="soldes-check-all" onclick="selToutSoldes()"></th>
               <th>Date</th><th>Client</th><th>Type</th><th>N° Document</th>
               <th>Désignation</th><th>Montant</th><th>Payé</th><th>Solde</th>
-              <th>Mode paiement</th><th>Statut</th><th>Actions</th>
+              <th>Mode paiement</th><th>N° Reçu</th><th>Statut</th><th>Actions</th>
             </tr></thead>
             <tbody id="soldes-tbody"></tbody>
           </table>
@@ -788,26 +840,32 @@ tr:hover td{background:var(--gris)}
 
     <div class="pg" id="pg-historique">
       <div class="page-header">
-        <div><div class="page-title">🔍 Historique par immatriculation</div></div>
-        <div style="display:flex;gap:8px">
-          <button class="btn btn-secondary" onclick="selToutHistorique()">☑ Tout sélectionner</button>
+        <div><div class="page-title">🔍 Historique des bons</div></div>
+        <div style="display:flex;gap:8px;align-items:center">
+          <span id="hist-sel-lbl" style="font-size:12px;font-weight:700;color:var(--rouge)"></span>
+          <button class="btn btn-secondary" onclick="selToutHistorique()">☑ Tout</button>
           <button class="btn btn-secondary" onclick="exporterHistoriquePDF()">⬇ Export PDF</button>
+          <button class="btn btn-secondary" onclick="window.print()">🖨 Imprimer</button>
         </div>
       </div>
       <div class="card">
-        <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:16px">
-          <input class="inp" id="hist-immat" placeholder="Immatriculation..." style="text-transform:uppercase;flex:1;max-width:200px" oninput="this.value=this.value.toUpperCase()">
-          <select class="filtre-inp" id="hist-client" style="min-width:160px"><option value="">— Tous clients —</option></select>
-          <button class="btn btn-primary" onclick="rechercherHistorique()">🔍 Rechercher</button>
+        <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:16px;align-items:center">
+          <input class="inp" id="hist-immat" placeholder="Immatriculation..." style="text-transform:uppercase;flex:1;max-width:200px" oninput="this.value=this.value.toUpperCase();rechercherHistorique()">
+          <select class="filtre-inp" id="hist-client" style="min-width:180px" onchange="rechercherHistorique()"><option value="">— Tous clients —</option></select>
+          <input class="filtre-inp" type="date" id="hist-debut" onchange="rechercherHistorique()">
+          <input class="filtre-inp" type="date" id="hist-fin" onchange="rechercherHistorique()">
+          <button class="btn btn-secondary btn-sm" onclick="G('hist-immat').value='';G('hist-client').value='';G('hist-debut').value='';G('hist-fin').value='';rechercherHistorique()">✕ Reset</button>
         </div>
-        <div id="hist-result"></div>
+        <div id="hist-result"><div style="color:var(--gris3);padding:24px;text-align:center">Chargement...</div></div>
       </div>
     </div>
 
     <div class="pg" id="pg-stats">
       <div class="page-header">
         <div><div class="page-title">📈 Statistiques</div></div>
-        <div style="display:flex;gap:8px">
+        <div style="display:flex;gap:8px;align-items:center">
+          <span id="stats-sel-lbl" style="font-size:12px;font-weight:700;color:var(--rouge)"></span>
+          <button class="btn btn-secondary btn-sm" id="btn-stats-sel-tout" onclick="selToutStats()" style="display:none">☑ Tout</button>
           <button class="btn btn-secondary" onclick="window.print()">🖨 Imprimer</button>
           <button class="btn btn-secondary" onclick="exporterStatsPDF()">⬇ Export PDF</button>
         </div>
@@ -1050,38 +1108,29 @@ tr:hover td{background:var(--gris)}
 </div>
 </div>
 
-<div class="modal-bg" id="modal-saisir-montant">
-<div class="modal" style="max-width:360px">
-  <div class="modal-title">✏️ Saisir le montant</div>
-  <input type="hidden" id="saisir-montant-id">
-  <div id="saisir-montant-info" style="font-size:13px;color:var(--gris3);margin-bottom:12px"></div>
-  <div class="form-group"><span class="fl">Montant (€)</span>
-    <input class="inp" id="saisir-montant-val" type="number" step="0.01" min="0" placeholder="0.00">
-  </div>
-  <div class="modal-footer">
-    <button class="btn btn-secondary" onclick="fermerModal('modal-saisir-montant')">Annuler</button>
-    <button class="btn btn-primary" onclick="confirmerSaisirMontant()">✅ Enregistrer</button>
-  </div>
-</div>
-</div>
 <div class="modal-bg" id="modal-paiement-solde">
 <div class="modal">
   <div class="modal-title">💰 Enregistrer un paiement</div>
   <input type="hidden" id="paiement-doc-id">
   <input type="hidden" id="paiement-doc-type">
+  <input type="hidden" id="paiement-doc-montant-total">
   <div id="paiement-info" style="background:var(--gris-lt);border-radius:8px;padding:10px;margin-bottom:12px;font-size:13px"></div>
-  <div class="form-group"><span class="fl">Montant payé (€)</span><input class="inp" id="paiement-montant" type="number" step="0.01" min="0" placeholder="0.00"></div>
-  <div class="form-group"><span class="fl">Mode de paiement</span>
+  <div class="form-group" style="margin-bottom:12px"><span class="fl">Montant encaissé (€)</span><input class="inp" id="paiement-montant" type="number" step="0.01" min="0" placeholder="0.00"></div>
+  <div class="form-group" style="margin-bottom:12px"><span class="fl">Mode de paiement</span>
     <select class="inp" id="paiement-mode">
       <option value="especes">💵 Espèces</option>
+      <option value="cb">💳 CB</option>
       <option value="virement">🏦 Virement</option>
       <option value="cheque">📝 Chèque</option>
     </select>
   </div>
-  <div class="form-group"><span class="fl">Date paiement</span><input class="inp" id="paiement-date" type="date"></div>
+  <div class="form-group" style="margin-bottom:12px"><span class="fl">Date paiement</span><input class="inp" id="paiement-date" type="date"></div>
+  <div style="background:var(--bleu-lt);border-radius:8px;padding:8px 12px;font-size:11px;color:var(--bleu);margin-bottom:4px">
+    ✅ Un reçu <strong>SEC-XXXXXX</strong> sera automatiquement généré et visible dans l'onglet Reçus.
+  </div>
   <div class="modal-footer">
     <button class="btn btn-secondary" onclick="fermerModal('modal-paiement-solde')">Annuler</button>
-    <button class="btn btn-primary" onclick="confirmerPaiement()">✅ Confirmer paiement</button>
+    <button class="btn btn-primary" onclick="confirmerPaiement()">✅ Confirmer & Générer reçu</button>
   </div>
 </div>
 </div>
@@ -1098,29 +1147,22 @@ tr:hover td{background:var(--gris)}
 </div>
 </div>
 
-
-<!-- Modal paiement PC -->
-<div class="modal-bg" id="modal-paiement-pc">
-<div class="modal">
-  <div class="modal-title">💰 Paiement part client</div>
-  <input type="hidden" id="ppc-id">
-  <div id="ppc-info" style="background:var(--gris-lt);border-radius:8px;padding:10px;margin-bottom:12px;font-size:13px"></div>
-  <div class="form-group"><span class="fl">Montant à encaisser (€)</span><input class="inp" id="ppc-montant" type="number" step="0.01" min="0"></div>
-  <div class="form-group"><span class="fl">Mode de paiement</span>
-    <select class="inp" id="ppc-mode">
-      <option value="especes">💵 Espèces</option>
-      <option value="virement">🏦 Virement</option>
-      <option value="cheque">📝 Chèque</option>
-      <option value="cb">💳 CB</option>
-    </select>
+<!-- Modal Saisir Montant BL -->
+<div class="modal-bg" id="modal-saisir-montant">
+<div class="modal" style="max-width:360px">
+  <div class="modal-title">✏️ Saisir le montant</div>
+  <input type="hidden" id="saisir-montant-id">
+  <div id="saisir-montant-info" style="font-size:13px;color:var(--gris3);margin-bottom:12px"></div>
+  <div class="form-group"><span class="fl">Montant dû (€)</span>
+    <input class="inp" id="saisir-montant-val" type="number" step="0.01" min="0" placeholder="0.00">
   </div>
-  <div class="form-group"><span class="fl">Date paiement</span><input class="inp" id="ppc-date" type="date"></div>
   <div class="modal-footer">
-    <button class="btn btn-secondary" onclick="fermerModal('modal-paiement-pc')">Annuler</button>
-    <button class="btn btn-primary" onclick="confirmerPaiementPC()">✅ Confirmer</button>
+    <button class="btn btn-secondary" onclick="fermerModal('modal-saisir-montant')">Annuler</button>
+    <button class="btn btn-primary" onclick="confirmerSaisirMontant()">✅ Enregistrer</button>
   </div>
 </div>
 </div>
+
 <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-auth-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-firestore-compat.js"></script>
@@ -1160,7 +1202,7 @@ function afficherPage(id){
   const nav=G("nav-"+id.replace("pg-",""));
   if(nav) nav.classList.add("active");
   G("sidebar")?.classList.remove("open");
-  if(id==="pg-dashboard")  chargerDashboard();
+  if(id==="pg-dashboard")  { chargerDashboard(); initDashNotifSound(); }
   if(id==="pg-bons")       chargerBons();
   if(id==="pg-recus")      chargerRecus();
   if(id==="pg-chauffeurs") {chargerChauffeurs(); chargerPermChauffeursFn();}
@@ -1170,10 +1212,10 @@ function afficherPage(id){
   if(id==="pg-magasinage") chargerMagasinage();
   if(id==="pg-pc")         chargerPC();
   if(id==="pg-carburant")  chargerCarburant();
-  if(id==="pg-soldes")      chargerSoldes();
+  if(id==="pg-soldes")      chargerSoldes("");
   if(id==="pg-gps")        chargerGPS();
   if(id==="pg-historique")  rechercherHistorique();
-  if(id==="pg-stats")      {}
+  if(id==="pg-stats")      chargerStats();
   if(id==="pg-commissions") {}
   if(id==="pg-droits")     {chargerDroits(); chargerPermChauffeursFn();}
   if(id==="pg-utilisateurs") chargerUtilisateurs();
@@ -1206,6 +1248,7 @@ function seConnecter(){
       loader(false);
       G("pg-login").style.display="none";
       G("pg-app").classList.add("on");
+      initDashNotifSound();
       chargerDashboard();
       chargerBons();
       chargerRecus();
@@ -1270,37 +1313,110 @@ function chargerListeClients(){
 }
 
 // ── DASHBOARD ──
+// ══════════════════════════════════════
+// DASHBOARD TEMPS RÉEL
+// ══════════════════════════════════════
+let dashUnsubscribe = null;
+let dashPreviousCount = -1;
+let dashNotifSound = null;
+
+function initDashNotifSound(){
+  try {
+    const ctx = new (window.AudioContext||window.webkitAudioContext)();
+    dashNotifSound = () => {
+      const o = ctx.createOscillator(), g = ctx.createGain();
+      o.connect(g); g.connect(ctx.destination);
+      o.frequency.setValueAtTime(880, ctx.currentTime);
+      o.frequency.exponentialRampToValueAtTime(440, ctx.currentTime+0.15);
+      g.gain.setValueAtTime(0.3, ctx.currentTime);
+      g.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime+0.3);
+      o.start(); o.stop(ctx.currentTime+0.3);
+    };
+  } catch(e){}
+}
+
 function chargerDashboard(){
-  const now=new Date();
-  G("dash-date").textContent=now.toLocaleDateString("fr-FR",{weekday:"long",year:"numeric",month:"long",day:"numeric"});
-  const todayStr=("0"+now.getDate()).slice(-2)+"/"+("0"+(now.getMonth()+1)).slice(-2)+"/"+now.getFullYear();
-  const moisStr="/"+("0"+(now.getMonth()+1)).slice(-2)+"/"+now.getFullYear();
-  db.collection("bons").orderBy("timestamp","desc").limit(300).get().then(snap=>{
-    let blT=0,blM=0,espT=0,espM=0,recent=[],parCh={};
-    snap.forEach(d=>{
-      const b=d.data();
-      if(b.date_bl===todayStr){blT++;if(b.especes)espT+=b.montant_especes||0;}
-      if((b.date_bl||"").endsWith(moisStr)){blM++;if(b.especes)espM+=b.montant_especes||0;}
-      recent.push({id:d.id,...b});
-      parCh[b.chauffeur_nom||"—"]=(parCh[b.chauffeur_nom||"—"]||0)+1;
-    });
-    G("s-bl").textContent=blT; G("s-bl-mois").textContent=blM+" ce mois";
-    G("s-especes").textContent=fmtMontant(espT); G("s-esp-mois").textContent=fmtMontant(espM)+" ce mois";
-    G("s-chauffeurs").textContent=chauffeursList.length; G("s-camions").textContent=camionsList.length;
-    let html="";
-    recent.slice(0,6).forEach(b=>{
-      html+=`<div style="display:flex;justify-content:space-between;align-items:center;padding:7px 0;border-bottom:1px solid var(--gris2);font-size:12px">
-        <div><span style="font-weight:700;color:var(--bleu)">${b.bon_num||"—"}</span><span style="color:var(--gris3);margin-left:8px">${b.chauffeur_nom||""}</span></div>
-        <div style="display:flex;gap:6px;align-items:center">
-          <span class="badge ${b.tarif==="NORMAL"?"tarif-normal":b.tarif==="TN"?"tarif-tn":"tarif-tw"}">${b.tarif||"—"}</span>
-          <span style="color:var(--gris3)">${b.date_bl||""}</span>
-        </div></div>`;
-    });
-    G("dash-bons-list").innerHTML=html||"<div style='color:var(--gris3);font-size:12px'>Aucun bon</div>";
-    const maxV=Math.max(...Object.values(parCh),1);
-    G("dash-chart").innerHTML=Object.entries(parCh).sort((a,b)=>b[1]-a[1]).slice(0,8)
-      .map(([n,v])=>`<div class="chart-row"><div class="chart-lbl">${n}</div><div class="chart-bar-bg"><div class="chart-bar-fill" style="width:${Math.round(v/maxV*100)}%"></div></div><div class="chart-val">${v}</div></div>`).join("");
-  }).catch(console.error);
+  const now = new Date();
+  G("dash-date").textContent = now.toLocaleDateString("fr-FR",{weekday:"long",year:"numeric",month:"long",day:"numeric"});
+  const todayStr = ("0"+now.getDate()).slice(-2)+"/"+("0"+(now.getMonth()+1)).slice(-2)+"/"+now.getFullYear();
+  const moisStr  = "/"+("0"+(now.getMonth()+1)).slice(-2)+"/"+now.getFullYear();
+
+  if(dashUnsubscribe) dashUnsubscribe();
+  dashUnsubscribe = db.collection("bons").orderBy("timestamp","desc").limit(100)
+    .onSnapshot(snap=>{
+      const bons = [];
+      let blT=0, blM=0, espT=0, espM=0;
+      const parCh = {}, parChMois = {};
+      snap.forEach(d=>{
+        const b = {id:d.id,...d.data()};
+        bons.push(b);
+        if(b.date_bl===todayStr){ blT++; if(b.especes) espT+=b.montant_especes||0; }
+        if((b.date_bl||"").endsWith(moisStr)){ blM++; if(b.especes) espM+=b.montant_especes||0; }
+        const ch = b.chauffeur_nom||"—";
+        parCh[ch] = (parCh[ch]||0)+1;
+        if((b.date_bl||"").endsWith(moisStr)) parChMois[ch] = (parChMois[ch]||0)+1;
+      });
+
+      // Notification nouveau BL
+      const total = snap.size;
+      if(dashPreviousCount >= 0 && total > dashPreviousCount){
+        const badge = G("dash-notif-badge");
+        if(badge){ badge.style.display="inline"; setTimeout(()=>badge.style.display="none",8000); }
+        if(dashNotifSound) dashNotifSound();
+        // Notification navigateur
+        if(Notification.permission==="granted"){
+          const nb = total - dashPreviousCount;
+          new Notification("🚛 Multi Auto — Nouveau BL",{body:nb+" nouveau(x) bon(s) de livraison reçu(s)",icon:""});
+        }
+      }
+      dashPreviousCount = total;
+
+      G("s-bl").textContent = blT;
+      G("s-bl-mois").textContent = blM+" ce mois";
+      G("s-especes").textContent = fmtMontant(espT);
+      G("s-esp-mois").textContent = fmtMontant(espM)+" ce mois";
+      G("s-chauffeurs").textContent = chauffeursList.filter(c=>c.actif!==false).length;
+      G("s-camions").textContent = camionsList.length;
+
+      // 8 derniers BL — toutes les infos
+      const huit = bons.slice(0,8);
+      let html = "";
+      huit.forEach(b=>{
+        const espStr = b.especes&&b.montant_especes>0 ? `<span style="background:#e8f5e9;color:#2e7d32;font-size:10px;font-weight:700;padding:2px 6px;border-radius:10px;margin-left:4px">💵 ${fmtMontant(b.montant_especes)}</span>` : "";
+        const tarifCls = b.tarif==="NORMAL"?"tarif-normal":b.tarif==="TN"?"tarif-tn":"tarif-tw";
+        html += `<div style="padding:9px 0;border-bottom:1px solid var(--gris2);font-size:12px">
+          <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:8px">
+            <div>
+              <span style="font-weight:800;color:var(--bleu);font-size:13px">${b.bon_num||"—"}</span>
+              <span class="badge ${tarifCls}" style="margin-left:6px;font-size:10px">${b.tarif||"—"}</span>
+              ${espStr}
+            </div>
+            <span style="color:var(--gris3);white-space:nowrap;font-size:11px">${b.date_bl||""} ${b.heure_bl?b.heure_bl.substring(0,5):""}</span>
+          </div>
+          <div style="margin-top:3px;color:var(--gris4)">
+            🚛 <strong>${b.chauffeur_nom||"—"}</strong>
+            ${b.camion?`<span style="color:var(--gris3)"> · ${b.camion}</span>`:""}
+          </div>
+          <div style="margin-top:2px;color:var(--gris4)">
+            👤 ${b.nom_client||"—"}
+            ${b.immatriculation?`<span style="font-family:monospace;font-size:10px;background:var(--gris2);padding:1px 5px;border-radius:4px;margin-left:4px">${b.immatriculation}</span>`:""}
+          </div>
+          ${b.lieu_embarquement||b.destination?`<div style="margin-top:2px;color:var(--gris3);font-size:11px">📍 ${b.lieu_embarquement||"—"} → ${b.destination||"—"}</div>`:""}
+        </div>`;
+      });
+      G("dash-bons-list").innerHTML = html || "<div style='color:var(--gris3);font-size:12px;padding:16px 0'>Aucun bon</div>";
+      const upd = G("dash-last-update");
+      if(upd) upd.textContent = "Mis à jour " + new Date().toLocaleTimeString("fr-FR",{hour:"2-digit",minute:"2-digit",second:"2-digit"});
+
+      // Graphique par chauffeur (mois en cours)
+      const data = Object.keys(parChMois).length ? parChMois : parCh;
+      const maxV = Math.max(...Object.values(data),1);
+      G("dash-chart").innerHTML = Object.entries(data).sort((a,b)=>b[1]-a[1]).slice(0,8)
+        .map(([n,v])=>`<div class="chart-row"><div class="chart-lbl" title="${n}">${n}</div><div class="chart-bar-bg"><div class="chart-bar-fill" style="width:${Math.round(v/maxV*100)}%"></div></div><div class="chart-val">${v}</div></div>`).join("");
+    }, err=>{ console.error("Dashboard onSnapshot:", err); });
+
+  // Demander permission notif navigateur
+  if(Notification.permission==="default") Notification.requestPermission();
 }
 
 // ── BONS ──
@@ -1340,10 +1456,82 @@ function majFiltreTypeST(){
 
 function selToutHistorique(){
   const all=G("hist-check-all");
-  document.querySelectorAll(".hist-cb").forEach(cb=>cb.checked=all?all.checked:true);
+  const cbs=document.querySelectorAll(".hist-cb");
+  cbs.forEach(cb=>cb.checked=all?all.checked:true);
+  majSelHist();
+}
+function majSelHist(){
+  const nb=document.querySelectorAll(".hist-cb:checked").length;
+  const lbl=G("hist-sel-lbl"); if(lbl) lbl.textContent=nb>0?nb+" sélectionné(s)":"";
+  const all=G("hist-check-all");
+  if(all) all.checked=nb>0&&nb===document.querySelectorAll(".hist-cb").length;
 }
 
-function exporterHistoriquePDF(){
+function rechercherHistorique(){
+  const immat=G("hist-immat")?.value.trim().toUpperCase()||"";
+  const client=G("hist-client")?.value||"";
+  const debut=G("hist-debut")?.value||"";
+  const fin=G("hist-fin")?.value||"";
+  G("hist-result").innerHTML="<div style='color:var(--gris3);padding:24px;text-align:center'>Chargement...</div>";
+  loader(true);
+  db.collection("bons").orderBy("timestamp","desc").limit(1000).get().then(snap=>{
+    let bons=[]; snap.forEach(d=>bons.push({id:d.id,...d.data()}));
+    if(immat) bons=bons.filter(b=>(b.immatriculation||"").toUpperCase().includes(immat));
+    if(client) bons=bons.filter(b=>b.nom_client===client);
+    if(debut) bons=bons.filter(b=>toComp(b.date_bl)>=debut);
+    if(fin)   bons=bons.filter(b=>toComp(b.date_bl)<=fin);
+
+    // Peupler select client (une seule fois si vide)
+    const selCl=G("hist-client");
+    if(selCl&&selCl.options.length<=1){
+      const allClients=[...new Set(Array.from(snap.docs).map(d=>d.data().nom_client).filter(Boolean))].sort();
+      allClients.forEach(c=>{const o=document.createElement("option");o.value=c;o.textContent=c;selCl.appendChild(o);});
+      if(client) selCl.value=client;
+    }
+
+    loader(false);
+    if(!bons.length){
+      G("hist-result").innerHTML=`<div style="color:var(--gris3);padding:24px;text-align:center">Aucun résultat</div>`;
+      return;
+    }
+
+    db.collection("recus").orderBy("timestamp","desc").limit(500).get().then(rSnap=>{
+      const recusMap={};
+      rSnap.forEach(d=>{ const r=d.data(); if(r.bon_num) recusMap[r.bon_num]=r; });
+      let html=`<div style="font-size:13px;font-weight:700;color:var(--gris4);margin-bottom:10px">${bons.length} résultat(s)</div>`;
+      html+=`<div class="table-wrap"><table><thead><tr>
+        <th><input type="checkbox" id="hist-check-all" onclick="selToutHistorique()"></th>
+        <th>N° BL</th><th>N° Reçu</th><th>Date</th><th>Heure</th><th>Tarif</th>
+        <th>Chauffeur</th><th>Client</th><th>Immat</th><th>Véhicule</th>
+        <th>Embarquement</th><th>Destination</th><th>Espèces</th><th>Actions</th>
+      </tr></thead><tbody>`;
+      bons.forEach(b=>{
+        const recu=recusMap[b.bon_num]||{};
+        html+=`<tr>
+          <td><input type="checkbox" class="hist-cb" data-id="${b.id}" onchange="majSelHist()"></td>
+          <td style="font-weight:700;color:var(--bleu);font-size:11px">${b.bon_num||"—"}</td>
+          <td style="color:var(--vert);font-size:11px">${recu.recu_num||"—"}</td>
+          <td>${b.date_bl||"—"}</td><td>${b.heure_bl||"—"}</td>
+          <td><span class="badge ${b.tarif==="NORMAL"?"tarif-normal":b.tarif==="TN"?"tarif-tn":"tarif-tw"}">${b.tarif||"—"}</span></td>
+          <td>${b.chauffeur_nom||"—"}</td>
+          <td style="font-weight:600">${b.nom_client||"—"}</td>
+          <td style="font-weight:700;font-family:monospace">${b.immatriculation||"—"}</td>
+          <td style="font-size:11px">${b.marque||""} ${b.modele||""}</td>
+          <td style="font-size:11px">${b.lieu_embarquement||"—"}</td>
+          <td style="font-size:11px">${b.destination||"—"}</td>
+          <td style="font-weight:700;color:var(--vert)">${b.especes===true&&b.montant_especes>0?fmtMontant(b.montant_especes):"—"}</td>
+          <td><div style="display:flex;gap:3px">
+            <button class="btn btn-secondary btn-sm btn-icon" onclick="voirBL('${b.id}')">👁</button>
+            <button class="btn btn-secondary btn-sm btn-icon" onclick="imprimerBL('${b.id}')">🖨</button>
+            <button class="btn btn-secondary btn-sm btn-icon" onclick="telechargerBL('${b.id}')">⬇</button>
+          </div></td>
+        </tr>`;
+      });
+      html+=`</tbody></table></div>`;
+      G("hist-result").innerHTML=html;
+    });
+  }).catch(e=>{loader(false);toast("Erreur","err");console.error(e);});
+}
   const cbs=document.querySelectorAll(".hist-cb:checked");
   if(!cbs.length){ toast("Sélectionnez au moins un BL","err"); return; }
   loader(true,"Export PDF...");
@@ -1380,59 +1568,42 @@ function exporterHistoriquePDF(){
   }).catch(e=>{loader(false);toast("Erreur","err");console.error(e);});
 }
 
-function rechercherHistorique(){
-  const immat=G("hist-immat").value.trim().toUpperCase();
-  const client=G("hist-client")?.value||"";
-  if(!immat && !client){
-    G("hist-result").innerHTML="<div style='color:var(--gris3);padding:24px;text-align:center'>Saisissez une immatriculation ou choisissez un client</div>";
-    return;
-  }
-  G("hist-result").innerHTML="<div style='color:var(--gris3);padding:24px;text-align:center'>Recherche en cours...</div>";
-  loader(true);
-  db.collection("bons").orderBy("timestamp","desc").limit(500).get().then(snap=>{
-    let bons=[]; snap.forEach(d=>bons.push({id:d.id,...d.data()}));
-    if(immat) bons=bons.filter(b=>(b.immatriculation||"").toUpperCase()===immat);
-    if(client) bons=bons.filter(b=>b.nom_client===client);
-    loader(false);
-    if(!bons.length){
-      G("hist-result").innerHTML=`<div style="color:var(--gris3);padding:24px;text-align:center">Aucun résultat</div>`;
-      return;
-    }
-    db.collection("recus").orderBy("timestamp","desc").limit(200).get().then(rSnap=>{
-      const recusMap={};
-      rSnap.forEach(d=>{ const r=d.data(); if(r.bon_num) recusMap[r.bon_num]=r; });
-      let html=`<div style="font-size:13px;font-weight:700;color:var(--gris3);margin-bottom:12px">${bons.length} résultat(s)</div>`;
-      html+=`<div class="table-wrap"><table><thead><tr>
-        <th><input type="checkbox" id="hist-check-all" onclick="selToutHistorique()"></th>
-        <th>N° BL</th><th>N° Reçu</th><th>Date</th><th>Heure</th><th>Tarif</th>
-        <th>Chauffeur</th><th>Client</th><th>Immat</th><th>Véhicule</th>
-        <th>Embarquement</th><th>Destination</th><th>Espèces</th><th>Actions</th>
-      </tr></thead><tbody>`;
-      bons.forEach(b=>{
-        const recu=recusMap[b.bon_num]||{};
-        html+=`<tr>
-          <td><input type="checkbox" class="hist-cb" data-id="${b.id}"></td>
-          <td style="font-weight:700;color:var(--bleu);font-size:11px">${b.bon_num||"—"}</td>
-          <td style="color:var(--vert);font-size:11px">${recu.recu_num||"—"}</td>
-          <td>${b.date_bl||"—"}</td><td>${b.heure_bl||"—"}</td>
-          <td><span class="badge ${b.tarif==="NORMAL"?"tarif-normal":b.tarif==="TN"?"tarif-tn":"tarif-tw"}">${b.tarif||"—"}</span></td>
-          <td>${b.chauffeur_nom||"—"}</td>
-          <td style="font-weight:600">${b.nom_client||"—"}</td>
-          <td style="font-weight:700">${b.immatriculation||"—"}</td>
-          <td style="font-size:11px">${b.marque||""} ${b.modele||""}</td>
-          <td style="font-size:11px">${b.lieu_embarquement||"—"}</td>
-          <td style="font-size:11px">${b.destination||"—"}</td>
-          <td style="font-weight:700;color:var(--vert)">${b.especes===true&&b.montant_especes>0?fmtMontant(b.montant_especes):"—"}</td>
-          <td><div style="display:flex;gap:3px">
-            <button class="btn btn-secondary btn-sm btn-icon" onclick="voirBL('${b.id}')">👁</button>
-            <button class="btn btn-secondary btn-sm btn-icon" onclick="imprimerBL('${b.id}')">🖨</button>
-            <button class="btn btn-secondary btn-sm btn-icon" onclick="telechargerBL('${b.id}')">⬇</button>
-          </div></td>
-        </tr>`;
-      });
-      html+=`</tbody></table></div>`;
-      G("hist-result").innerHTML=html;
+function exporterHistoriquePDF(){
+  const cbs=document.querySelectorAll(".hist-cb:checked");
+  const allCbs=document.querySelectorAll(".hist-cb");
+  if(!allCbs.length){ toast("Aucun historique à exporter","err"); return; }
+  loader(true,"Export PDF...");
+  const ids=cbs.length>0?Array.from(cbs).map(cb=>cb.dataset.id):Array.from(allCbs).map(cb=>cb.dataset.id);
+  Promise.all(ids.map(id=>db.collection("bons").doc(id).get())).then(snaps=>{
+    const {jsPDF}=window.jspdf;
+    const doc=new jsPDF('landscape','mm','a4');
+    doc.setFontSize(13);doc.setFont('helvetica','bold');doc.setTextColor(200,52,26);
+    doc.text('Historique des bons de livraison',148,14,{align:'center'});
+    doc.setFontSize(8);doc.setFont('helvetica','normal');doc.setTextColor(100,100,100);
+    doc.text('Édité le '+new Date().toLocaleDateString('fr-FR')+(cbs.length>0?' — Sélection: '+cbs.length+' BL':''),148,20,{align:'center'});
+    const cols=['N° BL','Date','Heure','Tarif','Chauffeur','Client','Immat','Véhicule','Embarquement','Destination','Espèces'];
+    const widths=[22,18,14,12,28,28,20,22,28,28,15];
+    let y=28;
+    doc.setFillColor(200,52,26);doc.rect(10,y,277,6,'F');
+    doc.setTextColor(255,255,255);doc.setFont('helvetica','bold');doc.setFontSize(7);
+    let x=10; cols.forEach((h,i)=>{doc.text(h,x+1,y+4.2);x+=widths[i];});
+    y+=6;doc.setTextColor(26,26,26);doc.setFont('helvetica','normal');
+    snaps.forEach((snap,idx)=>{
+      if(!snap.exists)return;
+      const b=snap.data();
+      if(y>190){doc.addPage();y=14;}
+      doc.setFillColor(idx%2===0?248:255,idx%2===0?248:255,idx%2===0?248:255);
+      doc.rect(10,y,277,5.5,'F');doc.setFontSize(6.5);
+      let xi=10;
+      [b.bon_num||'—',b.date_bl||'—',b.heure_bl||'—',b.tarif||'—',b.chauffeur_nom||'—',
+       b.nom_client||'—',b.immatriculation||'—',(b.marque||'')+' '+(b.modele||''),
+       b.lieu_embarquement||'—',b.destination||'—',
+       b.especes===true&&b.montant_especes>0?b.montant_especes.toFixed(2)+' €':'—'
+      ].forEach((v,i)=>{doc.text(String(v).substring(0,20),xi+1,y+3.8);xi+=widths[i];});
+      y+=5.5;
     });
+    doc.save('historique'+(cbs.length>0?'-selection':'-tous')+'.pdf');
+    loader(false);toast("PDF exporté ✅ ("+ids.length+" BL)");
   }).catch(e=>{loader(false);toast("Erreur","err");console.error(e);});
 }
 
@@ -2075,24 +2246,63 @@ function confirmerReset(){
 
 // ── MAGASINAGE ──
 function chargerMagasinage(){
-  const statut=G("mag-filtre-statut")?.value||"";
+  const filtreStatut = G("mag-filtre-statut")?.value||"";
   db.collection("magasinage").orderBy("date_entree","desc").get().then(snap=>{
     let list=[]; snap.forEach(d=>list.push({id:d.id,...d.data()}));
-    if(statut) list=list.filter(m=>m.statut===statut);
+
+    // Calcul statut paiement pour chaque entrée
+    list.forEach(m=>{
+      if(m.statut==="en_cours"){ m._statutPaie="en_cours"; return; }
+      const net = m.montant_net||m.montant_total||0;
+      const paye = m.paye_montant||0;
+      if(paye<=0) m._statutPaie="impaye";
+      else if(paye>=net&&net>0) m._statutPaie="paye";
+      else m._statutPaie="partiel";
+    });
+
+    // Filtre
+    let filtered = list;
+    if(filtreStatut==="en_cours") filtered=list.filter(m=>m.statut==="en_cours");
+    else if(filtreStatut==="impaye") filtered=list.filter(m=>m.statut!=="en_cours"&&m._statutPaie==="impaye");
+    else if(filtreStatut==="partiel") filtered=list.filter(m=>m.statut!=="en_cours"&&m._statutPaie==="partiel");
+    else if(filtreStatut==="paye") filtered=list.filter(m=>m._statutPaie==="paye");
+
     const enCours=list.filter(m=>m.statut==="en_cours");
-    const totalNet=list.reduce((s,m)=>s+(m.montant_net||0),0);
+    const totalNet=list.filter(m=>m.statut!=="en_cours").reduce((s,m)=>s+(m.montant_net||0),0);
+    const totalPaye=list.reduce((s,m)=>s+(m.paye_montant||0),0);
+    const nbImpaye=list.filter(m=>m.statut!=="en_cours"&&m._statutPaie==="impaye").length;
+
     if(G("mag-stats")) G("mag-stats").innerHTML=`
       <div class="stat-card"><div class="stat-num">${enCours.length}</div><div class="stat-label">En gardiennage</div></div>
-      <div class="stat-card" style="border-left-color:var(--vert)"><div class="stat-num">${list.filter(m=>m.statut==="livre").length}</div><div class="stat-label">Livrés</div></div>
-      <div class="stat-card" style="border-left-color:var(--rouge)"><div class="stat-num">${fmtMontant(totalNet)}</div><div class="stat-label">Total encaissé</div></div>`;
+      <div class="stat-card" style="border-left-color:var(--rouge)"><div class="stat-num">${nbImpaye}</div><div class="stat-label">Impayés</div></div>
+      <div class="stat-card" style="border-left-color:var(--vert)"><div class="stat-num">${fmtMontant(totalPaye)}</div><div class="stat-label">Total encaissé</div></div>
+      <div class="stat-card" style="border-left-color:var(--bleu)"><div class="stat-num">${fmtMontant(totalNet)}</div><div class="stat-label">Total facturable</div></div>`;
+
     let html="";
-    list.forEach(m=>{
+    filtered.forEach(m=>{
       const e=m.date_entree?new Date(m.date_entree):null;
       const s=m.date_sortie?new Date(m.date_sortie):new Date();
-      const jours=e?Math.max(1,Math.ceil((s-e)/(1000*60*60*24))):0;
-      const tarif=m.tarif_jour||40, total=jours*tarif, remise=m.remise||0, net=total-remise;
-      const pM=parseFloat(m.paye_montant)||0,mM=parseFloat(m.montant_net||m.montant_total)||0;const st=m.statut==="en_cours"?`<span class="badge badge-jaune">🔄 En cours</span>`:m.paye_solde||pM>=mM&&mM>0?`<span class="badge" style="background:#e8f5e9;color:#2e7d32">✅ Payé</span>`:pM>0?`<span class="badge" style="background:#f3e5f5;color:#7b1fa2">🟣 Partiel</span>`:`<span class="badge" style="background:#fff8e1;color:#f57c00">⏳ Impayé</span>`;
-      html+=`<tr>
+      const jours=e?Math.max(1,Math.ceil((s-e)/(1000*60*60*24))):m.jours||0;
+      const tarif=m.tarif_jour||40, total=m.montant_total||(jours*tarif), remise=m.remise||0;
+      const net=m.montant_net||(total-remise);
+      const paye=m.paye_montant||0;
+      const reste=Math.max(0,net-paye);
+
+      let stBadge="";
+      if(m.statut==="en_cours"){
+        stBadge=`<span class="badge badge-jaune">🔄 En cours</span>`;
+      } else if(m._statutPaie==="paye"){
+        stBadge=`<span class="badge" style="background:#e8f5e9;color:#2e7d32">✅ Payé</span>`;
+      } else if(m._statutPaie==="partiel"){
+        stBadge=`<span class="badge" style="background:#f3e5f5;color:#7b1fa2">🟣 Partiel</span>`;
+      } else {
+        stBadge=`<span class="badge" style="background:#ffebee;color:#c62828">🔴 Impayé</span>`;
+      }
+
+      const modeLabel = m.mode_paiement?{especes:"💵",cb:"💳",cheque:"📝",virement:"🏦"}[m.mode_paiement]||"":"";
+
+      html+=`<tr style="${m._statutPaie==='impaye'&&m.statut!=='en_cours'?'background:#fff8f8':''}">
+        <td><input type="checkbox" class="mag-cb" data-id="${m.id}" onchange="majSelMag()"></td>
         <td style="font-weight:700;font-family:monospace;font-size:11px">${m.immat||"—"}</td>
         <td><strong>${m.client||"—"}</strong><br><span style="font-size:10px;color:var(--gris3)">${m.vehicule||""}</span></td>
         <td>${m.date_entree||"—"}</td>
@@ -2101,14 +2311,18 @@ function chargerMagasinage(){
         <td>${tarif} €</td>
         <td>${fmtMontant(total)}</td>
         <td style="color:var(--rouge)">${remise>0?"-"+fmtMontant(remise):"—"}</td>
-        <td style="font-weight:900;color:var(--vert)">${fmtMontant(net)}</td>
-        <td>${st}</td>
-        <td><div style="display:flex;gap:4px">
+        <td style="font-weight:900;color:var(--bleu)">${fmtMontant(net)}</td>
+        <td style="font-weight:700;color:var(--vert)">${paye>0?fmtMontant(paye):"—"}${modeLabel?" "+modeLabel:""}</td>
+        <td style="font-weight:700;color:${reste>0?"var(--rouge)":"var(--vert)"}">${reste>0?fmtMontant(reste):"✅"}</td>
+        <td>${stBadge}</td>
+        <td style="font-size:11px;color:var(--vert);font-weight:700">${m.recu_num||"—"}</td>
+        <td><div style="display:flex;gap:4px;flex-wrap:wrap">
           ${m.statut==="en_cours"?`<button class="btn btn-success btn-sm" onclick="ouvrirLivraison('${m.id}')">✅ Restituer</button>`:""}
+          ${m.statut!=="en_cours"&&m._statutPaie!=="paye"?`<button class="btn btn-primary btn-sm" onclick="ouvrirPaiementMag('${m.id}')">💰 Payer</button>`:""}
           <button class="btn btn-danger btn-sm btn-icon" onclick="supprimerMag('${m.id}')">🗑</button>
         </div></td></tr>`;
     });
-    G("mag-tbody").innerHTML=html||`<tr><td colspan="11" style="text-align:center;color:var(--gris3);padding:24px">Aucun gardiennage</td></tr>`;
+    G("mag-tbody").innerHTML=html||`<tr><td colspan="15" style="text-align:center;color:var(--gris3);padding:24px">Aucun gardiennage</td></tr>`;
   }).catch(console.error);
 }
 
@@ -2167,69 +2381,220 @@ function sauvegarderMagasinage(){
   .catch(()=>{toast("Erreur","err");loader(false);});
 }
 
-function ouvrirLivraison(id){
-  G("livraison-mag-id").value=id;
-  G("mag-date-sortie").value=new Date().toISOString().split("T")[0];
+function majCalcLivraison(){
+  const id=G("livraison-mag-id").value;
+  if(!id) return;
   db.collection("magasinage").doc(id).get().then(snap=>{
     const m=snap.data();
-    const e=new Date(m.date_entree), s=new Date(G("mag-date-sortie").value);
+    const dateSortie=G("mag-date-sortie").value;
+    if(!dateSortie) return;
+    const e=new Date(m.date_entree), s=new Date(dateSortie);
     const jours=Math.max(1,Math.ceil((s-e)/(1000*60*60*24)));
-    const total=jours*(m.tarif_jour||40), net=total-(m.remise||0);
-    G("livraison-calcul").innerHTML=`<strong>${m.immat}</strong> — ${m.client}<br>Entrée: ${m.date_entree}<br>Durée: <strong>${jours} jour(s)</strong><br>Total: ${fmtMontant(total)}<br>${m.remise>0?`Remise: -${fmtMontant(m.remise)}<br>`:""}<strong style="color:var(--vert);font-size:15px">Net à encaisser: ${fmtMontant(net)}</strong>`;
-    G("modal-livraison-mag").classList.add("on");
+    const total=jours*(m.tarif_jour||40);
+    const remiseBase=m.remise||0;
+    const remiseSup=parseFloat(G("mag-paiement-remise")?.value)||0;
+    const net=total-remiseBase-remiseSup;
+    G("livraison-calcul").innerHTML=`<strong>${m.immat}</strong> — ${m.client}<br>
+      Entrée: ${m.date_entree} → Sortie: <strong>${dateSortie}</strong><br>
+      Durée: <strong>${jours} jour(s)</strong> × ${m.tarif_jour||40} €/j = ${fmtMontant(total)}<br>
+      ${remiseBase>0?`Remise initiale: -${fmtMontant(remiseBase)}<br>`:""}
+      ${remiseSup>0?`Remise supplémentaire: -${fmtMontant(remiseSup)}<br>`:""}
+      <strong style="color:var(--vert);font-size:15px">Net à encaisser: ${fmtMontant(net)}</strong>`;
+    if(G("mag-paiement-montant")&&!G("mag-paiement-montant").value) G("mag-paiement-montant").value=net.toFixed(2);
+    const montantSaisi=parseFloat(G("mag-paiement-montant")?.value)||0;
+    const recap=G("mag-paiement-recap");
+    if(recap&&montantSaisi>0){
+      const reste=net-montantSaisi;
+      recap.innerHTML=reste<=0?`<strong style="color:var(--vert)">✅ Soldé</strong>`
+        :`<span style="color:var(--rouge)">Reste à payer: ${fmtMontant(reste)}</span>`;
+    }
   });
 }
 
-function confirmerLivraison(){
-  const id=G("livraison-mag-id").value, dateSortie=G("mag-date-sortie").value;
+function ouvrirLivraison(id){
+  G("livraison-mag-id").value=id;
+  G("mag-date-sortie").value=new Date().toISOString().split("T")[0];
+  G("mag-paiement-date").value=new Date().toISOString().split("T")[0];
+  G("mag-paiement-montant").value="";
+  G("mag-paiement-remise").value="0";
+  majCalcLivraison();
+  G("modal-livraison-mag").classList.add("on");
+}
+
+async function confirmerLivraison(){
+  const id=G("livraison-mag-id").value;
+  const dateSortie=G("mag-date-sortie").value;
+  const montantPaye=parseFloat(G("mag-paiement-montant").value)||0;
+  const mode=G("mag-paiement-mode").value;
+  const datePaie=G("mag-paiement-date").value;
+  const remiseSup=parseFloat(G("mag-paiement-remise").value)||0;
+  if(!dateSortie){toast("Date de sortie obligatoire","err");return;}
   loader(true);
-  db.collection("magasinage").doc(id).get().then(snap=>{
+  try {
+    const snap=await db.collection("magasinage").doc(id).get();
     const m=snap.data();
     const e=new Date(m.date_entree), s=new Date(dateSortie);
     const jours=Math.max(1,Math.ceil((s-e)/(1000*60*60*24)));
-    const total=jours*(m.tarif_jour||40), net=total-(m.remise||0);
-    return db.collection("parametres").doc("mag_compteur").get().then(cs=>{
-      const n=(cs.exists?cs.data().val||0:0)+1;
-      const recuNum="SEC/MAG-"+("000000"+n).slice(-6);
-      const today=new Date();
-      const batch=db.batch();
-      batch.set(db.collection("parametres").doc("mag_compteur"),{val:n});
-      batch.update(db.collection("magasinage").doc(id),{
-        statut:"livre",date_sortie:dateSortie,jours,montant_total:total,montant_net:net,recu_num:recuNum
-      });
+    const total=jours*(m.tarif_jour||40);
+    const remise=(m.remise||0)+remiseSup;
+    const net=total-remise;
+    const solde=montantPaye>=net&&net>0;
+    const statutPaie=montantPaye<=0?"impaye":solde?"paye":"partiel";
+
+    // Générer numéro SEC/MAG
+    const cSnap=await db.collection("parametres").doc("mag_compteur").get();
+    const n=(cSnap.exists?cSnap.data().val||0:0)+1;
+    const recuNum="SEC/MAG-"+("000000"+n).slice(-6);
+
+    const batch=db.batch();
+    batch.set(db.collection("parametres").doc("mag_compteur"),{val:n});
+    batch.update(db.collection("magasinage").doc(id),{
+      statut:"livre", date_sortie:dateSortie, jours,
+      montant_total:total, remise, montant_net:net,
+      paye_montant:montantPaye, mode_paiement:mode,
+      date_paiement:datePaie, statut_paiement:statutPaie,
+      recu_num:montantPaye>0?recuNum:""
+    });
+    if(montantPaye>0){
       batch.set(db.collection("recus").doc(),{
-        recu_num:recuNum,type_bl:"magasinage",nom_client:m.client||"—",
-        immatriculation:m.immat||"—",date:today.toLocaleDateString("fr-FR"),
-        heure:today.toLocaleTimeString("fr-FR",{hour:"2-digit",minute:"2-digit"}),
-        montant:net,jours,date_entree:m.date_entree||"—",date_sortie:dateSortie,
+        recu_num:recuNum, type_recu:"magasinage",
+        nom_client:m.client||"—", immatriculation:m.immat||"—",
+        vehicule:m.vehicule||"—",
+        date:new Date().toLocaleDateString("fr-FR"),
+        heure:new Date().toLocaleTimeString("fr-FR",{hour:"2-digit",minute:"2-digit"}),
+        montant:montantPaye, montant_net:net, jours,
+        mode_paiement:mode, date_paiement:datePaie,
+        statut_paiement:statutPaie,
+        date_entree:m.date_entree||"—", date_sortie:dateSortie,
         createdAt:firebase.firestore.FieldValue.serverTimestamp()
       });
-      return batch.commit();
-    });
-  }).then(()=>{
-    toast("Restitué ✅ — SEC/MAG généré");
+    }
+    await batch.commit();
+    toast(montantPaye>0?`Restitué ✅ — Reçu ${recuNum} généré`:"Restitué ✅ (sans paiement)");
     fermerModal("modal-livraison-mag");
     chargerMagasinage();
     loader(false);
-  }).catch(e=>{toast("Erreur","err");loader(false);console.error(e);});
+  } catch(e){ toast("Erreur","err"); loader(false); console.error(e); }
+}
+
+function ouvrirPaiementMag(id){
+  G("paiement-mag-id").value=id;
+  G("paiement-mag-date").value=new Date().toISOString().split("T")[0];
+  G("paiement-mag-montant").value="";
+  db.collection("magasinage").doc(id).get().then(snap=>{
+    const m=snap.data();
+    const net=m.montant_net||m.montant_total||0;
+    const paye=m.paye_montant||0;
+    const reste=Math.max(0,net-paye);
+    G("paiement-mag-info").innerHTML=`<strong>${m.immat}</strong> — ${m.client}<br>
+      Net: <strong style="color:var(--bleu)">${fmtMontant(net)}</strong> | 
+      Déjà payé: <strong style="color:var(--vert)">${fmtMontant(paye)}</strong> | 
+      Reste: <strong style="color:var(--rouge)">${fmtMontant(reste)}</strong>`;
+    G("paiement-mag-montant").value=reste.toFixed(2);
+    G("modal-paiement-mag").classList.add("on");
+  });
+}
+
+async function confirmerPaiementMag(){
+  const id=G("paiement-mag-id").value;
+  const montant=parseFloat(G("paiement-mag-montant").value)||0;
+  const mode=G("paiement-mag-mode").value;
+  const date=G("paiement-mag-date").value;
+  if(!montant){toast("Montant obligatoire","err");return;}
+  loader(true);
+  try {
+    const snap=await db.collection("magasinage").doc(id).get();
+    const m=snap.data();
+    const net=m.montant_net||m.montant_total||0;
+    const newPaye=(m.paye_montant||0)+montant;
+    const solde=newPaye>=net&&net>0;
+
+    const cSnap=await db.collection("parametres").doc("mag_compteur").get();
+    const n=(cSnap.exists?cSnap.data().val||0:0)+1;
+    const recuNum="SEC/MAG-"+("000000"+n).slice(-6);
+
+    const batch=db.batch();
+    batch.set(db.collection("parametres").doc("mag_compteur"),{val:n});
+    batch.update(db.collection("magasinage").doc(id),{
+      paye_montant:newPaye, mode_paiement:mode, date_paiement:date,
+      statut_paiement:solde?"paye":"partiel", recu_num:recuNum
+    });
+    batch.set(db.collection("recus").doc(),{
+      recu_num:recuNum, type_recu:"magasinage",
+      nom_client:m.client||"—", immatriculation:m.immat||"—",
+      vehicule:m.vehicule||"—",
+      date:new Date().toLocaleDateString("fr-FR"),
+      heure:new Date().toLocaleTimeString("fr-FR",{hour:"2-digit",minute:"2-digit"}),
+      montant, montant_net:net, jours:m.jours||0,
+      mode_paiement:mode, date_paiement:date,
+      statut_paiement:solde?"paye":"partiel",
+      date_entree:m.date_entree||"—", date_sortie:m.date_sortie||"—",
+      createdAt:firebase.firestore.FieldValue.serverTimestamp()
+    });
+    await batch.commit();
+    toast(`Paiement enregistré ✅ — Reçu ${recuNum}`);
+    fermerModal("modal-paiement-mag");
+    chargerMagasinage();
+    loader(false);
+  } catch(e){ toast("Erreur","err"); loader(false); console.error(e); }
 }
 
 function supprimerMag(id){if(!confirm("Supprimer ?"))return;db.collection("magasinage").doc(id).delete().then(()=>{toast("Supprimé");chargerMagasinage();});}
-function exporterMagasinagePDF(){toast("Export PDF magasinage — disponible prochainement");}
+function selToutMag(){
+  const all=G("mag-check-all");
+  document.querySelectorAll(".mag-cb").forEach(cb=>cb.checked=all?all.checked:true);
+  majSelMag();
+}
+function majSelMag(){
+  const nb=document.querySelectorAll(".mag-cb:checked").length;
+  const lbl=G("mag-sel-lbl"); if(lbl) lbl.textContent=nb>0?nb+" sélectionné(s)":"";
+  const all=G("mag-check-all");
+  if(all) all.checked=nb>0&&nb===document.querySelectorAll(".mag-cb").length;
+}
+
+function exporterMagasinagePDF(){
+  const {jsPDF}=window.jspdf;
+  const doc=new jsPDF('landscape','mm','a4');
+  doc.setFont('helvetica','bold'); doc.setFontSize(14); doc.setTextColor(200,52,26);
+  doc.text('MAGASINAGE — Multi Auto Dépannage',148,14,{align:'center'});
+  doc.setFontSize(8); doc.setFont('helvetica','normal'); doc.setTextColor(100,100,100);
+  doc.text('Généré le '+new Date().toLocaleDateString('fr-FR'),148,20,{align:'center'});
+
+  const cochees=document.querySelectorAll('.mag-cb:checked');
+  const rows=[];
+  const source = cochees.length>0
+    ? Array.from(cochees).map(cb=>cb.closest('tr'))
+    : Array.from(document.querySelectorAll('#mag-tbody tr'));
+
+  source.forEach(tr=>{
+    const cells=[]; 
+    tr.querySelectorAll('td').forEach((td,i)=>{ if(i>0&&i<14) cells.push(td.textContent.trim().replace(/\s+/g,' ')); });
+    if(cells.length>2) rows.push(cells.slice(0,13));
+  });
+
+  if(!rows.length){ toast("Aucune ligne à exporter","err"); return; }
+
+  doc.autoTable({
+    startY:26,
+    head:[['Immat.','Client','Entrée','Sortie','Jours','Tarif/j','Total','Remise','Net','Payé','Reste','Statut','N° Reçu']],
+    body:rows,
+    headStyles:{fillColor:[26,37,64],textColor:255,fontSize:6,fontStyle:'bold'},
+    bodyStyles:{fontSize:6},
+    alternateRowStyles:{fillColor:[246,246,246]},
+    margin:{left:8,right:8},
+    columnStyles:{0:{fontStyle:'bold'},11:{fontStyle:'bold'}}
+  });
+  const nb=cochees.length>0?cochees.length:rows.length;
+  doc.save('magasinage'+(cochees.length>0?'-selection':'-tous')+'.pdf');
+  toast(nb+' ligne(s) exportée(s) ✅');
+}
 
 // ── PRISES EN CHARGE ──
 function chargerPC(){
   const statut=G("pc-filtre-statut")?.value||"";
   db.collection("prises_en_charge").orderBy("date","desc").limit(200).get().then(snap=>{
     let list=[]; snap.forEach(d=>list.push({id:d.id,...d.data()}));
-    const filtPaiement=G("pc-filtre-paiement")?.value||"";
-    const filtAss=G("pc-filtre-assureur")?.value||"";
-    const filtCl=G("pc-filtre-client")?.value||"";
-    if(filtPaiement) list=list.filter(p=>calcStatutPC(p)===filtPaiement);
-    if(filtAss) list=list.filter(p=>(p.statut_assureur||"en_attente")===filtAss);
-    if(filtCl==="paye") list=list.filter(p=>(p.montant_client_paye||0)>=(p.montant_client||0)&&(p.montant_client||0)>0);
-    else if(filtCl==="partiel") list=list.filter(p=>(p.montant_client_paye||0)>0&&(p.montant_client_paye||0)<(p.montant_client||0));
-    else if(filtCl==="impaye") list=list.filter(p=>(p.montant_client_paye||0)===0&&(p.montant_client||0)>0);
+    if(statut) list=list.filter(p=>p.statut===statut);
     const totalAss=list.reduce((s,p)=>s+(p.montant_assurance||0),0);
     const totalClient=list.reduce((s,p)=>s+(p.montant_client||0),0);
     if(G("pc-stats")) G("pc-stats").innerHTML=`
@@ -2242,35 +2607,26 @@ function chargerPC(){
     list.forEach(p=>{
       const paye=p.paye_client||0, reste=(p.montant_client||0)-paye;
       const st=p.statut==="en_cours"?`<span class="badge badge-jaune">🔄 En cours</span>`:p.statut==="livre"?`<span class="badge badge-vert">✅ Livré</span>`:`<span class="badge badge-rouge">✕ Annulé</span>`;
-            var stGl=badgeStatutPC(p);
-      var stAs=p.statut_assureur==="recu"?"<span class='badge' style='background:#e8f5e9;color:#2e7d32'>✅ Reçu</span>":"<span class='badge' style='background:#fff8e1;color:#f57c00'>⏳ Att.</span>";
-      var mC=parseFloat(p.montant_client)||0, pC=parseFloat(p.montant_client_paye)||0;
-      var stCl=mC===0?"<span style='color:var(--gris3);font-size:11px'>N/A</span>":pC>=mC?"<span class='badge' style='background:#e8f5e9;color:#2e7d32'>✅ Payé</span>":pC>0?"<span class='badge' style='background:#f3e5f5;color:#7b1fa2'>🟣 Partiel</span>":"<span class='badge' style='background:#ffebee;color:#c62828'>🔴 Impayé</span>";
-      var infoC=p.paye_par_chauffeur===true?"🚛 Ch. "+(p.recu_num||""):p.mode_paiement_client?(p.mode_paiement_client+(p.date_paiement_client?" "+p.date_paiement_client:"")):"";
-      var isAn=p.statut==="annule";
-      html+="<tr style='"+(isAn?"background:#fce4ec;opacity:0.8":"")+"'>"
-        +"<td><input type='checkbox' class='pc-cb' data-id='"+p.id+"'></td>"
-        +"<td style='font-weight:700;color:var(--bleu);font-size:11px'>"+(p.dossier||"—")+"</td>"
-        +"<td style='font-size:11px'>"+(p.date||"—")+"</td>"
-        +"<td style='font-size:11px'>"+(p.assureur||"—")+"</td>"
-        +"<td><strong>"+(p.client||"—")+"</strong></td>"
-        +"<td style='font-size:11px'>"+(p.marque||"")+" "+(p.modele||"")+"<br><span style='font-family:monospace;font-size:10px;font-weight:700'>"+(p.immat||"")+"</span></td>"
-        +"<td style='color:var(--vert);font-weight:700'>"+fmtMontant(p.montant_reel||((p.montant_assurance||0)+mC))+"</td>"
-        +"<td style='color:var(--bleu);font-weight:700'>"+fmtMontant(p.montant_assurance||0)+"</td>"
-        +"<td>"+stAs+"</td>"
-        +"<td style='color:var(--bleu);font-weight:700'>"+fmtMontant(mC)+(infoC?"<br><span style='font-size:10px;color:var(--gris3)'>"+infoC+"</span>":"")+"</td>"
-        +"<td>"+stCl+"</td>"
-        +"<td style='font-size:11px;color:var(--bleu)'>"+(p.bon_num||"—")+"</td>"
-        +"<td style='font-size:11px;color:var(--vert)'>"+(p.recu_num||p.sec_recu_num||"—")+"</td>"
-        +"<td style='font-size:11px;color:var(--rouge);max-width:90px'>"+(p.observation||"—")+"</td>"
-        +"<td style='font-size:11px;color:var(--gris3);max-width:100px'>"+(p.notes||"—")+"</td>"
-        +"<td>"+stGl+"</td>"
-        +"<td><div style='display:flex;gap:3px;flex-wrap:wrap'>"
-          +"<button class='btn btn-secondary btn-sm btn-icon' data-id='"+p.id+"' onclick='editerPC(this.dataset.id)'>✏️</button>"
-          +(!isAn&&mC>0&&calcStatutPC(p)!=="solde"?"<button class='btn btn-success btn-sm' data-id='"+p.id+"' data-mc='"+mC+"' data-mp='"+pC+"' data-client='"+(p.client||"")+"' data-dos='"+(p.dossier||"")+"' onclick='ouvrirPaiementPC(this.dataset.id,parseFloat(this.dataset.mc),parseFloat(this.dataset.mp),this.dataset.client,this.dataset.dos)'>💰</button>":"")
-          +(!isAn?"<button class='btn btn-danger btn-sm btn-icon' data-id='"+p.id+"' onclick='annulerPC(this.dataset.id)'>❌</button>":"")
-          +"<button class='btn btn-danger btn-sm btn-icon' data-id='"+p.id+"' onclick='supprimerPC(this.dataset.id)'>🗑</button>"
-        +"</div></td></tr>";
+      html+=`<tr>
+        <td style="font-weight:700;color:var(--bleu);font-size:11px">${p.dossier||"—"}</td>
+        <td style="font-size:11px">${p.date||"—"}</td>
+        <td style="font-size:11px">${p.assureur||"—"}</td>
+        <td><strong>${p.client||"—"}</strong></td>
+        <td style="font-size:11px">${p.marque||""} ${p.modele||""}<br><span style="font-family:monospace;font-size:10px;font-weight:700">${p.immat||""}</span></td>
+        <td style="color:var(--vert);font-weight:700;font-size:13px">${fmtMontant(p.montant_reel||(p.montant_assurance||0)+(p.montant_client||0))}</td>
+        <td style="color:var(--bleu);font-weight:700">${fmtMontant(p.montant_assurance)}</td>
+        <td style="color:var(--bleu);font-weight:700">${fmtMontant(p.montant_client)}
+          ${reste>0?`<br><span style="color:var(--rouge);font-size:10px">Reste: ${fmtMontant(reste)}</span>`:`<br><span style="color:var(--vert);font-size:10px">✅ Soldé</span>`}</td>
+        <td style="font-size:11px;color:var(--bleu)">${p.bon_num||"—"}</td>
+        <td style="font-size:11px;color:var(--vert)">${p.recu_num||"—"}</td>
+        <td>${st}</td>
+        <td><div style="display:flex;gap:3px;flex-wrap:wrap">
+          <button class="btn btn-secondary btn-sm btn-icon" onclick="editerPC('${p.id}')">✏️</button>
+          ${p.statut==="en_cours"?`
+            <button class="btn btn-success btn-sm" onclick="changerStatutPC('${p.id}','livre')">✅ Livrer</button>
+            <button class="btn btn-danger btn-sm" onclick="changerStatutPC('${p.id}','annule')">✕ Annuler</button>`:""}
+          <button class="btn btn-danger btn-sm btn-icon" onclick="supprimerPC('${p.id}')">🗑</button>
+        </div></td></tr>`;
     });
     G("pc-tbody").innerHTML=html||`<tr><td colspan="10" style="text-align:center;color:var(--gris3);padding:24px">Aucune prise en charge</td></tr>`;
   }).catch(console.error);
@@ -2338,13 +2694,8 @@ function peuplerMarquesPC(){
 function chercherRecuPC(){
   const bl=G("pc-bl").value.trim();
   if(!bl){if(G("pc-recu"))G("pc-recu").value="";return;}
-  db.collection("bons").where("bon_num","==",bl).limit(1).get().then(snap=>{
-    if(snap.empty){if(G("pc-recu"))G("pc-recu").value="";return;}
-    const esp=parseFloat(snap.docs[0].data().montant_especes)||0;
-    if(esp<=0){if(G("pc-recu"))G("pc-recu").value="";return;}
-    db.collection("recus").where("bon_num","==",bl).limit(1).get().then(rS=>{
-      if(G("pc-recu"))G("pc-recu").value=rS.empty?"":rS.docs[0].data().recu_num||"";
-    });
+  db.collection("recus").where("bon_num","==",bl).limit(1).get().then(snap=>{
+    G("pc-recu").value=snap.empty?"":snap.docs[0].data().recu_num||"";
   });
 }
 function ouvrirModalPC(){
@@ -2405,43 +2756,6 @@ function sauvegarderPC(){
   p.then(()=>{toast(editingId?"PC modifiée ✅":"PC créée ✅");fermerModal("modal-pc");chargerPC();loader(false);})
   .catch(()=>{toast("Erreur","err");loader(false);});
 }
-function ouvrirPaiementPC(id, montantTotal, dejaPaye, client, dossier){
-  G("ppc-id").value=id;
-  G("ppc-montant").value=(montantTotal-dejaPaye).toFixed(2);
-  G("ppc-date").value=new Date().toISOString().split("T")[0];
-  G("ppc-info").innerHTML=`<strong>${client}</strong> — Dossier: ${dossier}<br>
-    Total client: <strong style="color:var(--rouge)">${fmtMontant(montantTotal)}</strong> | 
-    Déjà payé: <strong style="color:var(--vert)">${fmtMontant(dejaPaye)}</strong> | 
-    Reste: <strong style="color:var(--bleu)">${fmtMontant(montantTotal-dejaPaye)}</strong>`;
-  G("modal-paiement-pc").classList.add("on");
-}
-function confirmerPaiementPC(){
-  const id=G("ppc-id").value;
-  const montant=parseFloat(G("ppc-montant").value)||0;
-  const mode=G("ppc-mode").value;
-  const date=G("ppc-date").value;
-  if(!montant){toast("Montant obligatoire","err");return;}
-  loader(true);
-  db.collection("prises_en_charge").doc(id).get().then(snap=>{
-    const p=snap.data();
-    const dejaPaye=parseFloat(p.montant_client_paye)||0;
-    const newPaye=dejaPaye+montant;
-    const montantTotal=parseFloat(p.montant_client)||0;
-    const solde=newPaye>=montantTotal;
-    return db.collection("prises_en_charge").doc(id).update({
-      montant_client_paye:newPaye,
-      paye_par_chauffeur:false,
-      mode_paiement_client:mode,
-      date_paiement_client:date,
-      statut_paiement_client:solde?"solde":"partiel"
-    });
-  }).then(()=>{
-    toast("Paiement enregistré ✅");
-    fermerModal("modal-paiement-pc");
-    chargerPC();
-    loader(false);
-  }).catch(e=>{toast("Erreur","err");loader(false);console.error(e);});
-}
 function changerStatutPC(id,statut){
   if(!confirm(statut==="annule"?"Annuler cette mission ?":"Confirmer la livraison ?"))return;
   db.collection("prises_en_charge").doc(id).update({statut,date_modification:firebase.firestore.FieldValue.serverTimestamp()})
@@ -2449,12 +2763,6 @@ function changerStatutPC(id,statut){
 }
 function annulerPC(){if(editingId)changerStatutPC(editingId,"annule");fermerModal("modal-pc");}
 function supprimerPC(id){if(!confirm("Supprimer ?"))return;db.collection("prises_en_charge").doc(id).delete().then(()=>{toast("Supprimé");chargerPC();});}
-function selToutPC(){
-  const all=G("pc-check-all");
-  const cbs=document.querySelectorAll(".pc-cb");
-  if(!cbs.length){toast("Aucune ligne","err");return;}
-  cbs.forEach(cb=>cb.checked=all?all.checked:true);
-}
 function exporterPCPDF(){toast("Export PDF PC — disponible prochainement");}
 
 // ── CARBURANT ──
@@ -2540,20 +2848,21 @@ function chargerGPS(){
   loader(true);
   const selCh=G("gps-chauffeur");
   if(selCh&&selCh.options.length<=1){chauffeursList.forEach(ch=>{const o=document.createElement("option");o.value=ch.id;o.textContent=ch.nom;selCh.appendChild(o);});}
-  db.collection("bons").orderBy("timestamp","desc").limit(300).get().then(snap=>{
+  db.collection("bons").orderBy("timestamp","desc").limit(500).get().then(snap=>{
     let bons=[]; snap.forEach(d=>bons.push({id:d.id,...d.data()}));
     const ch=G("gps-chauffeur")?.value||"";
     const debut=G("gps-debut")?.value||"", fin=G("gps-fin")?.value||"";
     if(ch)    bons=bons.filter(b=>b.chauffeur_uid===ch);
     if(debut) bons=bons.filter(b=>toComp(b.date_bl)>=debut);
     if(fin)   bons=bons.filter(b=>toComp(b.date_bl)<=fin);
-    bons=bons.filter(b=>b.lieu_embarquement||b.destination);
+    // Afficher tous les BL (avec ou sans GPS)
     const dureeTotal=bons.reduce((s,b)=>s+(b.duree_trajet_min||0),0);
     const dh=Math.floor(dureeTotal/60),dm=dureeTotal%60;
     const gpsEl=G("gps-totaux-admin");
     if(gpsEl) gpsEl.innerHTML=`
       <div class="total-badge"><div class="tb-num">${bons.length}</div><div class="tb-lbl">Trajets</div></div>
-      <div class="total-badge vert"><div class="tb-num">${dh}h${"0"+dm}</div><div class="tb-lbl">Durée totale</div></div>`;
+      <div class="total-badge vert"><div class="tb-num">${dh}h${("0"+dm).slice(-2)}</div><div class="tb-lbl">Durée totale</div></div>
+      <div class="total-badge" style="background:var(--bleu-lt);color:var(--bleu)"><div class="tb-num">${bons.filter(b=>b.gps_emb_lat&&b.gps_dest_lat).length}</div><div class="tb-lbl">Avec GPS</div></div>`;
     let html="";
     bons.forEach(b=>{
       const min=b.duree_trajet_min||0;
@@ -2561,9 +2870,10 @@ function chargerGPS(){
       let mapsUrl="";
       if(b.gps_emb_lat&&b.gps_dest_lat) mapsUrl="https://www.google.com/maps/dir/"+b.gps_emb_lat+","+b.gps_emb_lng+"/"+b.gps_dest_lat+","+b.gps_dest_lng;
       else if(b.lieu_embarquement&&b.destination) mapsUrl="https://www.google.com/maps/dir/"+encodeURIComponent(b.lieu_embarquement+", Mayotte")+"/"+encodeURIComponent(b.destination+", Mayotte");
-      const bonData=JSON.stringify({lieu_embarquement:b.lieu_embarquement||"",destination:b.destination||"",chauffeur_nom:b.chauffeur_nom||"",date_bl:b.date_bl||"",heure_bl:b.heure_bl||"",tarif:b.tarif||"",duree_trajet_min:b.duree_trajet_min||0,gps_emb_lat:b.gps_emb_lat||null,gps_emb_lng:b.gps_emb_lng||null,gps_dest_lat:b.gps_dest_lat||null,gps_dest_lng:b.gps_dest_lng||null}).replace(/'/g,"\'");
+      const bonData=JSON.stringify({bon_num:b.bon_num||"",lieu_embarquement:b.lieu_embarquement||"",destination:b.destination||"",chauffeur_nom:b.chauffeur_nom||"",date_bl:b.date_bl||"",heure_bl:b.heure_bl||"",tarif:b.tarif||"",duree_trajet_min:b.duree_trajet_min||0,gps_emb_lat:b.gps_emb_lat||null,gps_emb_lng:b.gps_emb_lng||null,gps_dest_lat:b.gps_dest_lat||null,gps_dest_lng:b.gps_dest_lng||null}).replace(/'/g,"\\'");
       html+=`<tr>
-        <td><input type="checkbox" class="gps-check" onchange="majSelGPS()" data-emb="${b.lieu_embarquement||''}" data-dest="${b.destination||''}" data-ch="${b.chauffeur_nom||''}" data-date="${b.date_bl||''}" data-duree="${duree}"></td>
+        <td><input type="checkbox" class="gps-check" onchange="majSelGPS()" data-emb="${b.lieu_embarquement||''}" data-dest="${b.destination||''}" data-ch="${b.chauffeur_nom||''}" data-date="${b.date_bl||''}" data-duree="${duree}" data-bl="${b.bon_num||''}"></td>
+        <td style="font-weight:700;color:var(--bleu);font-size:11px">${b.bon_num||"—"}</td>
         <td><strong>${b.date_bl||"—"}</strong><br><span style="font-size:10px;color:var(--gris3)">${b.heure_bl||""}</span></td>
         <td>${b.chauffeur_nom||"—"}</td>
         <td>
@@ -2592,9 +2902,9 @@ function chargerGPS(){
         </div></td>
       </tr>`;
     });
-    G("gps-tbody").innerHTML=html||`<tr><td colspan="7" style="text-align:center;color:var(--gris3);padding:24px">Cliquez sur Filtrer</td></tr>`;
+    G("gps-tbody").innerHTML=html||`<tr><td colspan="9" style="text-align:center;color:var(--gris3);padding:24px">Aucun trajet trouvé</td></tr>`;
     loader(false);
-  }).catch(()=>loader(false));
+  }).catch(e=>{loader(false);console.error(e);});
 }
 
 function exporterGPSPDF(){
@@ -2661,6 +2971,10 @@ function ouvrirCarteGPS(bon){
 // ══════════════════════════════════════
 var soldesData = [];
 
+// Clients PC auto (GAA, Mondiale Assistance)
+const PC_CLIENTS_AUTO = ["gaa","mondiale assistance","mondiale"];
+function estClientPC(nom){ return PC_CLIENTS_AUTO.some(k=>(nom||"").toLowerCase().includes(k)); }
+
 async function chargerSoldes(prefix){
   const pfx = prefix||"";
   const clientSel = G(pfx+"soldes-client")?.value||"";
@@ -2671,53 +2985,66 @@ async function chargerSoldes(prefix){
   loader(true,"Chargement soldes...");
 
   try {
-    // 1. BL remorquage
+    // 1. BL remorquage — inclure ceux sans montant (jaune), exclure clients PC auto
     const blSnap = await db.collection("bons").orderBy("timestamp","desc").limit(500).get();
     const items = [];
     blSnap.forEach(d=>{
       const b=d.data();
-      const montant = b.montant || 0;
-      if(montant<=0) return; // BL sans montant ignoré (PC etc)
+      if(estClientPC(b.nom_client)) return; // GAA / Mondiale → onglet PC uniquement
+      if(b.deplace_en_pc) return; // Déplacé manuellement en PC
+      const montant = parseFloat(b.montant)||0;
+      // Espèces chauffeur = payé automatiquement
+      const especes = parseFloat(b.montant_especes)||0;
+      const payeAuto = b.paye_montant||0;
+      const payeTotal = payeAuto>0?payeAuto:(especes>0&&montant>0?Math.min(especes,montant):0);
+      const parChauffeur = especes>0&&payeAuto<=0&&montant>0;
+      const statut = !montant?"incomplet":payeTotal>=montant?"solde":payeTotal>0?"partiel":"impaye";
       items.push({
-        id: d.id, type:"bl", date:b.date_bl||"", client:b.nom_client||"—",
-        doc: b.bon_num||"—", designation:`Remorquage — ${b.immatriculation||""} ${b.lieu_embarquement||""} → ${b.destination||""}`,
-        montant,
-        paye: b.paye_montant||(b.paye_solde?montant:parseFloat(b.montant_especes)||0),
-        mode: b.mode_paiement_solde||(parseFloat(b.montant_especes)>0&&!b.paye_montant?"especes (chauffeur)":""),
-        date_paiement: b.date_paiement_solde||"",
-        statut: b.paye_solde?"solde":parseFloat(b.paye_montant)>=montant&&montant>0?"solde":parseFloat(b.paye_montant)>0||parseFloat(b.montant_especes)>0?"partiel":montant>0?"impaye":"incomplet",
-        recu: b.recu_num||"", sec_recu: b.sec_recu_num||"", collection:"bons"
+        id:d.id, type:"bl", date:b.date_bl||"", client:b.nom_client||"—",
+        doc:b.bon_num||"—",
+        designation:`Remorquage — ${b.immatriculation||""} ${b.lieu_embarquement||""} → ${b.destination||""}`,
+        montant, paye:payeTotal, mode:parChauffeur?"💵 Espèces (chauffeur)":(b.mode_paiement_solde||""),
+        date_paiement:b.date_paiement_solde||"",
+        statut, parChauffeur, collection:"bons", recu:b.recu_num||""
       });
     });
 
-    // 2. Magasinage
+    // 2. Magasinage restitué — statut basé sur paiement
     const magSnap = await db.collection("magasinage").orderBy("date_entree","desc").limit(200).get();
     magSnap.forEach(d=>{
       const m=d.data();
-      if(m.statut!=="livre") return;
-      const montant = m.montant_net||m.montant_total||0;
+      if(m.statut==="en_cours") return;
+      if(estClientPC(m.client)) return;
+      const montant = parseFloat(m.montant_net||m.montant_total)||0;
       if(montant<=0) return;
+      const paye = parseFloat(m.paye_montant)||0;
+      const statut = paye>=montant?"solde":paye>0?"partiel":"impaye";
       items.push({
-        id: d.id, type:"magasinage", date:m.date_sortie||m.date_entree||"", client:m.client||"—",
-        doc: m.recu_num||"—", designation:`Magasinage — ${m.immat||""} ${m.date_entree||""} → ${m.date_sortie||""}`,
-        montant, paye: m.paye_montant||0, mode: m.mode_paiement_solde||"",
-        date_paiement: m.date_paiement_solde||"",
-        statut: m.paye_solde?"paye":"impaye", collection:"magasinage"
+        id:d.id, type:"magasinage", date:m.date_sortie||m.date_entree||"", client:m.client||"—",
+        doc:m.recu_num||"—",
+        designation:`Magasinage — ${m.immat||""} ${m.date_entree||""} → ${m.date_sortie||""}`,
+        montant, paye, mode:m.mode_paiement||"",
+        date_paiement:m.date_paiement||"",
+        statut, parChauffeur:false, collection:"magasinage", recu:m.recu_num||""
       });
     });
 
-    // 3. PC — part client
+    // 3. PC — part client (sauf GAA/Mondiale qui sont gérés dans PC)
     const pcSnap = await db.collection("prises_en_charge").orderBy("date","desc").limit(200).get();
     pcSnap.forEach(d=>{
       const p=d.data();
-      const montant = p.montant_client||0;
+      if(estClientPC(p.client)||estClientPC(p.assureur)) return;
+      const montant = parseFloat(p.montant_client)||0;
       if(montant<=0) return;
+      const paye = parseFloat(p.montant_client_paye||p.paye_client)||0;
+      const statut = paye>=montant?"solde":paye>0?"partiel":"impaye";
       items.push({
-        id: d.id, type:"pc", date:p.date||"", client:p.client||p.assureur||"—",
-        doc: p.dossier||"—", designation:`PC ${p.assureur||""} — ${p.marque||""} ${p.modele||""} ${p.immat||""}`,
-        montant, paye: p.paye_client||0, mode: p.mode_paiement_solde||"",
-        date_paiement: p.date_paiement_solde||"",
-        statut: (p.paye_client||0)>=(p.montant_client||0)?"paye":"impaye", collection:"prises_en_charge"
+        id:d.id, type:"pc", date:p.date||"", client:p.client||p.assureur||"—",
+        doc:p.dossier||"—",
+        designation:`PC ${p.assureur||""} — ${p.marque||""} ${p.modele||""} ${p.immat||""}`,
+        montant, paye, mode:p.mode_paiement_client||"",
+        date_paiement:p.date_paiement_client||"",
+        statut, parChauffeur:false, collection:"prises_en_charge", recu:p.recu_num||""
       });
     });
 
@@ -2725,30 +3052,33 @@ async function chargerSoldes(prefix){
     let filtered = items;
     if(clientSel) filtered = filtered.filter(i=>i.client===clientSel);
     if(typeSel)   filtered = filtered.filter(i=>i.type===typeSel);
-    if(statutSel) filtered = filtered.filter(i=>i.statut===statutSel);
-    if(debut)     filtered = filtered.filter(i=>i.date>=debut);
-    if(fin)       filtered = filtered.filter(i=>i.date<=fin);
-
-    // Trier par date
-    filtered.sort((a,b)=>b.date.localeCompare(a.date));
+    if(statutSel==="impaye") filtered = filtered.filter(i=>i.statut==="impaye"||i.statut==="incomplet");
+    else if(statutSel==="paye"||statutSel==="solde") filtered = filtered.filter(i=>i.statut==="solde");
+    else if(statutSel==="partiel") filtered = filtered.filter(i=>i.statut==="partiel");
+    else if(statutSel==="incomplet") filtered = filtered.filter(i=>i.statut==="incomplet");
+    if(debut) filtered = filtered.filter(i=>toComp(i.date)>=debut);
+    if(fin)   filtered = filtered.filter(i=>toComp(i.date)<=fin);
+    filtered.sort((a,b)=>toComp(b.date).localeCompare(toComp(a.date)));
     soldesData = filtered;
 
     // Stats
-    const totalDu  = filtered.reduce((s,i)=>s+i.montant,0);
-    const totalPaye = filtered.reduce((s,i)=>s+i.paye,0);
-    const totalSolde = totalDu - totalPaye;
+    const totalDu   = filtered.filter(i=>i.montant>0).reduce((s,i)=>s+i.montant,0);
+    const totalPaye  = filtered.reduce((s,i)=>s+i.paye,0);
+    const totalSolde = Math.max(0,totalDu-totalPaye);
+    const nbIncomplet= filtered.filter(i=>i.statut==="incomplet").length;
     const statsEl = G(pfx+"soldes-stats");
     if(statsEl) statsEl.innerHTML=`
       <div style="background:white;border-radius:8px;padding:8px 14px;font-size:12px"><div style="font-size:18px;font-weight:900;color:var(--rouge)">${fmtMontant(totalDu)}</div><div style="color:var(--gris3)">Total dû</div></div>
       <div style="background:white;border-radius:8px;padding:8px 14px;font-size:12px"><div style="font-size:18px;font-weight:900;color:var(--vert)">${fmtMontant(totalPaye)}</div><div style="color:var(--gris3)">Total payé</div></div>
       <div style="background:white;border-radius:8px;padding:8px 14px;font-size:12px"><div style="font-size:18px;font-weight:900;color:var(--bleu)">${fmtMontant(totalSolde)}</div><div style="color:var(--gris3)">Solde restant</div></div>
-      <div style="background:white;border-radius:8px;padding:8px 14px;font-size:12px"><div style="font-size:18px;font-weight:900">${filtered.length}</div><div style="color:var(--gris3)">Opérations</div></div>`;
+      <div style="background:white;border-radius:8px;padding:8px 14px;font-size:12px"><div style="font-size:18px;font-weight:900">${filtered.length}</div><div style="color:var(--gris3)">Opérations</div></div>
+      ${nbIncomplet>0?`<div style="background:#fff8e1;border-radius:8px;padding:8px 14px;font-size:12px"><div style="font-size:18px;font-weight:900;color:#f57c00">${nbIncomplet}</div><div style="color:var(--gris3)">⚠️ Sans montant</div></div>`:""}`;
 
     // Peupler select client
     const selCl = G(pfx+"soldes-client");
     if(selCl){
-      const clients = [...new Set(items.map(i=>i.client).filter(c=>c&&c!=="—"))].sort();
-      const curVal = selCl.value;
+      const clients=[...new Set(items.map(i=>i.client).filter(c=>c&&c!=="—"))].sort();
+      const curVal=selCl.value;
       selCl.innerHTML="<option value=''>Tous les clients</option>";
       clients.forEach(c=>{const o=document.createElement("option");o.value=c;o.textContent=c;selCl.appendChild(o);});
       selCl.value=curVal;
@@ -2757,42 +3087,154 @@ async function chargerSoldes(prefix){
     // Tableau
     let html="";
     filtered.forEach((item,idx)=>{
-      const solde = item.montant - item.paye;
-      const stBadge = !item.montant
-        ?`<span class="badge" style="background:#fff8e1;color:#f57c00;border:1px solid #f57c00">⚠️ À compléter</span>`
-        :item.statut==="solde"||item.statut==="paye"
-        ?`<span class="badge" style="background:#e8f5e9;color:#2e7d32;border:1px solid #2e7d32">✅ Soldé</span>`
-        :item.statut==="partiel"
-        ?`<span class="badge" style="background:#f3e5f5;color:#7b1fa2;border:1px solid #7b1fa2">🟣 Partiel</span>`
-        :`<span class="badge" style="background:#ffebee;color:#c62828;border:1px solid #c62828">🔴 Impayé</span>`;
-      const typeLabel = item.type==="bl"?"🚛 BL":item.type==="magasinage"?"🏠 Mag":"📋 PC";
-      const modeLabel = item.mode==="especes"?"💵":item.mode==="virement"?"🏦":item.mode==="cheque"?"📝":"";
-      html+=`<tr>
+      const solde = item.montant>0?Math.max(0,item.montant-item.paye):0;
+      let stBadge="";
+      if(item.statut==="incomplet") stBadge=`<span class="badge" style="background:#fff3cd;color:#856404;border:1px solid #ffc107">⚠️ Montant manquant</span>`;
+      else if(item.statut==="solde") stBadge=`<span class="badge" style="background:#e8f5e9;color:#2e7d32;border:1px solid #81c784">✅ Soldé</span>`;
+      else if(item.statut==="partiel") stBadge=`<span class="badge" style="background:#f3e5f5;color:#7b1fa2;border:1px solid #ba68c8">🟣 Partiel</span>`;
+      else stBadge=`<span class="badge" style="background:#ffebee;color:#c62828;border:1px solid #ef9a9a">🔴 Impayé</span>`;
+      const typeLabel=item.type==="bl"?"🚛 BL":item.type==="magasinage"?"🏠 Mag":"📋 PC";
+      const trStyle=item.statut==="incomplet"?"background:#fffde7":item.parChauffeur?"background:#f1f8e9":"";
+
+      let actionBtn="";
+      if(item.statut==="incomplet"){
+        actionBtn=`<button class="btn btn-sm" style="background:#f57c00;color:white" onclick="ouvrirSaisirMontant('${item.id}','${item.doc}','${item.client}')">✏️ Saisir</button>`;
+      } else if(item.statut==="solde"){
+        actionBtn=`<button class="btn btn-secondary btn-sm" onclick="annulerPaiement('${item.id}','${item.collection}')">↩</button>`;
+      } else {
+        actionBtn=`<button class="btn btn-success btn-sm" onclick="ouvrirPaiement('${item.id}','${item.type}','${item.collection}',${item.montant||0},${item.paye},'${item.client}','${item.doc}')">💰 Payer</button>`;
+      }
+      // Bouton déplacer en PC (pour BL uniquement, clients non-PC)
+      const btnPC = item.type==="bl"?`<button class="btn btn-sm" style="background:var(--violet-lt);color:var(--violet);border:1px solid var(--violet);margin-left:2px" onclick="deplacerEnPC('${item.id}','${item.client}','${item.doc}')">📄→PC</button>`:"";
+
+      html+=`<tr style="${trStyle}">
         <td><input type="checkbox" class="soldes-cb" data-idx="${idx}"></td>
         <td style="font-size:11px">${item.date||"—"}</td>
-        <td style="font-weight:600">${item.client}</td>
+        <td style="font-weight:600">${item.client}${item.parChauffeur?`<br><span style="font-size:10px;color:var(--vert)">💵 ch.</span>`:""}</td>
         <td>${typeLabel}</td>
         <td style="font-size:11px;color:var(--bleu);font-weight:700">${item.doc}</td>
-        <td style="font-size:11px;color:var(--gris3)">${item.designation.substring(0,50)}</td>
-        <td style="font-weight:700;color:var(--rouge)">${fmtMontant(item.montant)}</td>
+        <td style="font-size:11px;color:var(--gris3)">${item.designation.substring(0,45)}</td>
+        <td style="font-weight:700;color:${item.montant?'var(--rouge)':'var(--jaune)'}">${item.montant?fmtMontant(item.montant):"⚠️ —"}</td>
         <td style="font-weight:700;color:var(--vert)">${fmtMontant(item.paye)}${item.date_paiement?`<br><span style="font-size:10px;color:var(--gris3)">${item.date_paiement}</span>`:""}</td>
         <td style="font-weight:700;color:${solde>0?"var(--rouge)":"var(--vert)"}">${fmtMontant(solde)}</td>
-        <td style="font-size:12px">${modeLabel} ${item.mode||"—"}</td>
+        <td style="font-size:12px">${item.mode||"—"}</td>
+        <td style="font-size:11px;color:var(--vert)">${item.recu||"—"}</td>
         <td>${stBadge}</td>
-        <td>${!item.montant
-          ?`<button class="btn btn-sm" style="background:#f57c00;color:white" data-id="${item.id}" data-doc="${item.doc}" data-client="${item.client}" onclick="ouvrirSaisirMontant(this.dataset.id,this.dataset.doc,this.dataset.client)">✏️ Montant</button>`
-          :item.statut==="paye"||item.statut==="solde"
-          ?`<button class="btn btn-secondary btn-sm" onclick="annulerPaiement('${item.id}','${item.collection}')">↩</button>`
-          :`<button class="btn btn-success btn-sm" onclick="ouvrirPaiement('${item.id}','${item.type}','${item.collection}',${item.montant},${item.paye},'${item.client}','${item.doc}')">💰 Payer</button>`
-          }</td>
+        <td style="display:flex;gap:3px;flex-wrap:wrap">${actionBtn}${btnPC}</td>
       </tr>`;
     });
-    const tbody = G(pfx+"soldes-tbody");
-    if(tbody) tbody.innerHTML=html||`<tr><td colspan="12" style="text-align:center;color:var(--gris3);padding:24px">Aucune opération</td></tr>`;
+    const tbody=G(pfx+"soldes-tbody");
+    if(tbody) tbody.innerHTML=html||`<tr><td colspan="13" style="text-align:center;color:var(--gris3);padding:24px">Aucune opération</td></tr>`;
     loader(false);
-  } catch(e){
-    loader(false); toast("Erreur chargement","err"); console.error(e);
-  }
+  } catch(e){ loader(false); toast("Erreur chargement","err"); console.error(e); }
+}
+
+function ouvrirPaiement(id,type,collection,montant,paye,client,doc){
+  G("paiement-doc-id").value=id;
+  G("paiement-doc-type").value=collection;
+  G("paiement-doc-montant-total").value=montant;
+  G("paiement-montant").value=(montant-paye).toFixed(2);
+  G("paiement-date").value=new Date().toISOString().split("T")[0];
+  G("paiement-info").innerHTML=`<strong>${client}</strong> — ${doc}<br>
+    Montant dû: <strong style="color:var(--rouge)">${fmtMontant(montant)}</strong> | 
+    Déjà payé: <strong style="color:var(--vert)">${fmtMontant(paye)}</strong> | 
+    Reste: <strong style="color:var(--bleu)">${fmtMontant(montant-paye)}</strong>`;
+  G("modal-paiement-solde").classList.add("on");
+}
+
+async function confirmerPaiement(){
+  const id=G("paiement-doc-id").value;
+  const col=G("paiement-doc-type").value;
+  const montant=parseFloat(G("paiement-montant").value)||0;
+  const mode=G("paiement-mode").value;
+  const date=G("paiement-date").value;
+  if(!montant){toast("Montant obligatoire","err");return;}
+  loader(true);
+  try {
+    const snap=await db.collection(col).doc(id).get();
+    const data=snap.data();
+
+    let dejaPaye, montantTotal, nomClient, numDoc, immat, designation;
+    if(col==="prises_en_charge"){
+      dejaPaye=parseFloat(data.montant_client_paye||data.paye_client)||0;
+      montantTotal=parseFloat(data.montant_client)||0;
+      nomClient=data.client||data.assureur||"—";
+      numDoc=data.dossier||"—";
+      immat=data.immat||"—";
+      designation=`PC ${data.assureur||""} — ${data.marque||""} ${data.modele||""}`;
+    } else if(col==="magasinage"){
+      dejaPaye=parseFloat(data.paye_montant)||0;
+      montantTotal=parseFloat(data.montant_net||data.montant_total)||0;
+      nomClient=data.client||"—";
+      numDoc=data.recu_num||"MAG";
+      immat=data.immat||"—";
+      designation=`Magasinage ${data.immat||""}`;
+    } else {
+      dejaPaye=parseFloat(data.paye_montant)||0;
+      montantTotal=parseFloat(data.montant)||0;
+      nomClient=data.nom_client||"—";
+      numDoc=data.bon_num||"—";
+      immat=data.immatriculation||"—";
+      designation=`Remorquage ${data.immatriculation||""} — ${data.lieu_embarquement||""}→${data.destination||""}`;
+    }
+
+    const newPaye=dejaPaye+montant;
+    const solde=newPaye>=montantTotal&&montantTotal>0;
+
+    // Générer reçu SEC-XXXXXX
+    const cSnap=await db.collection("parametres").doc("sec_compteur").get();
+    const n=(cSnap.exists?cSnap.data().val||0:0)+1;
+    const recuNum="SEC-"+("000000"+n).slice(-6);
+
+    const today=new Date();
+    const dateStr=today.toLocaleDateString("fr-FR");
+    const heureStr=today.toLocaleTimeString("fr-FR",{hour:"2-digit",minute:"2-digit"});
+
+    let update;
+    if(col==="prises_en_charge"){
+      update={montant_client_paye:newPaye,paye_solde:solde,mode_paiement_client:mode,date_paiement_client:date,statut_paiement_client:solde?"solde":"partiel",recu_num:recuNum};
+    } else if(col==="magasinage"){
+      update={paye_montant:newPaye,paye_solde:solde,mode_paiement:mode,date_paiement:date,statut_paiement:solde?"solde":"partiel",recu_num:recuNum};
+    } else {
+      update={paye_montant:newPaye,paye_solde:solde,mode_paiement_solde:mode,date_paiement_solde:date,recu_num:recuNum};
+    }
+
+    const batch=db.batch();
+    batch.set(db.collection("parametres").doc("sec_compteur"),{val:n});
+    batch.update(db.collection(col).doc(id),update);
+    batch.set(db.collection("recus").doc(),{
+      recu_num:recuNum, type_recu:"solde_client",
+      nom_client:nomClient, immatriculation:immat,
+      designation, num_doc:numDoc,
+      date:dateStr, heure:heureStr,
+      montant, montant_total:montantTotal,
+      montant_cumul:newPaye,
+      mode_paiement:mode, date_paiement:date,
+      statut_paiement:solde?"solde":"partiel",
+      collection:col, doc_id:id,
+      createdAt:firebase.firestore.FieldValue.serverTimestamp()
+    });
+    await batch.commit();
+    toast(`Paiement enregistré ✅ — Reçu ${recuNum}`);
+    fermerModal("modal-paiement-solde");
+    if(G("soldes-tbody")) chargerSoldes("");
+    if(G("soldes-sec-tbody")) chargerSoldes("soldes-sec-");
+    loader(false);
+  } catch(e){toast("Erreur","err");loader(false);console.error(e);}
+}
+
+function annulerPaiement(id,col){
+  if(!confirm("Annuler ce paiement ?")) return;
+  loader(true);
+  const update = col==="prises_en_charge"
+    ?{paye_client:0,paye_solde:false,mode_paiement_solde:"",date_paiement_solde:""}
+    :{paye_montant:0,paye_solde:false,mode_paiement_solde:"",date_paiement_solde:""};
+  db.collection(col).doc(id).update(update).then(()=>{
+    toast("Paiement annulé");
+    if(G("soldes-tbody")) chargerSoldes("");
+    if(G("soldes-sec-tbody")) chargerSoldes("soldes-sec-");
+    loader(false);
+  }).catch(()=>{toast("Erreur","err");loader(false);});
 }
 
 function ouvrirSaisirMontant(id,doc,client){
@@ -2814,59 +3256,36 @@ function confirmerSaisirMontant(){
     loader(false);
   }).catch(()=>{toast("Erreur","err");loader(false);});
 }
-function ouvrirPaiement(id,type,collection,montant,paye,client,doc){
-  G("paiement-doc-id").value=id;
-  G("paiement-doc-type").value=collection;
-  G("paiement-montant").value=(montant-paye).toFixed(2);
-  G("paiement-date").value=new Date().toISOString().split("T")[0];
-  G("paiement-info").innerHTML=`<strong>${client}</strong> — ${doc}<br>Montant dû: <strong style="color:var(--rouge)">${fmtMontant(montant)}</strong> | Déjà payé: <strong style="color:var(--vert)">${fmtMontant(paye)}</strong> | Reste: <strong style="color:var(--bleu)">${fmtMontant(montant-paye)}</strong>`;
-  G("modal-paiement-solde").classList.add("on");
-}
 
-function confirmerPaiement(){
-  const id=G("paiement-doc-id").value;
-  const col=G("paiement-doc-type").value;
-  const montant=parseFloat(G("paiement-montant").value)||0;
-  const mode=G("paiement-mode").value;
-  const date=G("paiement-date").value;
-  if(!montant){toast("Montant obligatoire","err");return;}
+async function deplacerEnPC(bonId, client, bonNum){
+  if(!confirm(`Déplacer le BL ${bonNum} (${client}) vers Prises en Charge ?\nIl disparaîtra de Soldes Clients.`)) return;
   loader(true);
-  // Récupérer le document pour cumuler
-  db.collection(col).doc(id).get().then(snap=>{
-    const data=snap.data();
-    const dejaPaye = col==="prises_en_charge"?(data.paye_client||0):(data.paye_montant||0);
-    const newPaye = dejaPaye + montant;
-    const montantTotal = col==="prises_en_charge"?(data.montant_client||0):(data.montant||data.montant_net||0);
-    const soldé = newPaye >= montantTotal;
-    const update = col==="prises_en_charge"
-      ?{paye_client:newPaye, paye_solde:soldé, mode_paiement_solde:mode, date_paiement_solde:date}
-      :{paye_montant:newPaye, paye_solde:soldé, mode_paiement_solde:mode, date_paiement_solde:date};
-    return db.collection(col).doc(id).update(update);
-  }).then(()=>{
-    toast("Paiement enregistré ✅");
-    fermerModal("modal-paiement-solde");
-    // Recharger selon le contexte
-    if(G("soldes-tbody")) chargerSoldes("");
-    if(G("soldes-sec-tbody")) chargerSoldes("soldes-sec-");
+  try {
+    const snap=await db.collection("bons").doc(bonId).get();
+    const b=snap.data();
+    const pcData={
+      dossier:"BL→PC "+bonNum,
+      date:b.date_bl||new Date().toLocaleDateString("fr-FR"),
+      assureur:"", client:b.nom_client||client,
+      tel:"", marque:b.marque||"", modele:b.modele||"",
+      immat:b.immatriculation||"", bon_num:bonNum,
+      montant_assurance:0, montant_client:parseFloat(b.montant)||0,
+      montant_reel:parseFloat(b.montant)||0,
+      montant_client_paye:0, statut_assureur:"en_attente",
+      statut_paiement_client:"impaye", statut:"en_cours",
+      notes:"Déplacé depuis Soldes Clients — BL original: "+bonNum,
+      createdAt:firebase.firestore.FieldValue.serverTimestamp()
+    };
+    const batch=db.batch();
+    batch.set(db.collection("prises_en_charge").doc(),pcData);
+    // Marquer le BL comme déplacé (il sera ignoré dans chargerSoldes)
+    batch.update(db.collection("bons").doc(bonId),{deplace_en_pc:true, pc_dossier:"BL→PC "+bonNum});
+    await batch.commit();
+    toast(`BL ${bonNum} déplacé en PC ✅`);
+    chargerSoldes("");
     loader(false);
-  }).catch(e=>{toast("Erreur","err");loader(false);console.error(e);});
+  } catch(e){toast("Erreur","err");loader(false);console.error(e);}
 }
-
-function annulerPaiement(id,col){
-  if(!confirm("Annuler ce paiement ?")) return;
-  loader(true);
-  const update = col==="prises_en_charge"
-    ?{paye_client:0,paye_solde:false,mode_paiement_solde:"",date_paiement_solde:""}
-    :{paye_montant:0,paye_solde:false,mode_paiement_solde:"",date_paiement_solde:""};
-  db.collection(col).doc(id).update(update).then(()=>{
-    toast("Paiement annulé");
-    if(G("soldes-tbody")) chargerSoldes("");
-    if(G("soldes-sec-tbody")) chargerSoldes("soldes-sec-");
-    loader(false);
-  }).catch(()=>{toast("Erreur","err");loader(false);});
-}
-
-function selToutSoldes(){
   const all=G("soldes-check-all");
   document.querySelectorAll(".soldes-cb").forEach(cb=>cb.checked=all?all.checked:true);
 }
@@ -2921,7 +3340,7 @@ function chargerStats(){
   const stCl=G("stats-client")?.value||"";
   const debut=G("stats-debut")?.value||"", fin=G("stats-fin")?.value||"";
   const mode=G("stats-mode")?.value||"montant";
-  db.collection("bons").orderBy("timestamp","desc").limit(500).get().then(snap=>{
+  db.collection("bons").orderBy("timestamp","desc").limit(1000).get().then(snap=>{
     let bons=[]; snap.forEach(d=>bons.push({id:d.id,...d.data()}));
     if(stType==="tous_chauffeurs") bons=bons.filter(b=>b.type_bl==="chauffeur");
     else if(stType==="tous_clients") bons=bons.filter(b=>!b.type_bl||b.type_bl==="client");
@@ -2931,14 +3350,22 @@ function chargerStats(){
     else{ if(ch) bons=bons.filter(b=>b.chauffeur_uid===ch); }
     if(debut) bons=bons.filter(b=>toComp(b.date_bl)>=debut);
     if(fin)   bons=bons.filter(b=>toComp(b.date_bl)<=fin);
-    const total=bons.length, espTotal=bons.filter(b=>b.especes).reduce((s,b)=>s+(b.montant_especes||0),0);
+    // Tri par date décroissante
+    bons.sort((a,b)=>toComp(b.date_bl||"").localeCompare(toComp(a.date_bl||"")));
+    const total=bons.length;
+    const espTotal=bons.filter(b=>b.especes).reduce((s,b)=>s+(b.montant_especes||0),0);
     const parTarif={NORMAL:0,TN:0,TW:0};
-    const parCh={},parCam={},parCl={};
+    const parCh={},parCam={},parCl={},parMois={};
     bons.forEach(b=>{
       const t=b.tarif||"NORMAL"; if(parTarif[t]!==undefined)parTarif[t]++;
-      parCh[b.chauffeur_nom||"—"]=(parCh[b.chauffeur_nom||"—"]||0)+1;
-      parCam[b.camion||"—"]=(parCam[b.camion||"—"]||0)+1;
-      parCl[b.nom_client||"—"]=(parCl[b.nom_client||"—"]||0)+1;
+      const chN=b.chauffeur_nom||"—"; parCh[chN]=(parCh[chN]||0)+1;
+      const cam=b.camion||"—"; parCam[cam]=(parCam[cam]||0)+1;
+      const cl=b.nom_client||"—"; parCl[cl]=(parCl[cl]||0)+1;
+      // Par mois
+      if(b.date_bl){
+        const parts=b.date_bl.split("/");
+        if(parts.length===3){ const mois=parts[1]+"/"+parts[2]; parMois[mois]=(parMois[mois]||0)+1; }
+      }
     });
     G("stats-cards").innerHTML=`
       <div class="stat-card"><div class="stat-num">${total}</div><div class="stat-label">Total BL</div></div>
@@ -2960,16 +3387,23 @@ function chargerStats(){
     mkBar(parCam,"chart-camions","var(--bleu)");
     mkBar({Normal:parTarif.NORMAL,TN:parTarif.TN,TW:parTarif.TW},"chart-tarifs","var(--vert)");
     mkBar(parCl,"chart-clients","var(--violet)");
-    // Mode détail
-    const existing=document.getElementById("detail-stats-table");
-    if(existing)existing.remove();
     if(mode==="detail"){
       let html=`<div class="card" id="detail-stats-table" style="margin-top:16px">
-        <div class="card-title">📋 Détail complet — ${total} BL</div>
+        <div class="card-title" style="display:flex;justify-content:space-between;align-items:center">
+          <span>📋 Détail complet — ${total} BL</span>
+          <div style="display:flex;gap:6px">
+            <button class="btn btn-secondary btn-sm" onclick="selToutStats()">☑ Tout</button>
+            <button class="btn btn-secondary btn-sm" onclick="exporterStatsDetailPDF()">⬇ PDF sélection</button>
+          </div>
+        </div>
         <div class="table-wrap"><table>
-        <thead><tr><th>N° BL</th><th>Date</th><th>Heure</th><th>Tarif</th><th>Chauffeur</th><th>Client</th><th>Véhicule</th><th>Trajet</th><th>Espèces</th></tr></thead><tbody>`;
+        <thead><tr>
+          <th><input type="checkbox" id="stats-check-all" onclick="selToutStats()"></th>
+          <th>N° BL</th><th>Date</th><th>Heure</th><th>Tarif</th><th>Chauffeur</th><th>Client</th><th>Véhicule</th><th>Trajet</th><th>Espèces</th>
+        </tr></thead><tbody>`;
       bons.forEach(b=>{
         html+=`<tr>
+          <td><input type="checkbox" class="stats-cb" data-id="${b.id}" onchange="majSelStats()"></td>
           <td style="font-weight:700;color:var(--bleu);font-size:11px">${b.bon_num||"—"}</td>
           <td>${b.date_bl||"—"}</td><td>${b.heure_bl||"—"}</td>
           <td><span class="badge ${b.tarif==="NORMAL"?"tarif-normal":b.tarif==="TN"?"tarif-tn":"tarif-tw"}">${b.tarif||"—"}</span></td>
@@ -2982,9 +3416,50 @@ function chargerStats(){
       });
       html+=`</tbody></table></div></div>`;
       G("pg-stats").insertAdjacentHTML("beforeend",html);
+      const btnTout=G("btn-stats-sel-tout"); if(btnTout) btnTout.style.display="inline-flex";
     }
     loader(false);
   }).catch(()=>{loader(false);toast("Erreur","err");});
+}
+
+function selToutStats(){
+  const all=G("stats-check-all");
+  document.querySelectorAll(".stats-cb").forEach(cb=>cb.checked=all?all.checked:true);
+  majSelStats();
+}
+function majSelStats(){
+  const nb=document.querySelectorAll(".stats-cb:checked").length;
+  const lbl=G("stats-sel-lbl"); if(lbl) lbl.textContent=nb>0?nb+" sélectionné(s)":"";
+  const all=G("stats-check-all");
+  if(all) all.checked=nb>0&&nb===document.querySelectorAll(".stats-cb").length;
+}
+
+function exporterStatsDetailPDF(){
+  const cbs=document.querySelectorAll(".stats-cb:checked");
+  const allCbs=document.querySelectorAll(".stats-cb");
+  if(!allCbs.length){ toast("Lancez d'abord le calcul en mode Détails","err"); return; }
+  loader(true,"Export PDF...");
+  const ids=cbs.length>0?Array.from(cbs).map(cb=>cb.dataset.id):Array.from(allCbs).map(cb=>cb.dataset.id);
+  Promise.all(ids.map(id=>db.collection("bons").doc(id).get())).then(snaps=>{
+    const {jsPDF}=window.jspdf;
+    const doc=new jsPDF('landscape','mm','a4');
+    doc.setFont('helvetica','bold');doc.setFontSize(13);doc.setTextColor(200,52,26);
+    doc.text('DÉTAIL STATISTIQUES — Multi Auto Dépannage',148,14,{align:'center'});
+    doc.setFontSize(8);doc.setFont('helvetica','normal');doc.setTextColor(100,100,100);
+    doc.text('Édité le '+new Date().toLocaleDateString('fr-FR')+(cbs.length>0?' — Sélection: '+cbs.length:' — Tous: '+ids.length+' BL'),148,20,{align:'center'});
+    const rows=[];
+    snaps.forEach(snap=>{ if(!snap.exists)return; const b=snap.data();
+      rows.push([b.bon_num||'—',b.date_bl||'—',b.heure_bl||'—',b.tarif||'—',
+        b.chauffeur_nom||'—',b.nom_client||'—',(b.marque||'')+' '+(b.modele||''),
+        (b.lieu_embarquement||'—')+' → '+(b.destination||'—'),
+        b.especes&&b.montant_especes>0?b.montant_especes.toFixed(2)+' €':'—']);
+    });
+    doc.autoTable({startY:26,head:[['N° BL','Date','Heure','Tarif','Chauffeur','Client','Véhicule','Trajet','Espèces']],body:rows,
+      headStyles:{fillColor:[26,37,64],textColor:255,fontSize:6,fontStyle:'bold'},bodyStyles:{fontSize:6},
+      alternateRowStyles:{fillColor:[246,246,246]},margin:{left:8,right:8}});
+    doc.save('stats-detail'+(cbs.length>0?'-selection':'-tous')+'.pdf');
+    loader(false);toast("PDF exporté ✅ ("+ids.length+" BL)");
+  }).catch(e=>{loader(false);toast("Erreur","err");console.error(e);});
 }
 
 function exporterStatsPDF(){
