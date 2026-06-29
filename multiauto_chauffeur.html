@@ -1597,8 +1597,8 @@ window.seConnecter = async function(){
     window._clientsUnsubscribe = onSnapshot(
       query(collection(db,"clients"), orderBy("nom","asc")),
       snap => {
-        CLIENTS = [];
-        snap.forEach(d => CLIENTS.push(d.data().nom));
+        window.CLIENTS = [];
+        snap.forEach(d => window.CLIENTS.push(d.data().nom));
         initClients();
       },
       e => console.warn("Sync clients:", e)
@@ -1618,10 +1618,10 @@ window.seConnecter = async function(){
           if(modele) fsMarques[marque].add(modele);
         });
         Object.keys(fsMarques).forEach(marque => {
-          if(!MARQUES_MODELES[marque]) MARQUES_MODELES[marque] = [];
+          if(!window.MARQUES_MODELES[marque]) window.MARQUES_MODELES[marque] = [];
           fsMarques[marque].forEach(modele => {
-            if(!MARQUES_MODELES[marque].includes(modele))
-              MARQUES_MODELES[marque].push(modele);
+            if(!window.MARQUES_MODELES[marque].includes(modele))
+              window.MARQUES_MODELES[marque].push(modele);
           });
         });
         initMarques();
@@ -1673,9 +1673,9 @@ window.seDeconnecter = async function(){
 async function chargerClients(){
   try {
     const snap = await getDocs(query(collection(db,"clients"), orderBy("nom","asc")));
-    CLIENTS = [];
-    snap.forEach(d => CLIENTS.push(d.data().nom));
-    if(CLIENTS.length === 0){
+    window.CLIENTS = [];
+    snap.forEach(d => window.CLIENTS.push(d.data().nom));
+    if(window.CLIENTS.length === 0){
       const defauts = [
         "Divers","Assurance LADOM","Assurance AESIO","Assurance ALLIANZ",
         "Assurance AXA","Assurance GMF","Assurance MAAF","Assurance MAIF",
@@ -1688,7 +1688,7 @@ async function chargerClients(){
           createdAt: serverTimestamp()
         });
       }
-      CLIENTS = defauts;
+      window.CLIENTS = defauts;
     }
   } catch(e){
     console.warn("Clients hors-ligne:", e);
