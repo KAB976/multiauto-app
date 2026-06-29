@@ -721,20 +721,20 @@ tr:hover td{background:var(--gris)}
       <div class="stats-grid" id="pc-stats"></div>
       <div class="card" style="padding:0">
         <div style="padding:12px 16px;border-bottom:1px solid var(--gris2);display:flex;gap:8px;flex-wrap:wrap;align-items:center">
-          <input class="filtre-inp" type="date" id="pc-date-debut" onchange="chargerPC()">
-          <input class="filtre-inp" type="date" id="pc-date-fin" onchange="chargerPC()">
-          <select class="filtre-inp" id="pc-filtre-assureur" onchange="chargerPC()">
+          <input class="filtre-inp" type="date" id="pc-date-debut">
+          <input class="filtre-inp" type="date" id="pc-date-fin">
+          <select class="filtre-inp" id="pc-filtre-assureur">
             <option value="">Assureur: Tous</option>
             <option value="recu">✅ Assureur reçu</option>
             <option value="en_attente">⏳ En attente</option>
           </select>
-          <select class="filtre-inp" id="pc-filtre-client" onchange="chargerPC()">
+          <select class="filtre-inp" id="pc-filtre-client">
             <option value="">Client: Tous</option>
             <option value="paye">✅ Client payé</option>
             <option value="partiel">🟣 Partiel</option>
             <option value="impaye">🔴 Impayé</option>
           </select>
-          <select class="filtre-inp" id="pc-filtre-statut" onchange="chargerPC()">
+          <select class="filtre-inp" id="pc-filtre-statut">
             <option value="">Tous statuts</option>
             <option value="en_cours">En cours</option>
             <option value="livre">Livré</option>
