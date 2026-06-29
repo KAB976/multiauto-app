@@ -741,11 +741,15 @@ tr:hover td{background:var(--gris)}
             <option value="annule">Annulé</option>
           </select>
           <button class="btn btn-primary" onclick="chargerPC()">🔍 Filtrer</button>
+          <button class="btn btn-secondary btn-sm" onclick="selToutPC()">☑ Tout</button>
+          <span id="pc-sel-lbl" style="font-size:12px;font-weight:700;color:var(--rouge)"></span>
           <button class="btn btn-secondary btn-sm" onclick="exporterPCPDF()">⬇ Export PDF</button>
+          <button class="btn btn-secondary btn-sm" onclick="window.print()">🖨 Imprimer</button>
         </div>
         <div class="table-wrap">
           <table>
             <thead><tr>
+              <th><input type="checkbox" id="pc-check-all" onclick="selToutPC()"></th>
               <th>N° Dossier</th><th>Date</th><th>Assureur</th><th>Client</th>
               <th>Véhicule/Immat</th><th>Montant Réel</th><th>Part Assur.</th>
               <th>St. Assureur</th><th>Part Client</th><th>St. Client</th>
@@ -2629,6 +2633,7 @@ function chargerPC(){
         ?`<button class="btn btn-success btn-sm" onclick="ouvrirPaiementPC('${p.id}',${montantClient},${payeClient},'${(p.client||"").replace(/'/g,"\\'")}','${p.dossier||""}','${p.assureur||""}')">💰 Payer</button>`:"";
 
       html+=`<tr style="${p.statut==='annule'?'background:#fce4ec;opacity:.8':''}">
+        <td><input type="checkbox" class="pc-cb" data-id="${p.id}" onchange="majSelPC()"></td>
         <td style="font-weight:700;color:var(--bleu);font-size:11px">${p.dossier||"—"}</td>
         <td style="font-size:11px">${p.date||"—"}</td>
         <td style="font-size:11px;font-weight:700">${p.assureur||"—"}</td>
@@ -2648,7 +2653,7 @@ function chargerPC(){
           <button class="btn btn-danger btn-sm btn-icon" onclick="supprimerPC('${p.id}')">🗑</button>
         </div></td></tr>`;
     });
-    G("pc-tbody").innerHTML=html||`<tr><td colspan="14" style="text-align:center;color:var(--gris3);padding:24px">Aucune prise en charge</td></tr>`;
+    G("pc-tbody").innerHTML=html||`<tr><td colspan="15" style="text-align:center;color:var(--gris3);padding:24px">Aucune prise en charge</td></tr>`;
   }).catch(console.error);
 }
 
@@ -2784,7 +2789,56 @@ function changerStatutPC(id,statut){
 }
 function annulerPC(){if(editingId)changerStatutPC(editingId,"annule");fermerModal("modal-pc");}
 function supprimerPC(id){if(!confirm("Supprimer ?"))return;db.collection("prises_en_charge").doc(id).delete().then(()=>{toast("Supprimé");chargerPC();});}
-function exporterPCPDF(){toast("Export PDF PC — disponible prochainement");}
+function selToutPC(){
+  const all=G("pc-check-all");
+  document.querySelectorAll(".pc-cb").forEach(cb=>cb.checked=all?all.checked:true);
+  majSelPC();
+}
+function majSelPC(){
+  const nb=document.querySelectorAll(".pc-cb:checked").length;
+  const lbl=G("pc-sel-lbl"); if(lbl) lbl.textContent=nb>0?nb+" sélectionné(s)":"";
+  const all=G("pc-check-all");
+  if(all) all.checked=nb>0&&nb===document.querySelectorAll(".pc-cb").length;
+}
+function exporterPCPDF(){
+  const cbs=document.querySelectorAll(".pc-cb:checked");
+  const allCbs=document.querySelectorAll(".pc-cb");
+  if(!allCbs.length){toast("Aucune donnée à exporter","err");return;}
+  loader(true,"Export PDF...");
+  const ids=cbs.length>0?Array.from(cbs).map(cb=>cb.dataset.id):Array.from(allCbs).map(cb=>cb.dataset.id);
+  Promise.all(ids.map(id=>db.collection("prises_en_charge").doc(id).get())).then(snaps=>{
+    const {jsPDF}=window.jspdf;
+    const doc=new jsPDF('landscape','mm','a4');
+    doc.setFont('helvetica','bold');doc.setFontSize(13);doc.setTextColor(200,52,26);
+    doc.text('Prises en Charge — Multi Auto Dépannage',148,14,{align:'center'});
+    doc.setFontSize(8);doc.setFont('helvetica','normal');doc.setTextColor(100,100,100);
+    doc.text('Édité le '+new Date().toLocaleDateString('fr-FR')+(cbs.length>0?' — Sélection: '+cbs.length:' — Tous: '+ids.length),148,20,{align:'center'});
+    const rows=[];
+    snaps.forEach(snap=>{
+      if(!snap.exists)return;
+      const p=snap.data();
+      const payeClient=parseFloat(p.montant_client_paye||p.paye_client)||0;
+      const montantClient=parseFloat(p.montant_client)||0;
+      const stAss=p.statut_assureur==="recu"?"✅ Reçu":"⏳ En attente";
+      const stClient=montantClient===0?"N/A":payeClient>=montantClient?"✅ Payé":payeClient>0?"🟣 Partiel":"🔴 Impayé";
+      rows.push([
+        p.dossier||"—", p.date||"—", p.assureur||"—", p.client||"—",
+        (p.marque||"")+' '+(p.modele||"")+" "+(p.immat||""),
+        (p.montant_reel||(parseFloat(p.montant_assurance||0)+montantClient)).toFixed(2)+" €",
+        (p.montant_assurance||0).toFixed(2)+" €", stAss,
+        montantClient.toFixed(2)+" €", stClient,
+        p.bon_num||"—", p.recu_num||"—"
+      ]);
+    });
+    doc.autoTable({startY:26,
+      head:[['N° Dossier','Date','Assureur','Client','Véhicule/Immat','Mt. Réel','Part Ass.','St. Ass.','Part Cl.','St. Cl.','N° BL','N° Reçu']],
+      body:rows,
+      headStyles:{fillColor:[26,37,64],textColor:255,fontSize:6,fontStyle:'bold'},
+      bodyStyles:{fontSize:6},alternateRowStyles:{fillColor:[246,246,246]},margin:{left:8,right:8}});
+    doc.save('prises-en-charge'+(cbs.length>0?'-selection':'-tous')+'.pdf');
+    loader(false);toast("PDF exporté ✅ ("+ids.length+" dossiers)");
+  }).catch(e=>{loader(false);toast("Erreur","err");console.error(e);});
+}
 
 // ── CARBURANT ──
 function chargerCarburant(){
