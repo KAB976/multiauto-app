@@ -687,7 +687,7 @@ tr:hover td{background:var(--gris)}
       </div>
       <div class="stats-grid" id="mag-stats"></div>
       <div class="card" style="padding:0">
-        <div style="padding:12px 16px;border-bottom:1px solid var(--gris2);display:flex;gap:8px;align-items:center">
+        <div style="padding:12px 16px;border-bottom:1px solid var(--gris2);display:flex;gap:8px;align-items:center;flex-wrap:wrap">
           <select class="filtre-inp" id="mag-filtre-statut" onchange="chargerMagasinage()">
             <option value="">Tous statuts</option>
             <option value="en_cours">🔄 En gardiennage</option>
@@ -695,11 +695,17 @@ tr:hover td{background:var(--gris)}
             <option value="partiel">🟣 Partiel</option>
             <option value="paye">✅ Payé</option>
           </select>
+          <button class="btn btn-secondary btn-sm" onclick="selToutMag()">☑ Tout</button>
+          <span id="mag-sel-lbl" style="font-size:12px;font-weight:700;color:var(--rouge)"></span>
           <button class="btn btn-secondary btn-sm" onclick="exporterMagasinagePDF()">⬇ Export PDF</button>
+          <button class="btn btn-secondary btn-sm" onclick="window.print()">🖨 Imprimer</button>
         </div>
         <div class="table-wrap">
           <table>
-            <thead><tr><th>Immat.</th><th>Client</th><th>Entrée</th><th>Sortie</th><th>Jours</th><th>Tarif/j</th><th>Total</th><th>Remise</th><th>Net</th><th>Payé</th><th>Reste</th><th>Statut</th><th>N° Reçu</th><th>Actions</th></tr></thead>
+            <thead><tr>
+              <th><input type="checkbox" id="mag-check-all" onclick="selToutMag()"></th>
+              <th>Immat.</th><th>Client</th><th>Entrée</th><th>Sortie</th><th>Jours</th><th>Tarif/j</th><th>Total</th><th>Remise</th><th>Net</th><th>Payé</th><th>Reste</th><th>Statut</th><th>N° Reçu</th><th>Actions</th>
+            </tr></thead>
             <tbody id="mag-tbody"></tbody>
           </table>
         </div>
@@ -834,26 +840,32 @@ tr:hover td{background:var(--gris)}
 
     <div class="pg" id="pg-historique">
       <div class="page-header">
-        <div><div class="page-title">🔍 Historique par immatriculation</div></div>
-        <div style="display:flex;gap:8px">
-          <button class="btn btn-secondary" onclick="selToutHistorique()">☑ Tout sélectionner</button>
+        <div><div class="page-title">🔍 Historique des bons</div></div>
+        <div style="display:flex;gap:8px;align-items:center">
+          <span id="hist-sel-lbl" style="font-size:12px;font-weight:700;color:var(--rouge)"></span>
+          <button class="btn btn-secondary" onclick="selToutHistorique()">☑ Tout</button>
           <button class="btn btn-secondary" onclick="exporterHistoriquePDF()">⬇ Export PDF</button>
+          <button class="btn btn-secondary" onclick="window.print()">🖨 Imprimer</button>
         </div>
       </div>
       <div class="card">
-        <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:16px">
-          <input class="inp" id="hist-immat" placeholder="Immatriculation..." style="text-transform:uppercase;flex:1;max-width:200px" oninput="this.value=this.value.toUpperCase()">
-          <select class="filtre-inp" id="hist-client" style="min-width:160px"><option value="">— Tous clients —</option></select>
-          <button class="btn btn-primary" onclick="rechercherHistorique()">🔍 Rechercher</button>
+        <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:16px;align-items:center">
+          <input class="inp" id="hist-immat" placeholder="Immatriculation..." style="text-transform:uppercase;flex:1;max-width:200px" oninput="this.value=this.value.toUpperCase();rechercherHistorique()">
+          <select class="filtre-inp" id="hist-client" style="min-width:180px" onchange="rechercherHistorique()"><option value="">— Tous clients —</option></select>
+          <input class="filtre-inp" type="date" id="hist-debut" onchange="rechercherHistorique()">
+          <input class="filtre-inp" type="date" id="hist-fin" onchange="rechercherHistorique()">
+          <button class="btn btn-secondary btn-sm" onclick="G('hist-immat').value='';G('hist-client').value='';G('hist-debut').value='';G('hist-fin').value='';rechercherHistorique()">✕ Reset</button>
         </div>
-        <div id="hist-result"></div>
+        <div id="hist-result"><div style="color:var(--gris3);padding:24px;text-align:center">Chargement...</div></div>
       </div>
     </div>
 
     <div class="pg" id="pg-stats">
       <div class="page-header">
         <div><div class="page-title">📈 Statistiques</div></div>
-        <div style="display:flex;gap:8px">
+        <div style="display:flex;gap:8px;align-items:center">
+          <span id="stats-sel-lbl" style="font-size:12px;font-weight:700;color:var(--rouge)"></span>
+          <button class="btn btn-secondary btn-sm" id="btn-stats-sel-tout" onclick="selToutStats()" style="display:none">☑ Tout</button>
           <button class="btn btn-secondary" onclick="window.print()">🖨 Imprimer</button>
           <button class="btn btn-secondary" onclick="exporterStatsPDF()">⬇ Export PDF</button>
         </div>
@@ -1202,7 +1214,7 @@ function afficherPage(id){
   if(id==="pg-carburant")  chargerCarburant();
   if(id==="pg-soldes")      chargerSoldes("");
   if(id==="pg-gps")        chargerGPS();
-  if(id==="pg-historique")  { if(G("hist-immat")?.value||G("hist-client")?.value) rechercherHistorique(); }
+  if(id==="pg-historique")  rechercherHistorique();
   if(id==="pg-stats")      chargerStats();
   if(id==="pg-commissions") {}
   if(id==="pg-droits")     {chargerDroits(); chargerPermChauffeursFn();}
@@ -1444,10 +1456,82 @@ function majFiltreTypeST(){
 
 function selToutHistorique(){
   const all=G("hist-check-all");
-  document.querySelectorAll(".hist-cb").forEach(cb=>cb.checked=all?all.checked:true);
+  const cbs=document.querySelectorAll(".hist-cb");
+  cbs.forEach(cb=>cb.checked=all?all.checked:true);
+  majSelHist();
+}
+function majSelHist(){
+  const nb=document.querySelectorAll(".hist-cb:checked").length;
+  const lbl=G("hist-sel-lbl"); if(lbl) lbl.textContent=nb>0?nb+" sélectionné(s)":"";
+  const all=G("hist-check-all");
+  if(all) all.checked=nb>0&&nb===document.querySelectorAll(".hist-cb").length;
 }
 
-function exporterHistoriquePDF(){
+function rechercherHistorique(){
+  const immat=G("hist-immat")?.value.trim().toUpperCase()||"";
+  const client=G("hist-client")?.value||"";
+  const debut=G("hist-debut")?.value||"";
+  const fin=G("hist-fin")?.value||"";
+  G("hist-result").innerHTML="<div style='color:var(--gris3);padding:24px;text-align:center'>Chargement...</div>";
+  loader(true);
+  db.collection("bons").orderBy("timestamp","desc").limit(1000).get().then(snap=>{
+    let bons=[]; snap.forEach(d=>bons.push({id:d.id,...d.data()}));
+    if(immat) bons=bons.filter(b=>(b.immatriculation||"").toUpperCase().includes(immat));
+    if(client) bons=bons.filter(b=>b.nom_client===client);
+    if(debut) bons=bons.filter(b=>toComp(b.date_bl)>=debut);
+    if(fin)   bons=bons.filter(b=>toComp(b.date_bl)<=fin);
+
+    // Peupler select client (une seule fois si vide)
+    const selCl=G("hist-client");
+    if(selCl&&selCl.options.length<=1){
+      const allClients=[...new Set(Array.from(snap.docs).map(d=>d.data().nom_client).filter(Boolean))].sort();
+      allClients.forEach(c=>{const o=document.createElement("option");o.value=c;o.textContent=c;selCl.appendChild(o);});
+      if(client) selCl.value=client;
+    }
+
+    loader(false);
+    if(!bons.length){
+      G("hist-result").innerHTML=`<div style="color:var(--gris3);padding:24px;text-align:center">Aucun résultat</div>`;
+      return;
+    }
+
+    db.collection("recus").orderBy("timestamp","desc").limit(500).get().then(rSnap=>{
+      const recusMap={};
+      rSnap.forEach(d=>{ const r=d.data(); if(r.bon_num) recusMap[r.bon_num]=r; });
+      let html=`<div style="font-size:13px;font-weight:700;color:var(--gris4);margin-bottom:10px">${bons.length} résultat(s)</div>`;
+      html+=`<div class="table-wrap"><table><thead><tr>
+        <th><input type="checkbox" id="hist-check-all" onclick="selToutHistorique()"></th>
+        <th>N° BL</th><th>N° Reçu</th><th>Date</th><th>Heure</th><th>Tarif</th>
+        <th>Chauffeur</th><th>Client</th><th>Immat</th><th>Véhicule</th>
+        <th>Embarquement</th><th>Destination</th><th>Espèces</th><th>Actions</th>
+      </tr></thead><tbody>`;
+      bons.forEach(b=>{
+        const recu=recusMap[b.bon_num]||{};
+        html+=`<tr>
+          <td><input type="checkbox" class="hist-cb" data-id="${b.id}" onchange="majSelHist()"></td>
+          <td style="font-weight:700;color:var(--bleu);font-size:11px">${b.bon_num||"—"}</td>
+          <td style="color:var(--vert);font-size:11px">${recu.recu_num||"—"}</td>
+          <td>${b.date_bl||"—"}</td><td>${b.heure_bl||"—"}</td>
+          <td><span class="badge ${b.tarif==="NORMAL"?"tarif-normal":b.tarif==="TN"?"tarif-tn":"tarif-tw"}">${b.tarif||"—"}</span></td>
+          <td>${b.chauffeur_nom||"—"}</td>
+          <td style="font-weight:600">${b.nom_client||"—"}</td>
+          <td style="font-weight:700;font-family:monospace">${b.immatriculation||"—"}</td>
+          <td style="font-size:11px">${b.marque||""} ${b.modele||""}</td>
+          <td style="font-size:11px">${b.lieu_embarquement||"—"}</td>
+          <td style="font-size:11px">${b.destination||"—"}</td>
+          <td style="font-weight:700;color:var(--vert)">${b.especes===true&&b.montant_especes>0?fmtMontant(b.montant_especes):"—"}</td>
+          <td><div style="display:flex;gap:3px">
+            <button class="btn btn-secondary btn-sm btn-icon" onclick="voirBL('${b.id}')">👁</button>
+            <button class="btn btn-secondary btn-sm btn-icon" onclick="imprimerBL('${b.id}')">🖨</button>
+            <button class="btn btn-secondary btn-sm btn-icon" onclick="telechargerBL('${b.id}')">⬇</button>
+          </div></td>
+        </tr>`;
+      });
+      html+=`</tbody></table></div>`;
+      G("hist-result").innerHTML=html;
+    });
+  }).catch(e=>{loader(false);toast("Erreur","err");console.error(e);});
+}
   const cbs=document.querySelectorAll(".hist-cb:checked");
   if(!cbs.length){ toast("Sélectionnez au moins un BL","err"); return; }
   loader(true,"Export PDF...");
@@ -1484,59 +1568,42 @@ function exporterHistoriquePDF(){
   }).catch(e=>{loader(false);toast("Erreur","err");console.error(e);});
 }
 
-function rechercherHistorique(){
-  const immat=G("hist-immat").value.trim().toUpperCase();
-  const client=G("hist-client")?.value||"";
-  if(!immat && !client){
-    G("hist-result").innerHTML="<div style='color:var(--gris3);padding:24px;text-align:center'>Saisissez une immatriculation ou choisissez un client</div>";
-    return;
-  }
-  G("hist-result").innerHTML="<div style='color:var(--gris3);padding:24px;text-align:center'>Recherche en cours...</div>";
-  loader(true);
-  db.collection("bons").orderBy("timestamp","desc").limit(500).get().then(snap=>{
-    let bons=[]; snap.forEach(d=>bons.push({id:d.id,...d.data()}));
-    if(immat) bons=bons.filter(b=>(b.immatriculation||"").toUpperCase()===immat);
-    if(client) bons=bons.filter(b=>b.nom_client===client);
-    loader(false);
-    if(!bons.length){
-      G("hist-result").innerHTML=`<div style="color:var(--gris3);padding:24px;text-align:center">Aucun résultat</div>`;
-      return;
-    }
-    db.collection("recus").orderBy("timestamp","desc").limit(200).get().then(rSnap=>{
-      const recusMap={};
-      rSnap.forEach(d=>{ const r=d.data(); if(r.bon_num) recusMap[r.bon_num]=r; });
-      let html=`<div style="font-size:13px;font-weight:700;color:var(--gris3);margin-bottom:12px">${bons.length} résultat(s)</div>`;
-      html+=`<div class="table-wrap"><table><thead><tr>
-        <th><input type="checkbox" id="hist-check-all" onclick="selToutHistorique()"></th>
-        <th>N° BL</th><th>N° Reçu</th><th>Date</th><th>Heure</th><th>Tarif</th>
-        <th>Chauffeur</th><th>Client</th><th>Immat</th><th>Véhicule</th>
-        <th>Embarquement</th><th>Destination</th><th>Espèces</th><th>Actions</th>
-      </tr></thead><tbody>`;
-      bons.forEach(b=>{
-        const recu=recusMap[b.bon_num]||{};
-        html+=`<tr>
-          <td><input type="checkbox" class="hist-cb" data-id="${b.id}"></td>
-          <td style="font-weight:700;color:var(--bleu);font-size:11px">${b.bon_num||"—"}</td>
-          <td style="color:var(--vert);font-size:11px">${recu.recu_num||"—"}</td>
-          <td>${b.date_bl||"—"}</td><td>${b.heure_bl||"—"}</td>
-          <td><span class="badge ${b.tarif==="NORMAL"?"tarif-normal":b.tarif==="TN"?"tarif-tn":"tarif-tw"}">${b.tarif||"—"}</span></td>
-          <td>${b.chauffeur_nom||"—"}</td>
-          <td style="font-weight:600">${b.nom_client||"—"}</td>
-          <td style="font-weight:700">${b.immatriculation||"—"}</td>
-          <td style="font-size:11px">${b.marque||""} ${b.modele||""}</td>
-          <td style="font-size:11px">${b.lieu_embarquement||"—"}</td>
-          <td style="font-size:11px">${b.destination||"—"}</td>
-          <td style="font-weight:700;color:var(--vert)">${b.especes===true&&b.montant_especes>0?fmtMontant(b.montant_especes):"—"}</td>
-          <td><div style="display:flex;gap:3px">
-            <button class="btn btn-secondary btn-sm btn-icon" onclick="voirBL('${b.id}')">👁</button>
-            <button class="btn btn-secondary btn-sm btn-icon" onclick="imprimerBL('${b.id}')">🖨</button>
-            <button class="btn btn-secondary btn-sm btn-icon" onclick="telechargerBL('${b.id}')">⬇</button>
-          </div></td>
-        </tr>`;
-      });
-      html+=`</tbody></table></div>`;
-      G("hist-result").innerHTML=html;
+function exporterHistoriquePDF(){
+  const cbs=document.querySelectorAll(".hist-cb:checked");
+  const allCbs=document.querySelectorAll(".hist-cb");
+  if(!allCbs.length){ toast("Aucun historique à exporter","err"); return; }
+  loader(true,"Export PDF...");
+  const ids=cbs.length>0?Array.from(cbs).map(cb=>cb.dataset.id):Array.from(allCbs).map(cb=>cb.dataset.id);
+  Promise.all(ids.map(id=>db.collection("bons").doc(id).get())).then(snaps=>{
+    const {jsPDF}=window.jspdf;
+    const doc=new jsPDF('landscape','mm','a4');
+    doc.setFontSize(13);doc.setFont('helvetica','bold');doc.setTextColor(200,52,26);
+    doc.text('Historique des bons de livraison',148,14,{align:'center'});
+    doc.setFontSize(8);doc.setFont('helvetica','normal');doc.setTextColor(100,100,100);
+    doc.text('Édité le '+new Date().toLocaleDateString('fr-FR')+(cbs.length>0?' — Sélection: '+cbs.length+' BL':''),148,20,{align:'center'});
+    const cols=['N° BL','Date','Heure','Tarif','Chauffeur','Client','Immat','Véhicule','Embarquement','Destination','Espèces'];
+    const widths=[22,18,14,12,28,28,20,22,28,28,15];
+    let y=28;
+    doc.setFillColor(200,52,26);doc.rect(10,y,277,6,'F');
+    doc.setTextColor(255,255,255);doc.setFont('helvetica','bold');doc.setFontSize(7);
+    let x=10; cols.forEach((h,i)=>{doc.text(h,x+1,y+4.2);x+=widths[i];});
+    y+=6;doc.setTextColor(26,26,26);doc.setFont('helvetica','normal');
+    snaps.forEach((snap,idx)=>{
+      if(!snap.exists)return;
+      const b=snap.data();
+      if(y>190){doc.addPage();y=14;}
+      doc.setFillColor(idx%2===0?248:255,idx%2===0?248:255,idx%2===0?248:255);
+      doc.rect(10,y,277,5.5,'F');doc.setFontSize(6.5);
+      let xi=10;
+      [b.bon_num||'—',b.date_bl||'—',b.heure_bl||'—',b.tarif||'—',b.chauffeur_nom||'—',
+       b.nom_client||'—',b.immatriculation||'—',(b.marque||'')+' '+(b.modele||''),
+       b.lieu_embarquement||'—',b.destination||'—',
+       b.especes===true&&b.montant_especes>0?b.montant_especes.toFixed(2)+' €':'—'
+      ].forEach((v,i)=>{doc.text(String(v).substring(0,20),xi+1,y+3.8);xi+=widths[i];});
+      y+=5.5;
     });
+    doc.save('historique'+(cbs.length>0?'-selection':'-tous')+'.pdf');
+    loader(false);toast("PDF exporté ✅ ("+ids.length+" BL)");
   }).catch(e=>{loader(false);toast("Erreur","err");console.error(e);});
 }
 
@@ -2235,6 +2302,7 @@ function chargerMagasinage(){
       const modeLabel = m.mode_paiement?{especes:"💵",cb:"💳",cheque:"📝",virement:"🏦"}[m.mode_paiement]||"":"";
 
       html+=`<tr style="${m._statutPaie==='impaye'&&m.statut!=='en_cours'?'background:#fff8f8':''}">
+        <td><input type="checkbox" class="mag-cb" data-id="${m.id}" onchange="majSelMag()"></td>
         <td style="font-weight:700;font-family:monospace;font-size:11px">${m.immat||"—"}</td>
         <td><strong>${m.client||"—"}</strong><br><span style="font-size:10px;color:var(--gris3)">${m.vehicule||""}</span></td>
         <td>${m.date_entree||"—"}</td>
@@ -2254,7 +2322,7 @@ function chargerMagasinage(){
           <button class="btn btn-danger btn-sm btn-icon" onclick="supprimerMag('${m.id}')">🗑</button>
         </div></td></tr>`;
     });
-    G("mag-tbody").innerHTML=html||`<tr><td colspan="14" style="text-align:center;color:var(--gris3);padding:24px">Aucun gardiennage</td></tr>`;
+    G("mag-tbody").innerHTML=html||`<tr><td colspan="15" style="text-align:center;color:var(--gris3);padding:24px">Aucun gardiennage</td></tr>`;
   }).catch(console.error);
 }
 
@@ -2472,7 +2540,54 @@ async function confirmerPaiementMag(){
 }
 
 function supprimerMag(id){if(!confirm("Supprimer ?"))return;db.collection("magasinage").doc(id).delete().then(()=>{toast("Supprimé");chargerMagasinage();});}
-function exporterMagasinagePDF(){toast("Export PDF magasinage — disponible prochainement");}
+function selToutMag(){
+  const all=G("mag-check-all");
+  document.querySelectorAll(".mag-cb").forEach(cb=>cb.checked=all?all.checked:true);
+  majSelMag();
+}
+function majSelMag(){
+  const nb=document.querySelectorAll(".mag-cb:checked").length;
+  const lbl=G("mag-sel-lbl"); if(lbl) lbl.textContent=nb>0?nb+" sélectionné(s)":"";
+  const all=G("mag-check-all");
+  if(all) all.checked=nb>0&&nb===document.querySelectorAll(".mag-cb").length;
+}
+
+function exporterMagasinagePDF(){
+  const {jsPDF}=window.jspdf;
+  const doc=new jsPDF('landscape','mm','a4');
+  doc.setFont('helvetica','bold'); doc.setFontSize(14); doc.setTextColor(200,52,26);
+  doc.text('MAGASINAGE — Multi Auto Dépannage',148,14,{align:'center'});
+  doc.setFontSize(8); doc.setFont('helvetica','normal'); doc.setTextColor(100,100,100);
+  doc.text('Généré le '+new Date().toLocaleDateString('fr-FR'),148,20,{align:'center'});
+
+  const cochees=document.querySelectorAll('.mag-cb:checked');
+  const rows=[];
+  const source = cochees.length>0
+    ? Array.from(cochees).map(cb=>cb.closest('tr'))
+    : Array.from(document.querySelectorAll('#mag-tbody tr'));
+
+  source.forEach(tr=>{
+    const cells=[]; 
+    tr.querySelectorAll('td').forEach((td,i)=>{ if(i>0&&i<14) cells.push(td.textContent.trim().replace(/\s+/g,' ')); });
+    if(cells.length>2) rows.push(cells.slice(0,13));
+  });
+
+  if(!rows.length){ toast("Aucune ligne à exporter","err"); return; }
+
+  doc.autoTable({
+    startY:26,
+    head:[['Immat.','Client','Entrée','Sortie','Jours','Tarif/j','Total','Remise','Net','Payé','Reste','Statut','N° Reçu']],
+    body:rows,
+    headStyles:{fillColor:[26,37,64],textColor:255,fontSize:6,fontStyle:'bold'},
+    bodyStyles:{fontSize:6},
+    alternateRowStyles:{fillColor:[246,246,246]},
+    margin:{left:8,right:8},
+    columnStyles:{0:{fontStyle:'bold'},11:{fontStyle:'bold'}}
+  });
+  const nb=cochees.length>0?cochees.length:rows.length;
+  doc.save('magasinage'+(cochees.length>0?'-selection':'-tous')+'.pdf');
+  toast(nb+' ligne(s) exportée(s) ✅');
+}
 
 // ── PRISES EN CHARGE ──
 function chargerPC(){
@@ -3272,15 +3387,23 @@ function chargerStats(){
     mkBar(parCam,"chart-camions","var(--bleu)");
     mkBar({Normal:parTarif.NORMAL,TN:parTarif.TN,TW:parTarif.TW},"chart-tarifs","var(--vert)");
     mkBar(parCl,"chart-clients","var(--violet)");
-    const existing=document.getElementById("detail-stats-table");
-    if(existing)existing.remove();
     if(mode==="detail"){
       let html=`<div class="card" id="detail-stats-table" style="margin-top:16px">
-        <div class="card-title">📋 Détail complet — ${total} BL</div>
+        <div class="card-title" style="display:flex;justify-content:space-between;align-items:center">
+          <span>📋 Détail complet — ${total} BL</span>
+          <div style="display:flex;gap:6px">
+            <button class="btn btn-secondary btn-sm" onclick="selToutStats()">☑ Tout</button>
+            <button class="btn btn-secondary btn-sm" onclick="exporterStatsDetailPDF()">⬇ PDF sélection</button>
+          </div>
+        </div>
         <div class="table-wrap"><table>
-        <thead><tr><th>N° BL</th><th>Date</th><th>Heure</th><th>Tarif</th><th>Chauffeur</th><th>Client</th><th>Véhicule</th><th>Trajet</th><th>Espèces</th></tr></thead><tbody>`;
+        <thead><tr>
+          <th><input type="checkbox" id="stats-check-all" onclick="selToutStats()"></th>
+          <th>N° BL</th><th>Date</th><th>Heure</th><th>Tarif</th><th>Chauffeur</th><th>Client</th><th>Véhicule</th><th>Trajet</th><th>Espèces</th>
+        </tr></thead><tbody>`;
       bons.forEach(b=>{
         html+=`<tr>
+          <td><input type="checkbox" class="stats-cb" data-id="${b.id}" onchange="majSelStats()"></td>
           <td style="font-weight:700;color:var(--bleu);font-size:11px">${b.bon_num||"—"}</td>
           <td>${b.date_bl||"—"}</td><td>${b.heure_bl||"—"}</td>
           <td><span class="badge ${b.tarif==="NORMAL"?"tarif-normal":b.tarif==="TN"?"tarif-tn":"tarif-tw"}">${b.tarif||"—"}</span></td>
@@ -3293,9 +3416,50 @@ function chargerStats(){
       });
       html+=`</tbody></table></div></div>`;
       G("pg-stats").insertAdjacentHTML("beforeend",html);
+      const btnTout=G("btn-stats-sel-tout"); if(btnTout) btnTout.style.display="inline-flex";
     }
     loader(false);
   }).catch(()=>{loader(false);toast("Erreur","err");});
+}
+
+function selToutStats(){
+  const all=G("stats-check-all");
+  document.querySelectorAll(".stats-cb").forEach(cb=>cb.checked=all?all.checked:true);
+  majSelStats();
+}
+function majSelStats(){
+  const nb=document.querySelectorAll(".stats-cb:checked").length;
+  const lbl=G("stats-sel-lbl"); if(lbl) lbl.textContent=nb>0?nb+" sélectionné(s)":"";
+  const all=G("stats-check-all");
+  if(all) all.checked=nb>0&&nb===document.querySelectorAll(".stats-cb").length;
+}
+
+function exporterStatsDetailPDF(){
+  const cbs=document.querySelectorAll(".stats-cb:checked");
+  const allCbs=document.querySelectorAll(".stats-cb");
+  if(!allCbs.length){ toast("Lancez d'abord le calcul en mode Détails","err"); return; }
+  loader(true,"Export PDF...");
+  const ids=cbs.length>0?Array.from(cbs).map(cb=>cb.dataset.id):Array.from(allCbs).map(cb=>cb.dataset.id);
+  Promise.all(ids.map(id=>db.collection("bons").doc(id).get())).then(snaps=>{
+    const {jsPDF}=window.jspdf;
+    const doc=new jsPDF('landscape','mm','a4');
+    doc.setFont('helvetica','bold');doc.setFontSize(13);doc.setTextColor(200,52,26);
+    doc.text('DÉTAIL STATISTIQUES — Multi Auto Dépannage',148,14,{align:'center'});
+    doc.setFontSize(8);doc.setFont('helvetica','normal');doc.setTextColor(100,100,100);
+    doc.text('Édité le '+new Date().toLocaleDateString('fr-FR')+(cbs.length>0?' — Sélection: '+cbs.length:' — Tous: '+ids.length+' BL'),148,20,{align:'center'});
+    const rows=[];
+    snaps.forEach(snap=>{ if(!snap.exists)return; const b=snap.data();
+      rows.push([b.bon_num||'—',b.date_bl||'—',b.heure_bl||'—',b.tarif||'—',
+        b.chauffeur_nom||'—',b.nom_client||'—',(b.marque||'')+' '+(b.modele||''),
+        (b.lieu_embarquement||'—')+' → '+(b.destination||'—'),
+        b.especes&&b.montant_especes>0?b.montant_especes.toFixed(2)+' €':'—']);
+    });
+    doc.autoTable({startY:26,head:[['N° BL','Date','Heure','Tarif','Chauffeur','Client','Véhicule','Trajet','Espèces']],body:rows,
+      headStyles:{fillColor:[26,37,64],textColor:255,fontSize:6,fontStyle:'bold'},bodyStyles:{fontSize:6},
+      alternateRowStyles:{fillColor:[246,246,246]},margin:{left:8,right:8}});
+    doc.save('stats-detail'+(cbs.length>0?'-selection':'-tous')+'.pdf');
+    loader(false);toast("PDF exporté ✅ ("+ids.length+" BL)");
+  }).catch(e=>{loader(false);toast("Erreur","err");console.error(e);});
 }
 
 function exporterStatsPDF(){
