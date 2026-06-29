@@ -1665,8 +1665,14 @@ function supprimerSelectionBL(){
 // ── REÇUS ──
 function chargerRecus(){
   loader(true);
-  db.collection("recus").orderBy("timestamp","desc").limit(200).get().then(snap=>{
+  db.collection("recus").limit(500).get().then(snap=>{
     let recus=[]; snap.forEach(d=>recus.push({id:d.id,...d.data()}));
+    // Tri côté client par createdAt ou timestamp
+    recus.sort((a,b)=>{
+      const ta=a.createdAt?.seconds||a.timestamp?.seconds||0;
+      const tb=b.createdAt?.seconds||b.timestamp?.seconds||0;
+      return tb-ta;
+    });
     const rcType=G("rc-filtre-type")?.value||"";
     const ch=G("rc-filtre-chauffeur")?.value||"";
     const rcCl=G("rc-filtre-client")?.value||"";
@@ -1674,26 +1680,31 @@ function chargerRecus(){
     if(debut) recus=recus.filter(r=>toComp(r.date)>=debut);
     if(fin)   recus=recus.filter(r=>toComp(r.date)<=fin);
     if(rcType==="tous_chauffeurs") recus=recus.filter(r=>r.type_bl==="chauffeur");
-    else if(rcType==="tous_clients") recus=recus.filter(r=>!r.type_bl||r.type_bl==="client");
+    else if(rcType==="tous_clients") recus=recus.filter(r=>!r.type_bl||r.type_bl==="client"||r.type_recu==="solde_client");
     else if(rcType==="chauffeur"){ if(ch) recus=recus.filter(r=>r.chauffeur_uid===ch); else recus=recus.filter(r=>r.type_bl==="chauffeur"); }
-    else if(rcType==="client"){ if(rcCl) recus=recus.filter(r=>r.nom_client===rcCl); else recus=recus.filter(r=>!r.type_bl||r.type_bl==="client"); }
-    else if(rcType==="magasinage") recus=recus.filter(r=>r.type_bl==="magasinage");
+    else if(rcType==="client"){ if(rcCl) recus=recus.filter(r=>r.nom_client===rcCl); else recus=recus.filter(r=>!r.type_bl||r.type_bl==="client"||r.type_recu==="solde_client"); }
+    else if(rcType==="magasinage") recus=recus.filter(r=>r.type_bl==="magasinage"||r.type_recu==="magasinage");
     else if(ch) recus=recus.filter(r=>r.chauffeur_uid===ch);
     const totalRC=recus.length, totalM=recus.reduce((s,r)=>s+(r.montant||0),0);
     if(G("rc-totaux")) G("rc-totaux").innerHTML=`
       <div class="total-badge"><div class="tb-num">${totalRC}</div><div class="tb-lbl">Total reçus</div></div>
-      <div class="total-badge vert"><div class="tb-num">${fmtMontant(totalM)}</div><div class="tb-lbl">Total espèces</div></div>`;
+      <div class="total-badge vert"><div class="tb-num">${fmtMontant(totalM)}</div><div class="tb-lbl">Total montant</div></div>`;
     let html="";
     recus.forEach(r=>{
+      const typeBadge=r.type_recu==="solde_client"?`<span style="font-size:10px;background:#e3f2fd;color:#1565c0;padding:1px 5px;border-radius:8px;font-weight:700">💳 Solde</span>`
+        :r.type_recu==="magasinage"||r.type_bl==="magasinage"?`<span style="font-size:10px;background:#f3e5f5;color:#6a1b9a;padding:1px 5px;border-radius:8px;font-weight:700">🏠 Mag</span>`
+        :`<span style="font-size:10px;background:#e8f5e9;color:#2e7d32;padding:1px 5px;border-radius:8px;font-weight:700">💵 Esp.</span>`;
       html+=`<tr>
         <td><input type="checkbox" class="rc-check" data-id="${r.id}" onchange="majBoutonsSelection('rc')"></td>
         <td style="font-weight:700;color:var(--vert);font-size:11px">${r.recu_num||"—"}</td>
-        <td>${r.date||"—"}</td><td>${r.chauffeur_nom||"—"}</td>
+        <td>${r.date||"—"}</td>
+        <td>${typeBadge}</td>
+        <td>${r.chauffeur_nom||"—"}</td>
         <td style="font-weight:600">${r.nom_client||"—"}</td>
-        <td style="font-size:11px">${r.marque||""} ${r.modele||""}</td>
-        <td style="font-size:11px">${r.mission||"—"}</td>
+        <td style="font-size:11px">${r.marque||""} ${r.modele||""}${r.immatriculation?` <span style="font-family:monospace;font-size:10px">${r.immatriculation}</span>`:""}</td>
+        <td style="font-size:11px">${r.mission||r.designation||r.num_doc||"—"}</td>
         <td style="font-weight:900;color:var(--vert)">${fmtMontant(r.montant)}</td>
-        <td style="color:var(--bleu);font-size:11px">${r.bon_num||"—"}</td>
+        <td style="color:var(--bleu);font-size:11px">${r.bon_num||r.num_doc||"—"}</td>
         <td><div style="display:flex;gap:3px">
           <button class="btn btn-secondary btn-sm btn-icon" onclick="voirRecu('${r.id}')">👁</button>
           <button class="btn btn-secondary btn-sm btn-icon" onclick="imprimerRecu('${r.id}')">🖨</button>
@@ -1701,9 +1712,9 @@ function chargerRecus(){
           <button class="btn btn-danger btn-sm btn-icon" onclick="supprimerRecu('${r.id}')">🗑</button>
         </div></td></tr>`;
     });
-    G("recus-tbody").innerHTML=html||`<tr><td colspan="10" style="text-align:center;color:var(--gris3);padding:24px">Aucun reçu</td></tr>`;
+    G("recus-tbody").innerHTML=html||`<tr><td colspan="11" style="text-align:center;color:var(--gris3);padding:24px">Aucun reçu</td></tr>`;
     loader(false);
-  }).catch(()=>{loader(false);});
+  }).catch(e=>{loader(false);console.error(e);});
 }
 function supprimerRecu(id){if(!confirm("Supprimer ?"))return;db.collection("recus").doc(id).delete().then(()=>{toast("Supprimé");chargerRecus();});}
 function voirSelectionRC(){const cb=document.querySelectorAll(".rc-check:checked");if(!cb.length)return;voirRecu(cb[0].dataset.id);}
