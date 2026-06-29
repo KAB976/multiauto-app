@@ -720,18 +720,37 @@ tr:hover td{background:var(--gris)}
       </div>
       <div class="stats-grid" id="pc-stats"></div>
       <div class="card" style="padding:0">
-        <div style="padding:12px 16px;border-bottom:1px solid var(--gris2);display:flex;gap:8px;flex-wrap:wrap">
-          <input class="filtre-inp" type="date" id="pc-date-debut">
-          <input class="filtre-inp" type="date" id="pc-date-fin">
+        <div style="padding:12px 16px;border-bottom:1px solid var(--gris2);display:flex;gap:8px;flex-wrap:wrap;align-items:center">
+          <input class="filtre-inp" type="date" id="pc-date-debut" onchange="chargerPC()">
+          <input class="filtre-inp" type="date" id="pc-date-fin" onchange="chargerPC()">
+          <select class="filtre-inp" id="pc-filtre-assureur" onchange="chargerPC()">
+            <option value="">Assureur: Tous</option>
+            <option value="recu">✅ Assureur reçu</option>
+            <option value="en_attente">⏳ En attente</option>
+          </select>
+          <select class="filtre-inp" id="pc-filtre-client" onchange="chargerPC()">
+            <option value="">Client: Tous</option>
+            <option value="paye">✅ Client payé</option>
+            <option value="partiel">🟣 Partiel</option>
+            <option value="impaye">🔴 Impayé</option>
+          </select>
           <select class="filtre-inp" id="pc-filtre-statut" onchange="chargerPC()">
-            <option value="">Tous statuts</option><option value="en_cours">En cours</option><option value="livre">Livré</option><option value="annule">Annulé</option>
+            <option value="">Tous statuts</option>
+            <option value="en_cours">En cours</option>
+            <option value="livre">Livré</option>
+            <option value="annule">Annulé</option>
           </select>
           <button class="btn btn-primary" onclick="chargerPC()">🔍 Filtrer</button>
           <button class="btn btn-secondary btn-sm" onclick="exporterPCPDF()">⬇ Export PDF</button>
         </div>
         <div class="table-wrap">
           <table>
-            <thead><tr><th>N° Dossier</th><th>Date</th><th>Assureur</th><th>Client</th><th>Véhicule/Immat</th><th>Montant Réel</th><th>Part Assur.</th><th>Part Client</th><th>N° BL</th><th>N° Reçu</th><th>Statut</th><th>Actions</th></tr></thead>
+            <thead><tr>
+              <th>N° Dossier</th><th>Date</th><th>Assureur</th><th>Client</th>
+              <th>Véhicule/Immat</th><th>Montant Réel</th><th>Part Assur.</th>
+              <th>St. Assureur</th><th>Part Client</th><th>St. Client</th>
+              <th>N° BL</th><th>N° Reçu</th><th>Observation</th><th>Actions</th>
+            </tr></thead>
             <tbody id="pc-tbody"></tbody>
           </table>
         </div>
@@ -2992,14 +3011,14 @@ async function chargerSoldes(prefix){
     const items = [];
     blSnap.forEach(d=>{
       const b=d.data();
-      if(estClientPC(b.nom_client)) return; // GAA / Mondiale → onglet PC uniquement
-      if(b.deplace_en_pc) return; // Déplacé manuellement en PC
+      if(b.deplace_en_pc) return; // Déplacé manuellement en PC uniquement
+      if(!b.nom_client||b.nom_client==="—") return;
       const montant = parseFloat(b.montant)||0;
       // Espèces chauffeur = payé automatiquement
-      const especes = parseFloat(b.montant_especes)||0;
-      const payeAuto = b.paye_montant||0;
-      const payeTotal = payeAuto>0?payeAuto:(especes>0&&montant>0?Math.min(especes,montant):0);
-      const parChauffeur = especes>0&&payeAuto<=0&&montant>0;
+      const especes = b.especes===true ? parseFloat(b.montant_especes)||0 : 0;
+      const payeAuto = parseFloat(b.paye_montant)||0;
+      const payeTotal = payeAuto>0 ? payeAuto : (especes>0&&montant>0 ? Math.min(especes,montant) : 0);
+      const parChauffeur = especes>0 && payeAuto<=0 && montant>0;
       const statut = !montant?"incomplet":payeTotal>=montant?"solde":payeTotal>0?"partiel":"impaye";
       items.push({
         id:d.id, type:"bl", date:b.date_bl||"", client:b.nom_client||"—",
