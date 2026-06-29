@@ -2570,58 +2570,84 @@ function chargerPC(){
   const statut=G("pc-filtre-statut")?.value||"";
   db.collection("prises_en_charge").orderBy("date","desc").limit(200).get().then(snap=>{
     let list=[]; snap.forEach(d=>list.push({id:d.id,...d.data()}));
+    const filtAss=G("pc-filtre-assureur")?.value||"";
+    const filtCl=G("pc-filtre-client")?.value||"";
     if(statut) list=list.filter(p=>p.statut===statut);
+    if(filtAss) list=list.filter(p=>(p.statut_assureur||"en_attente")===filtAss);
+    if(filtCl==="paye")    list=list.filter(p=>(parseFloat(p.montant_client_paye||p.paye_client)||0)>=(p.montant_client||0)&&(p.montant_client||0)>0);
+    else if(filtCl==="partiel") list=list.filter(p=>(parseFloat(p.montant_client_paye||p.paye_client)||0)>0&&(parseFloat(p.montant_client_paye||p.paye_client)||0)<(p.montant_client||0));
+    else if(filtCl==="impaye")  list=list.filter(p=>(parseFloat(p.montant_client_paye||p.paye_client)||0)===0&&(p.montant_client||0)>0);
     const totalAss=list.reduce((s,p)=>s+(p.montant_assurance||0),0);
     const totalClient=list.reduce((s,p)=>s+(p.montant_client||0),0);
+    const totalPaye=list.reduce((s,p)=>s+(parseFloat(p.montant_client_paye||p.paye_client)||0),0);
     if(G("pc-stats")) G("pc-stats").innerHTML=`
       <div class="stat-card"><div class="stat-num">${list.length}</div><div class="stat-label">Total dossiers</div></div>
       <div class="stat-card" style="border-left-color:var(--jaune)"><div class="stat-num">${list.filter(p=>p.statut==="en_cours").length}</div><div class="stat-label">En cours</div></div>
       <div class="stat-card" style="border-left-color:var(--rouge)"><div class="stat-num">${list.filter(p=>p.statut==="annule").length}</div><div class="stat-label">Annulés</div></div>
       <div class="stat-card" style="border-left-color:var(--vert)"><div class="stat-num">${fmtMontant(totalAss)}</div><div class="stat-label">Total assurances</div></div>
-      <div class="stat-card" style="border-left-color:var(--bleu)"><div class="stat-num">${fmtMontant(totalClient)}</div><div class="stat-label">Part clients</div></div>`;
+      <div class="stat-card" style="border-left-color:var(--bleu)"><div class="stat-num">${fmtMontant(totalClient)}</div><div class="stat-label">Part clients</div></div>
+      <div class="stat-card" style="border-left-color:var(--vert)"><div class="stat-num">${fmtMontant(totalPaye)}</div><div class="stat-label">Encaissé clients</div></div>`;
     let html="";
     list.forEach(p=>{
-      const paye=p.paye_client||0, reste=(p.montant_client||0)-paye;
-      const st=p.statut==="en_cours"?`<span class="badge badge-jaune">🔄 En cours</span>`:p.statut==="livre"?`<span class="badge badge-vert">✅ Livré</span>`:`<span class="badge badge-rouge">✕ Annulé</span>`;
-      html+=`<tr>
+      const montantClient=parseFloat(p.montant_client)||0;
+      const payeClient=parseFloat(p.montant_client_paye||p.paye_client)||0;
+      const resteClient=Math.max(0,montantClient-payeClient);
+
+      const stAss=p.statut_assureur==="recu"
+        ?`<span class="badge" style="background:#e8f5e9;color:#2e7d32;border:1px solid #2e7d32">✅ Reçu</span>`
+        :`<span class="badge" style="background:#fff8e1;color:#f57c00;border:1px solid #f57c00">⏳ En attente</span>`;
+
+      let stClient="";
+      if(montantClient===0)          stClient=`<span style="color:var(--gris3);font-size:11px">N/A</span>`;
+      else if(payeClient>=montantClient) stClient=`<span class="badge" style="background:#e8f5e9;color:#2e7d32;border:1px solid #2e7d32">✅ Payé</span>`;
+      else if(payeClient>0)          stClient=`<span class="badge" style="background:#f3e5f5;color:#7b1fa2;border:1px solid #7b1fa2">🟣 Partiel (${fmtMontant(payeClient)})</span>`;
+      else                           stClient=`<span class="badge" style="background:#ffebee;color:#c62828;border:1px solid #c62828">🔴 Impayé</span>`;
+
+      const modeClient=p.paye_par_chauffeur===true?"🚛 Chauffeur"
+        :p.mode_paiement_client?{especes:"💵",cb:"💳",cheque:"📝",virement:"🏦"}[p.mode_paiement_client]||p.mode_paiement_client:"—";
+
+      const btnPayer=montantClient>0&&resteClient>0
+        ?`<button class="btn btn-success btn-sm" onclick="ouvrirPaiementPC('${p.id}',${montantClient},${payeClient},'${(p.client||"").replace(/'/g,"\\'")}','${p.dossier||""}','${p.assureur||""}')">💰 Payer</button>`:"";
+
+      html+=`<tr style="${p.statut==='annule'?'background:#fce4ec;opacity:.8':''}">
         <td style="font-weight:700;color:var(--bleu);font-size:11px">${p.dossier||"—"}</td>
         <td style="font-size:11px">${p.date||"—"}</td>
-        <td style="font-size:11px">${p.assureur||"—"}</td>
+        <td style="font-size:11px;font-weight:700">${p.assureur||"—"}</td>
         <td><strong>${p.client||"—"}</strong></td>
         <td style="font-size:11px">${p.marque||""} ${p.modele||""}<br><span style="font-family:monospace;font-size:10px;font-weight:700">${p.immat||""}</span></td>
-        <td style="color:var(--vert);font-weight:700;font-size:13px">${fmtMontant(p.montant_reel||(p.montant_assurance||0)+(p.montant_client||0))}</td>
+        <td style="color:var(--vert);font-weight:700;font-size:13px">${fmtMontant(p.montant_reel||((p.montant_assurance||0)+montantClient))}</td>
         <td style="color:var(--bleu);font-weight:700">${fmtMontant(p.montant_assurance)}</td>
-        <td style="color:var(--bleu);font-weight:700">${fmtMontant(p.montant_client)}
-          ${reste>0?`<br><span style="color:var(--rouge);font-size:10px">Reste: ${fmtMontant(reste)}</span>`:`<br><span style="color:var(--vert);font-size:10px">✅ Soldé</span>`}</td>
+        <td>${stAss}</td>
+        <td style="font-weight:700;color:var(--bleu)">${fmtMontant(montantClient)}<br><span style="font-size:10px;color:var(--gris3)">${modeClient}</span></td>
+        <td>${stClient}<br>${btnPayer}</td>
         <td style="font-size:11px;color:var(--bleu)">${p.bon_num||"—"}</td>
-        <td style="font-size:11px;color:var(--vert)">${p.recu_num||"—"}</td>
-        <td>${st}</td>
+        <td style="font-size:11px;color:var(--vert);font-weight:700">${p.recu_num||"—"}</td>
+        <td style="font-size:11px;color:var(--gris3)">${p.observation||p.notes||"—"}</td>
         <td><div style="display:flex;gap:3px;flex-wrap:wrap">
           <button class="btn btn-secondary btn-sm btn-icon" onclick="editerPC('${p.id}')">✏️</button>
-          ${p.statut==="en_cours"?`
-            <button class="btn btn-success btn-sm" onclick="changerStatutPC('${p.id}','livre')">✅ Livrer</button>
-            <button class="btn btn-danger btn-sm" onclick="changerStatutPC('${p.id}','annule')">✕ Annuler</button>`:""}
+          ${p.statut==="en_cours"?`<button class="btn btn-danger btn-sm" onclick="changerStatutPC('${p.id}','annule')">✕</button>`:""}
           <button class="btn btn-danger btn-sm btn-icon" onclick="supprimerPC('${p.id}')">🗑</button>
         </div></td></tr>`;
     });
-    G("pc-tbody").innerHTML=html||`<tr><td colspan="10" style="text-align:center;color:var(--gris3);padding:24px">Aucune prise en charge</td></tr>`;
+    G("pc-tbody").innerHTML=html||`<tr><td colspan="14" style="text-align:center;color:var(--gris3);padding:24px">Aucune prise en charge</td></tr>`;
   }).catch(console.error);
 }
 
 function calcStatutPC(p){
-  const clientPaye = p.paye_par_chauffeur===true || p.paye_par_chauffeur===false;
-  const assureurRecu = p.statut_assureur==="recu";
-  const montantClient = p.montant_client||0;
-  if(!clientPaye && !assureurRecu) return "impaye";
-  if(clientPaye && assureurRecu) return "solde";
-  if(montantClient===0 && assureurRecu) return "solde";
-  if(montantClient===0 && !assureurRecu) return "impaye";
-  return "partiel";
+  if(p.statut==="annule") return "annule";
+  const montantClient=parseFloat(p.montant_client)||0;
+  const payeClient=parseFloat(p.montant_client_paye||p.paye_client)||0;
+  const assureurRecu=p.statut_assureur==="recu";
+  const clientSolde=montantClient===0||(payeClient>=montantClient&&montantClient>0);
+  if(clientSolde&&assureurRecu) return "solde";
+  if(clientSolde||assureurRecu||payeClient>0) return "partiel";
+  return "impaye";
 }
 function badgeStatutPC(p){
   const s=calcStatutPC(p);
   if(s==="solde") return `<span class="badge" style="background:#e8f5e9;color:#2e7d32;border:1px solid #2e7d32">✅ Soldé</span>`;
   if(s==="partiel") return `<span class="badge" style="background:#f3e5f5;color:#7b1fa2;border:1px solid #7b1fa2">🟣 Partiel</span>`;
+  if(s==="annule") return `<span class="badge" style="background:#fce4ec;color:#c62828;border:1px solid #c62828">❌ Annulé</span>`;
   return `<span class="badge" style="background:#ffebee;color:#c62828;border:1px solid #c62828">🔴 Impayé</span>`;
 }
 function setPaieParChauffeur(pfx, oui){
@@ -3146,7 +3172,10 @@ async function confirmerPaiement(){
       immat=data.immat||"—";
       designation=`Magasinage ${data.immat||""}`;
     } else {
-      dejaPaye=parseFloat(data.paye_montant)||0;
+      // BL — inclure espèces chauffeur dans dejaPaye
+      const especes = data.especes===true ? parseFloat(data.montant_especes)||0 : 0;
+      const payeManuel = parseFloat(data.paye_montant)||0;
+      dejaPaye = payeManuel>0 ? payeManuel : especes;
       montantTotal=parseFloat(data.montant)||0;
       nomClient=data.nom_client||"—";
       numDoc=data.bon_num||"—";
