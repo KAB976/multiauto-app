@@ -786,11 +786,48 @@ function majNums(){
 // ════════════════════════════════════
 function initMarques(){
   var sel = G("sel-marque");
+  var current = sel.value;
   sel.innerHTML = "<option value=''>— Marque —</option>";
   var marques = Object.keys(MARQUES_MODELES).sort();
   marques.forEach(function(m){
     var o = document.createElement("option"); o.value=m; o.textContent=m; sel.appendChild(o);
   });
+  if(current) sel.value = current;
+}
+
+// ════════════════════════════════════
+// SYNC MARQUES/MODÈLES DEPUIS vehicules_clients — TEMPS RÉEL
+// ════════════════════════════════════
+let _vehiculesUnsubscribe = null;
+
+function chargerVehiculesFirestore(){
+  if(_vehiculesUnsubscribe) _vehiculesUnsubscribe();
+  _vehiculesUnsubscribe = onSnapshot(
+    query(collection(db,"vehicules_clients"), orderBy("marque","asc")),
+    snap => {
+      // Fusionner avec MARQUES_MODELES statique — les données Firestore ont priorité
+      // mais on garde la liste statique comme base
+      const fsMarques = {};
+      snap.forEach(d => {
+        const v = d.data();
+        const marque = v.marque||""; const modele = v.modele||"";
+        if(!marque) return;
+        if(!fsMarques[marque]) fsMarques[marque] = new Set();
+        if(modele) fsMarques[marque].add(modele);
+      });
+      // Fusionner : ajouter marques/modèles Firestore dans MARQUES_MODELES
+      Object.keys(fsMarques).forEach(marque => {
+        if(!MARQUES_MODELES[marque]) MARQUES_MODELES[marque] = [];
+        fsMarques[marque].forEach(modele => {
+          if(!MARQUES_MODELES[marque].includes(modele))
+            MARQUES_MODELES[marque].push(modele);
+        });
+      });
+      initMarques(); // Recharge le select marque
+      majModeles();  // Recharge le select modèle si une marque est déjà sélectionnée
+    },
+    e => console.warn("Sync véhicules:", e)
+  );
 }
 
 function majModeles(){
@@ -1460,7 +1497,8 @@ import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/fireba
 import { getAuth, signInWithEmailAndPassword, signOut, onAuthStateChanged }
   from "https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js";
 import { getFirestore, collection, doc, getDoc, getDocs, addDoc, updateDoc,
-         setDoc, query, where, orderBy, serverTimestamp, enableIndexedDbPersistence }
+         setDoc, query, where, orderBy, serverTimestamp, enableIndexedDbPersistence,
+         onSnapshot }
   from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
 
 // ── Config Firebase ──
@@ -1581,6 +1619,7 @@ window.seConnecter = async function(){
 
     // Charger clients et marques depuis Firestore
     await chargerClients();
+    chargerVehiculesFirestore(); // Sync temps réel marques/modèles
 
     loader(false);
     G("login-err").classList.remove("on");
@@ -1617,9 +1656,12 @@ window.seDeconnecter = async function(){
 };
 
 // ════════════════════════════════════
-// CHARGER CLIENTS DEPUIS FIRESTORE
+// CHARGER CLIENTS DEPUIS FIRESTORE — TEMPS RÉEL
 // ════════════════════════════════════
+let _clientsUnsubscribe = null;
+
 async function chargerClients(){
+  // Chargement initial one-shot pour le login
   try {
     const snap = await getDocs(query(collection(db,"clients"), orderBy("nom","asc")));
     CLIENTS = [];
@@ -1643,6 +1685,18 @@ async function chargerClients(){
   } catch(e){
     console.warn("Clients hors-ligne:", e);
   }
+
+  // Sync temps réel — se déclenche automatiquement à chaque modif admin
+  if(_clientsUnsubscribe) _clientsUnsubscribe();
+  _clientsUnsubscribe = onSnapshot(
+    query(collection(db,"clients"), orderBy("nom","asc")),
+    snap => {
+      CLIENTS = [];
+      snap.forEach(d => CLIENTS.push(d.data().nom));
+      initClients(); // Recharge le select immédiatement
+    },
+    e => console.warn("Sync clients:", e)
+  );
 }
 
 async function incrementerBL(){
