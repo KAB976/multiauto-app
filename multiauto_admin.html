@@ -21,6 +21,23 @@
   --shadow:0 2px 12px rgba(26,37,64,.10);
   --shadow-lg:0 8px 32px rgba(26,37,64,.16);
 }
+body.dark{
+  --rouge:#E0573A;--rouge-dk:#C8341A;--rouge-lt:#3A2018;
+  --bleu:#3A5CC8;--bleu-lt:#1C2438;
+  --vert:#3FB873;--vert-lt:#16291D;
+  --jaune:#E0B340;--jaune-lt:#2E2710;--jaune-bd:#8A6E20;
+  --gris:#15171F;--gris2:#262A38;--gris3:#7A8298;--gris4:#C2C8D6;
+  --violet:#A371E0;--violet-lt:#2A1E3A;
+  --blanc:#1E212C;--noir:#E8EAF0;
+  --shadow:0 2px 12px rgba(0,0,0,.4);
+  --shadow-lg:0 8px 32px rgba(0,0,0,.5);
+}
+body.dark .card,body.dark .modal,body.dark .login-box{background:var(--blanc);color:var(--noir)}
+body.dark .inp,body.dark .filtre-inp,body.dark select{background:#262A38;color:var(--noir);border-color:#3A3F52}
+body.dark table{background:var(--blanc)}
+body.dark th{background:#262A38!important;color:var(--noir)!important}
+body.dark tr:nth-child(even){background:#20232E}
+body.dark .sb-logo img{filter:brightness(0.9)}
 *{box-sizing:border-box;margin:0;padding:0}
 body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Arial,sans-serif;background:var(--gris);color:var(--noir);font-size:14px}
 .auteur{position:fixed;bottom:10px;right:14px;font-size:13px;font-weight:800;color:#6B3A1F;opacity:.85;z-index:9999;pointer-events:none}
@@ -232,6 +249,23 @@ tr:hover td{background:var(--gris)}
 </div>
 
 <!-- Modal Camion -->
+<div class="modal-bg" id="modal-export-comptable">
+  <div class="modal">
+    <div class="modal-title">📊 Export Comptable Mensuel</div>
+    <div class="form-group" style="margin-bottom:14px">
+      <span class="fl">Mois</span>
+      <input class="inp" id="export-comptable-mois" type="month">
+    </div>
+    <p style="font-size:12px;color:var(--gris3);margin-bottom:14px;line-height:1.5">
+      Génère un PDF complet pour le mois sélectionné : chiffre d'affaires total, détail par mode de paiement (espèces/CB/virement/chèque), charges carburant, frais fixes estimés, profit net par camion et global.
+    </p>
+    <div class="modal-footer">
+      <button class="btn btn-secondary" onclick="fermerModal('modal-export-comptable')">Annuler</button>
+      <button class="btn btn-primary" onclick="genererExportComptable()">📄 Générer le PDF</button>
+    </div>
+  </div>
+</div>
+
 <div class="modal-bg" id="modal-camion">
 <div class="modal">
   <div class="modal-title" id="modal-cam-title">🚛 Camion</div>
@@ -242,6 +276,8 @@ tr:hover td{background:var(--gris)}
     <div class="form-group"><span class="fl">Modèle</span><input class="inp inp-sm" id="cam-modele" placeholder="Ex: Daily"></div>
     <div class="form-group"><span class="fl">Année</span><input class="inp inp-sm" id="cam-annee" type="number" placeholder="Ex: 2020"></div>
     <div class="form-group"><span class="fl">Chauffeur par défaut</span><select class="inp inp-sm" id="cam-chauffeur"><option value="">— Aucun —</option></select></div>
+    <div class="form-group"><span class="fl">Échéance contrôle technique</span><input class="inp inp-sm" id="cam-ct-date" type="date"></div>
+    <div class="form-group"><span class="fl">Échéance assurance</span><input class="inp inp-sm" id="cam-assurance-date" type="date"></div>
   </div>
   <div class="modal-footer">
     <button class="btn btn-secondary" onclick="fermerModal('modal-camion')">Annuler</button>
@@ -449,6 +485,7 @@ tr:hover td{background:var(--gris)}
       <div class="sb-item" onclick="ouvrirModalReset()" id="nav-reset"><span class="ico">🔄</span> Reset compteurs</div>
     </nav>
     <div class="sb-bottom">
+      <button class="btn-logout" id="btn-dark-toggle" onclick="toggleDarkMode()" style="margin-bottom:8px">🌙 Mode sombre</button>
       <button class="btn-logout" id="btn-logout" onclick="seDeconnecter()">🚪 Déconnexion</button>
     </div>
   </div>
@@ -456,6 +493,13 @@ tr:hover td{background:var(--gris)}
   <!-- MAIN -->
   <div class="main">
 
+    <!-- RECHERCHE GLOBALE -->
+    <div style="position:sticky;top:0;z-index:50;background:white;padding:10px 14px;border-bottom:1px solid var(--gris2);display:flex;gap:8px;align-items:center">
+      <span style="font-size:16px">🔍</span>
+      <input class="inp" id="recherche-globale" placeholder="Rechercher un client, immatriculation, N° BL ou N° reçu..." style="flex:1;border:1px solid var(--gris2)" oninput="rechercheGlobaleInput()" onkeydown="if(event.key==='Escape')fermerRechercheGlobale()">
+      <span id="recherche-globale-count" style="font-size:11px;color:var(--gris3);white-space:nowrap"></span>
+    </div>
+    <div id="recherche-globale-resultats" style="display:none;position:sticky;top:48px;z-index:49;background:white;border-bottom:2px solid var(--bleu);max-height:400px;overflow-y:auto;box-shadow:0 4px 12px rgba(0,0,0,.1)"></div>
 
     <!-- UTILISATEURS -->
     <div class="pg" id="pg-utilisateurs">
@@ -522,6 +566,24 @@ tr:hover td{background:var(--gris)}
         <div class="card">
           <div class="card-title">👤 BL par chauffeur (mois)</div>
           <div class="chart-bar-wrap" id="dash-chart"></div>
+        </div>
+      </div>
+
+      <div class="card" style="margin-top:16px">
+        <div class="card-title" style="display:flex;align-items:center;justify-content:space-between">
+          <span>⏰ Impayés à relancer</span>
+          <div style="display:flex;gap:6px;align-items:center">
+            <select class="filtre-inp" id="alerte-seuil-jours" style="padding:4px 8px;font-size:12px" onchange="chargerAlertesImpayes()">
+              <option value="7">+ 7 jours</option>
+              <option value="15" selected>+ 15 jours</option>
+              <option value="30">+ 30 jours</option>
+              <option value="60">+ 60 jours</option>
+            </select>
+            <button class="btn btn-secondary btn-sm" onclick="chargerAlertesImpayes()">🔄</button>
+          </div>
+        </div>
+        <div id="alertes-impayes-content" style="padding:8px 0">
+          <div style="color:var(--gris3);font-size:13px">Chargement...</div>
         </div>
       </div>
 
@@ -636,10 +698,11 @@ tr:hover td{background:var(--gris)}
         <div><div class="page-title">🚛 Camions</div></div>
         <button class="btn btn-primary" onclick="ouvrirModalCamion()">➕ Ajouter</button>
       </div>
+      <div id="camions-alertes" style="margin-bottom:14px"></div>
       <div class="card" style="padding:0">
         <div class="table-wrap">
           <table>
-            <thead><tr><th>Nom</th><th>Immat.</th><th>Marque</th><th>Modèle</th><th>Chauffeur défaut</th><th>Statut</th><th>Actions</th></tr></thead>
+            <thead><tr><th>Nom</th><th>Immat.</th><th>Marque</th><th>Modèle</th><th>Chauffeur défaut</th><th>Échéances</th><th>Statut</th><th>Actions</th></tr></thead>
             <tbody id="cam-tbody"></tbody>
           </table>
         </div>
@@ -809,6 +872,7 @@ tr:hover td{background:var(--gris)}
           <button class="btn btn-secondary btn-sm" onclick="selToutRecap()">☑ Tout</button>
           <span id="recap-sel-lbl" style="font-size:12px;font-weight:700;color:var(--rouge)"></span>
           <button class="btn btn-secondary" onclick="exporterRecapPDF()">⬇ Export PDF</button>
+          <button class="btn btn-primary" onclick="ouvrirExportComptable()">📊 Export Comptable Mensuel</button>
           <button class="btn btn-secondary" onclick="window.print()">🖨 Imprimer</button>
         </div>
       </div>
@@ -1053,6 +1117,10 @@ tr:hover td{background:var(--gris)}
               <div class="switch-row"><div class="switch-info"><div class="switch-label">Accès commissions</div></div><label class="switch"><input type="checkbox" id="d-commissions"><span class="sw-slider"></span></label></div>
               <div class="switch-row"><div class="switch-info"><div class="switch-label">Opérations carburant</div></div><label class="switch"><input type="checkbox" id="d-carburant"><span class="sw-slider"></span></label></div>
               <div class="switch-row"><div class="switch-info"><div class="switch-label">📈 Récapitulation / Profitabilité</div></div><label class="switch"><input type="checkbox" id="d-recap"><span class="sw-slider"></span></label></div>
+              <div class="switch-row"><div class="switch-info"><div class="switch-label">⏰ Alertes impayés (Dashboard)</div></div><label class="switch"><input type="checkbox" id="d-alertes-impayes"><span class="sw-slider"></span></label></div>
+              <div class="switch-row"><div class="switch-info"><div class="switch-label">🔍 Recherche globale</div></div><label class="switch"><input type="checkbox" id="d-recherche-globale"><span class="sw-slider"></span></label></div>
+              <div class="switch-row"><div class="switch-info"><div class="switch-label">🕵️ Journal d'audit</div></div><label class="switch"><input type="checkbox" id="d-audit-log"><span class="sw-slider"></span></label></div>
+              <div class="switch-row"><div class="switch-info"><div class="switch-label">🚛 Échéances camions (CT/Assurance)</div></div><label class="switch"><input type="checkbox" id="d-echeances-camions"><span class="sw-slider"></span></label></div>
             </div>
             <div class="perm-group">
               <div class="perm-group-title">Gestion flotte</div>
@@ -1158,6 +1226,20 @@ tr:hover td{background:var(--gris)}
         </div>
         <button class="btn btn-danger" onclick="purgeCompleteDemarrage()">🚀 Purge complète et remise à zéro</button>
         <div id="purge-complete-result" style="font-size:12px;margin-top:10px"></div>
+      </div>
+
+      <div class="card" style="max-width:900px;margin-top:16px">
+        <div class="card-title" style="display:flex;align-items:center;justify-content:space-between">
+          <span>🕵️ Journal d'audit — Confirmations de paiement</span>
+          <button class="btn btn-secondary btn-sm" onclick="chargerAuditLog()">🔄 Actualiser</button>
+        </div>
+        <p style="font-size:12px;color:var(--gris3);margin-bottom:12px">Trace qui a confirmé chaque paiement, pour éviter les litiges internes. Les 100 dernières opérations.</p>
+        <div class="table-wrap">
+          <table>
+            <thead><tr><th>Date/Heure</th><th>Utilisateur</th><th>Action</th><th>Client</th><th>N°</th><th>Montant</th><th>Mode</th><th>Reçu</th></tr></thead>
+            <tbody id="audit-log-tbody"><tr><td colspan="8" style="text-align:center;color:var(--gris3);padding:20px">Cliquez sur Actualiser</td></tr></tbody>
+          </table>
+        </div>
       </div>
     </div>
 
@@ -1304,6 +1386,26 @@ db.collection("parametres").doc("societe").get().then(snap=>{
 }).catch(()=>{});
 
 const G=id=>document.getElementById(id);
+
+// ── MODE SOMBRE ──
+function toggleDarkMode(){
+  document.body.classList.toggle("dark");
+  const isDark=document.body.classList.contains("dark");
+  try{ localStorage.setItem("multiauto_dark_mode", isDark?"1":"0"); }catch(e){}
+  const btn=G("btn-dark-toggle");
+  if(btn) btn.textContent = isDark ? "☀️ Mode clair" : "🌙 Mode sombre";
+}
+(function initDarkModePref(){
+  try{
+    if(localStorage.getItem("multiauto_dark_mode")==="1"){
+      document.body.classList.add("dark");
+    }
+  }catch(e){}
+})();
+document.addEventListener("DOMContentLoaded", ()=>{
+  const btn=G("btn-dark-toggle");
+  if(btn && document.body.classList.contains("dark")) btn.textContent="☀️ Mode clair";
+});
 function toast(msg,type="ok"){
   const t=G("toast"); t.className="toast on "+type;
   t.innerHTML=(type==="ok"?"✅":"❌")+" "+msg;
@@ -1324,7 +1426,7 @@ function afficherPage(id){
   const nav=G("nav-"+id.replace("pg-",""));
   if(nav) nav.classList.add("active");
   G("sidebar")?.classList.remove("open");
-  if(id==="pg-dashboard")  { chargerDashboard(); initDashNotifSound(); }
+  if(id==="pg-dashboard")  { chargerDashboard(); initDashNotifSound(); chargerAlertesImpayes(); }
   if(id==="pg-bons")       chargerBons();
   if(id==="pg-recus")      chargerRecus();
   if(id==="pg-chauffeurs") {chargerChauffeurs(); chargerPermChauffeursFn();}
@@ -1375,6 +1477,7 @@ function seConnecter(){
       appliquerLogoPartout();
       initDashNotifSound();
       chargerDashboard();
+      chargerAlertesImpayes();
       chargerBons();
       chargerRecus();
     })
@@ -1510,6 +1613,370 @@ async function estimerStockage(){
     `;
   }catch(e){
     el.innerHTML=`<div style="color:var(--rouge);font-size:13px">Erreur lors du calcul</div>`;
+    console.error(e);
+  }
+}
+
+// ── ALERTES IMPAYÉS ──
+async function chargerAlertesImpayes(){
+  const el=G("alertes-impayes-content");
+  if(!el) return;
+  el.innerHTML=`<div style="color:var(--gris3);font-size:13px">⏳ Analyse en cours...</div>`;
+  const seuilJours=parseInt(G("alerte-seuil-jours")?.value)||15;
+  const aujourdHui=new Date();
+
+  try{
+    const blSnap=await db.collection("bons").orderBy("timestamp","desc").limit(500).get();
+    const impayes=[];
+    blSnap.forEach(d=>{
+      const b=d.data();
+      if(b.deplace_en_pc) return;
+      if(!b.nom_client||b.nom_client==="—") return;
+      const montant=parseFloat(b.montant)||0;
+      if(montant<=0) return;
+      const especes=b.especes===true?parseFloat(b.montant_especes)||0:0;
+      const payeAuto=parseFloat(b.paye_montant)||0;
+      const payeTotal=payeAuto>0?payeAuto:(especes>0?Math.min(especes,montant):0);
+      if(payeTotal>=montant) return; // déjà soldé
+      const dateBL=toComp(b.date_bl);
+      if(!dateBL) return;
+      const diffJours=Math.floor((aujourdHui-new Date(dateBL))/(1000*60*60*24));
+      if(diffJours<seuilJours) return;
+      impayes.push({
+        client:b.nom_client, doc:b.bon_num||"—", date:b.date_bl||"",
+        montant, paye:payeTotal, reste:montant-payeTotal, jours:diffJours,
+        tel:b.tel_client||"", email:b.email_client||""
+      });
+    });
+    impayes.sort((a,b)=>b.jours-a.jours);
+
+    if(!impayes.length){
+      el.innerHTML=`<div style="color:var(--vert);font-size:13px;text-align:center;padding:16px">✅ Aucun impayé de plus de ${seuilJours} jours</div>`;
+      return;
+    }
+
+    const totalReste=impayes.reduce((s,i)=>s+i.reste,0);
+    let html=`<div style="font-size:12px;color:var(--rouge);font-weight:700;margin-bottom:8px">${impayes.length} BL à relancer — ${fmtMontant(totalReste)} en attente</div>`;
+    html+=`<div style="max-height:280px;overflow-y:auto">`;
+    impayes.slice(0,30).forEach(i=>{
+      const couleur=i.jours>60?"var(--rouge)":i.jours>30?"#f57c00":"var(--jaune)";
+      html+=`<div style="display:flex;justify-content:space-between;align-items:center;padding:6px 8px;border-bottom:1px solid var(--gris2);font-size:12px">
+        <div>
+          <strong>${i.client}</strong> — ${i.doc}<br>
+          <span style="color:var(--gris3);font-size:11px">${i.date} · Reste: ${fmtMontant(i.reste)}</span>
+        </div>
+        <span style="background:${couleur};color:white;padding:2px 8px;border-radius:10px;font-weight:700;font-size:11px;white-space:nowrap">${i.jours}j</span>
+      </div>`;
+    });
+    html+=`</div>`;
+    if(impayes.length>30) html+=`<div style="text-align:center;font-size:11px;color:var(--gris3);margin-top:6px">+ ${impayes.length-30} autres — voir Soldes Clients</div>`;
+    el.innerHTML=html;
+  }catch(e){
+    el.innerHTML=`<div style="color:var(--rouge);font-size:13px">Erreur lors du calcul</div>`;
+    console.error(e);
+  }
+}
+
+// ── RECHERCHE GLOBALE ──
+let _rechercheTimeout=null;
+function rechercheGlobaleInput(){
+  clearTimeout(_rechercheTimeout);
+  const q=G("recherche-globale").value.trim();
+  if(q.length<2){ fermerRechercheGlobale(); return; }
+  _rechercheTimeout=setTimeout(()=>executerRechercheGlobale(q), 350);
+}
+function fermerRechercheGlobale(){
+  G("recherche-globale-resultats").style.display="none";
+  G("recherche-globale-resultats").innerHTML="";
+  G("recherche-globale-count").textContent="";
+}
+async function executerRechercheGlobale(q){
+  const qLower=q.toLowerCase();
+  const qUpper=q.toUpperCase();
+  G("recherche-globale-count").textContent="Recherche...";
+  try{
+    const [blSnap,recuSnap,pcSnap,magSnap] = await Promise.all([
+      db.collection("bons").orderBy("timestamp","desc").limit(300).get(),
+      db.collection("recus").limit(300).get(),
+      db.collection("prises_en_charge").orderBy("date","desc").limit(200).get(),
+      db.collection("magasinage").orderBy("date_entree","desc").limit(200).get()
+    ]);
+
+    const resultats=[];
+    blSnap.forEach(d=>{
+      const b=d.data();
+      if((b.nom_client||"").toLowerCase().includes(qLower) ||
+         (b.immatriculation||"").toUpperCase().includes(qUpper) ||
+         (b.bon_num||"").toUpperCase().includes(qUpper)){
+        resultats.push({type:"BL",icon:"📋",label:`${b.bon_num||"—"} — ${b.nom_client||"—"} (${b.immatriculation||"—"})`,
+          sub:`${b.date_bl||""} · ${fmtMontant(b.montant)}`, page:"pg-bons", id:d.id});
+      }
+    });
+    recuSnap.forEach(d=>{
+      const r=d.data();
+      if((r.nom_client||"").toLowerCase().includes(qLower) ||
+         (r.recu_num||"").toUpperCase().includes(qUpper) ||
+         (r.immatriculation||"").toUpperCase().includes(qUpper)){
+        resultats.push({type:"Reçu",icon:"🧾",label:`${r.recu_num||"—"} — ${r.nom_client||"—"}`,
+          sub:`${r.date||""} · ${fmtMontant(r.montant)}`, page:"pg-recus", id:d.id});
+      }
+    });
+    pcSnap.forEach(d=>{
+      const p=d.data();
+      if((p.client||"").toLowerCase().includes(qLower) ||
+         (p.dossier||"").toUpperCase().includes(qUpper) ||
+         (p.immat||"").toUpperCase().includes(qUpper)){
+        resultats.push({type:"PC",icon:"📁",label:`${p.dossier||"—"} — ${p.client||"—"} (${p.immat||"—"})`,
+          sub:`${p.date||""} · ${p.assureur||""}`, page:"pg-pc", id:d.id});
+      }
+    });
+    magSnap.forEach(d=>{
+      const m=d.data();
+      if((m.client||"").toLowerCase().includes(qLower) ||
+         (m.immat||"").toUpperCase().includes(qUpper)){
+        resultats.push({type:"Magasinage",icon:"🏠",label:`${m.client||"—"} — ${m.immat||"—"}`,
+          sub:`Entrée: ${m.date_entree||""}`, page:"pg-magasinage", id:d.id});
+      }
+    });
+
+    G("recherche-globale-count").textContent=resultats.length+" résultat(s)";
+    const el=G("recherche-globale-resultats");
+    if(!resultats.length){
+      el.innerHTML=`<div style="padding:16px;text-align:center;color:var(--gris3);font-size:13px">Aucun résultat pour "${q}"</div>`;
+    } else {
+      el.innerHTML=resultats.slice(0,25).map(r=>`
+        <div style="padding:10px 14px;border-bottom:1px solid var(--gris2);cursor:pointer;display:flex;gap:10px;align-items:center"
+             onclick="allerVersResultat('${r.page}','${r.id}')" onmouseover="this.style.background='var(--gris)'" onmouseout="this.style.background='white'">
+          <span style="font-size:18px">${r.icon}</span>
+          <div style="flex:1">
+            <div style="font-weight:700;font-size:13px">${r.label}</div>
+            <div style="font-size:11px;color:var(--gris3)">${r.type} · ${r.sub}</div>
+          </div>
+        </div>`).join("");
+    }
+    el.style.display="block";
+  }catch(e){
+    console.error(e);
+    G("recherche-globale-count").textContent="Erreur";
+  }
+}
+function allerVersResultat(page,id){
+  fermerRechercheGlobale();
+  G("recherche-globale").value="";
+  afficherPage(page);
+}
+// Fermer les résultats si on clique ailleurs
+document.addEventListener("click", e=>{
+  const zone=G("recherche-globale-resultats");
+  const input=G("recherche-globale");
+  if(zone && input && !zone.contains(e.target) && e.target!==input){
+    fermerRechercheGlobale();
+  }
+});
+
+// ── EXPORT COMPTABLE MENSUEL ──
+function ouvrirExportComptable(){
+  const now=new Date();
+  const moisDefaut=`${now.getFullYear()}-${String(now.getMonth()+1).padStart(2,'0')}`;
+  G("export-comptable-mois").value=moisDefaut;
+  G("modal-export-comptable").classList.add("on");
+}
+async function genererExportComptable(){
+  const moisVal=G("export-comptable-mois").value; // format YYYY-MM
+  if(!moisVal){ toast("Choisissez un mois","err"); return; }
+  const [annee,mois]=moisVal.split("-");
+  const debut=`${annee}-${mois}-01`;
+  const dernierJour=new Date(parseInt(annee),parseInt(mois),0).getDate();
+  const fin=`${annee}-${mois}-${String(dernierJour).padStart(2,'0')}`;
+  const tauxFixe=parseFloat(G("recap-taux")?.value)||15;
+
+  loader(true,"Génération de l'export comptable...");
+  try{
+    const blSnap=await db.collection("bons").orderBy("timestamp","desc").limit(3000).get();
+    let bons=[]; blSnap.forEach(d=>bons.push({id:d.id,...d.data()}));
+    bons=bons.filter(b=>{ const dc=toComp(b.date_bl); return dc>=debut&&dc<=fin; });
+
+    const fuelSnap=await db.collection("carburant").orderBy("date","desc").limit(3000).get();
+    let fuels=[]; fuelSnap.forEach(d=>fuels.push({id:d.id,...d.data()}));
+    fuels=fuels.filter(f=>{ const dc=toComp(f.date); return dc>=debut&&dc<=fin; });
+
+    const magSnap=await db.collection("magasinage").orderBy("date_entree","desc").limit(1000).get();
+    let mags=[]; magSnap.forEach(d=>mags.push({id:d.id,...d.data()}));
+    mags=mags.filter(m=>{ const dc=toComp(m.date_sortie||m.date_entree); return dc>=debut&&dc<=fin; });
+
+    // Agrégation par mode de paiement
+    const parMode={especes:0,cb:0,virement:0,cheque:0,non_paye:0};
+    let caTotal=0, caBL=0, caMag=0;
+    bons.forEach(b=>{
+      const montant=parseFloat(b.montant)||0;
+      caTotal+=montant; caBL+=montant;
+      const especes=b.especes===true?parseFloat(b.montant_especes)||0:0;
+      const payeAuto=parseFloat(b.paye_montant)||0;
+      const paye=payeAuto>0?payeAuto:especes;
+      if(especes>0&&payeAuto<=0) parMode.especes+=paye;
+      else if(b.mode_paiement_solde && parMode[b.mode_paiement_solde]!==undefined) parMode[b.mode_paiement_solde]+=paye;
+      else if(paye>0) parMode.especes+=paye;
+      if(paye<montant) parMode.non_paye+=(montant-paye);
+    });
+    mags.forEach(m=>{
+      const montant=parseFloat(m.montant_net||m.montant_total)||0;
+      caTotal+=montant; caMag+=montant;
+      const paye=parseFloat(m.paye_montant)||0;
+      if(m.mode_paiement && parMode[m.mode_paiement]!==undefined) parMode[m.mode_paiement]+=paye;
+      else if(paye>0) parMode.especes+=paye;
+      if(paye<montant) parMode.non_paye+=(montant-paye);
+    });
+
+    // Par camion
+    const parCamion={};
+    bons.forEach(b=>{
+      const cam=b.camion||"Non assigné";
+      if(!parCamion[cam]) parCamion[cam]={nom:cam,ca:0,nbBL:0};
+      parCamion[cam].ca+=parseFloat(b.montant)||0;
+      parCamion[cam].nbBL++;
+    });
+    fuels.forEach(f=>{
+      const cam=f.camion||"Non assigné";
+      if(!parCamion[cam]) parCamion[cam]={nom:cam,ca:0,nbBL:0};
+      if(!parCamion[cam].carburant) parCamion[cam].carburant=0;
+      parCamion[cam].carburant+=parseFloat(f.montant)||0;
+    });
+    Object.values(parCamion).forEach(c=>{
+      c.carburant=c.carburant||0;
+      c.fraisFixes=c.ca*(tauxFixe/100);
+      c.profit=c.ca-c.carburant-c.fraisFixes;
+    });
+    const listeCamions=Object.values(parCamion).sort((a,b)=>b.ca-a.ca);
+
+    const totalCarburant=fuels.reduce((s,f)=>s+(parseFloat(f.montant)||0),0);
+    const totalFraisFixes=caTotal*(tauxFixe/100);
+    const profitNet=caTotal-totalCarburant-totalFraisFixes;
+
+    // Génération PDF
+    const {jsPDF}=window.jspdf;
+    const doc=new jsPDF('portrait','mm','a4');
+    const moisNoms=["","Janvier","Février","Mars","Avril","Mai","Juin","Juillet","Août","Septembre","Octobre","Novembre","Décembre"];
+    const moisLabel=moisNoms[parseInt(mois)]+" "+annee;
+
+    doc.setFillColor(26,37,64);
+    doc.rect(0,0,210,30,'F');
+    doc.setFont('helvetica','bold');doc.setFontSize(18);doc.setTextColor(255,255,255);
+    doc.text('RAPPORT COMPTABLE MENSUEL',105,14,{align:'center'});
+    doc.setFontSize(11);doc.setFont('helvetica','normal');
+    doc.text(`Multi Auto Dépannage — ${moisLabel}`,105,22,{align:'center'});
+
+    let y=40;
+    doc.setTextColor(26,26,26);doc.setFontSize(13);doc.setFont('helvetica','bold');
+    doc.text('1. Chiffre d\'affaires',14,y); y+=8;
+    doc.autoTable({
+      startY:y,
+      head:[['Source','Montant']],
+      body:[
+        ['Remorquage (BL)', caBL.toFixed(2)+' €'],
+        ['Magasinage', caMag.toFixed(2)+' €'],
+        ['TOTAL CA', caTotal.toFixed(2)+' €']
+      ],
+      headStyles:{fillColor:[26,37,64],fontSize:10},
+      bodyStyles:{fontSize:10},
+      margin:{left:14,right:14},
+      didParseCell:(data)=>{ if(data.row.index===2) data.cell.styles.fontStyle='bold'; }
+    });
+    y=doc.lastAutoTable.finalY+12;
+
+    doc.setFontSize(13);doc.setFont('helvetica','bold');
+    doc.text('2. Détail par mode de paiement',14,y); y+=8;
+    doc.autoTable({
+      startY:y,
+      head:[['Mode','Montant encaissé']],
+      body:[
+        ['💵 Espèces', parMode.especes.toFixed(2)+' €'],
+        ['💳 Carte bancaire', parMode.cb.toFixed(2)+' €'],
+        ['🏦 Virement', parMode.virement.toFixed(2)+' €'],
+        ['📝 Chèque', parMode.cheque.toFixed(2)+' €'],
+        ['🔴 Non encaissé (impayé)', parMode.non_paye.toFixed(2)+' €']
+      ],
+      headStyles:{fillColor:[26,37,64],fontSize:10},
+      bodyStyles:{fontSize:10},
+      margin:{left:14,right:14}
+    });
+    y=doc.lastAutoTable.finalY+12;
+
+    doc.setFontSize(13);doc.setFont('helvetica','bold');
+    doc.text('3. Charges et profit',14,y); y+=8;
+    doc.autoTable({
+      startY:y,
+      head:[['Poste','Montant']],
+      body:[
+        ['Carburant', totalCarburant.toFixed(2)+' €'],
+        [`Frais fixes estimés (${tauxFixe}%)`, totalFraisFixes.toFixed(2)+' €'],
+        ['Total charges', (totalCarburant+totalFraisFixes).toFixed(2)+' €'],
+        ['PROFIT NET', profitNet.toFixed(2)+' €']
+      ],
+      headStyles:{fillColor:[26,37,64],fontSize:10},
+      bodyStyles:{fontSize:10},
+      margin:{left:14,right:14},
+      didParseCell:(data)=>{ if(data.row.index===3) data.cell.styles.fontStyle='bold'; }
+    });
+    y=doc.lastAutoTable.finalY+12;
+
+    if(y>240){ doc.addPage(); y=20; }
+    doc.setFontSize(13);doc.setFont('helvetica','bold');
+    doc.text('4. Détail par camion',14,y); y+=8;
+    doc.autoTable({
+      startY:y,
+      head:[['Camion','Nb BL','CA','Carburant','Frais fixes','Profit']],
+      body:listeCamions.map(c=>[c.nom,c.nbBL,c.ca.toFixed(2)+' €',c.carburant.toFixed(2)+' €',c.fraisFixes.toFixed(2)+' €',c.profit.toFixed(2)+' €']),
+      headStyles:{fillColor:[26,37,64],fontSize:9},
+      bodyStyles:{fontSize:9},
+      margin:{left:14,right:14}
+    });
+
+    doc.setFontSize(8);doc.setTextColor(150,150,150);
+    doc.text('Document généré le '+new Date().toLocaleDateString('fr-FR')+' — Multi Auto Dépannage',105,290,{align:'center'});
+
+    doc.save(`rapport-comptable-${annee}-${mois}.pdf`);
+    fermerModal("modal-export-comptable");
+    toast("Rapport comptable généré ✅");
+    loader(false);
+  }catch(e){
+    loader(false); toast("Erreur génération","err"); console.error(e);
+  }
+}
+
+// ── JOURNAL D'AUDIT ──
+async function chargerAuditLog(){
+  const tbody=G("audit-log-tbody");
+  tbody.innerHTML=`<tr><td colspan="8" style="text-align:center;color:var(--gris3);padding:20px">⏳ Chargement...</td></tr>`;
+  try{
+    const snap=await db.collection("audit_log").limit(200).get();
+    let logs=[]; snap.forEach(d=>logs.push({id:d.id,...d.data()}));
+    logs.sort((a,b)=>{
+      const ta=a.timestamp?.seconds||0, tb=b.timestamp?.seconds||0;
+      return tb-ta;
+    });
+    logs=logs.slice(0,100);
+    if(!logs.length){
+      tbody.innerHTML=`<tr><td colspan="8" style="text-align:center;color:var(--gris3);padding:20px">Aucune entrée pour le moment</td></tr>`;
+      return;
+    }
+    let html="";
+    logs.forEach(l=>{
+      const dt = l.timestamp?.seconds ? new Date(l.timestamp.seconds*1000).toLocaleString("fr-FR") : "—";
+      const modeLabel={especes:"💵 Esp.",cb:"💳 CB",cheque:"📝 Chq.",virement:"🏦 Vir."}[l.mode_paiement]||l.mode_paiement||"—";
+      html+=`<tr>
+        <td style="font-size:11px">${dt}</td>
+        <td style="font-weight:700">${l.utilisateur||"—"} <span style="font-size:10px;color:var(--gris3)">(${l.utilisateur_role||""})</span></td>
+        <td style="font-size:11px">${l.action==="confirmation_paiement"?"💰 Paiement confirmé":l.action||"—"}</td>
+        <td>${l.client||"—"}</td>
+        <td style="font-size:11px;color:var(--bleu)">${l.numero||"—"}</td>
+        <td style="font-weight:700;color:var(--vert)">${fmtMontant(l.montant)}</td>
+        <td>${modeLabel}</td>
+        <td style="font-size:11px;color:var(--vert)">${l.recu_num||"—"}${l.solde_complet?" ✅":" 🟣"}</td>
+      </tr>`;
+    });
+    tbody.innerHTML=html;
+  }catch(e){
+    tbody.innerHTML=`<tr><td colspan="8" style="text-align:center;color:var(--rouge);padding:20px">Erreur chargement</td></tr>`;
     console.error(e);
   }
 }
@@ -2018,23 +2485,65 @@ function chargerCamions(){
     let list=[]; snap.forEach(d=>list.push({id:d.id,...d.data()}));
     list.sort((a,b)=>a.nom.localeCompare(b.nom));
     let html="";
+    const aujourdHui=new Date();
+    const alertes=[];
     list.forEach(cam=>{
       const ch=chauffeursList.find(c=>c.nom===cam.chauffeur_defaut||c.id===cam.chauffeur_defaut);
+
+      // Calcul échéances
+      function infoEcheance(dateStr,label){
+        if(!dateStr) return null;
+        const d=new Date(dateStr);
+        const diffJours=Math.floor((d-aujourdHui)/(1000*60*60*24));
+        let couleur="var(--vert)", urgence="ok";
+        if(diffJours<0){ couleur="var(--rouge)"; urgence="expire"; }
+        else if(diffJours<=30){ couleur="#f57c00"; urgence="proche"; }
+        if(urgence!=="ok") alertes.push({camion:cam.nom,label,date:dateStr,diffJours,urgence});
+        return {diffJours,couleur,urgence};
+      }
+      const ctInfo=infoEcheance(cam.echeance_ct,"Contrôle technique");
+      const assInfo=infoEcheance(cam.echeance_assurance,"Assurance");
+
+      let echCell="";
+      if(ctInfo) echCell+=`<div style="font-size:10px;color:${ctInfo.couleur}">CT: ${cam.echeance_ct} ${ctInfo.urgence==="expire"?"⛔":ctInfo.urgence==="proche"?"⚠️":""}</div>`;
+      if(assInfo) echCell+=`<div style="font-size:10px;color:${assInfo.couleur}">Assur: ${cam.echeance_assurance} ${assInfo.urgence==="expire"?"⛔":assInfo.urgence==="proche"?"⚠️":""}</div>`;
+      if(!echCell) echCell=`<span style="color:var(--gris3);font-size:11px">—</span>`;
+
       html+=`<tr>
         <td><strong>${cam.nom||"—"}</strong></td>
         <td style="font-family:monospace;font-size:11px">${cam.immat||"—"}</td>
         <td>${cam.marque||"—"}</td><td>${cam.modele||"—"}</td>
         <td>${ch?ch.nom:(cam.chauffeur_defaut||"—")}</td>
+        <td>${echCell}</td>
         <td><span class="badge ${cam.actif!==false?"badge-vert":"badge-rouge"}">${cam.actif!==false?"Actif":"Inactif"}</span></td>
         <td><div style="display:flex;gap:4px">
           <button class="btn btn-secondary btn-sm btn-icon" onclick="editerCamion('${cam.id}')">✏️</button>
           <button class="btn btn-danger btn-sm btn-icon" onclick="supprimerCamion('${cam.id}')">🗑</button>
         </div></td></tr>`;
     });
-    G("cam-tbody").innerHTML=html||`<tr><td colspan="7" style="text-align:center;color:var(--gris3);padding:24px">Aucun camion</td></tr>`;
+    G("cam-tbody").innerHTML=html||`<tr><td colspan="8" style="text-align:center;color:var(--gris3);padding:24px">Aucun camion</td></tr>`;
+
+    // Carte d'alerte échéances
+    const alEl=G("camions-alertes");
+    if(alEl){
+      if(!alertes.length){
+        alEl.innerHTML="";
+      } else {
+        alertes.sort((a,b)=>a.diffJours-b.diffJours);
+        alEl.innerHTML=`<div class="card" style="border-left:4px solid var(--rouge)">
+          <div class="card-title" style="color:var(--rouge)">⚠️ ${alertes.length} échéance(s) à surveiller</div>
+          <div style="display:flex;flex-direction:column;gap:6px;margin-top:8px">
+            ${alertes.map(a=>`<div style="display:flex;justify-content:space-between;font-size:12px;padding:4px 8px;background:${a.urgence==="expire"?"var(--rouge-lt)":"var(--jaune-lt)"};border-radius:6px">
+              <span><strong>${a.camion}</strong> — ${a.label}</span>
+              <span style="font-weight:700;color:${a.urgence==="expire"?"var(--rouge)":"#f57c00"}">${a.urgence==="expire"?`Expiré depuis ${Math.abs(a.diffJours)}j`:`Dans ${a.diffJours}j`}</span>
+            </div>`).join("")}
+          </div>
+        </div>`;
+      }
+    }
   });
 }
-function ouvrirModalCamion(){editingId=null;G("modal-cam-title").textContent="🚛 Ajouter un camion";["cam-nom","cam-immat","cam-marque","cam-modele","cam-annee"].forEach(id=>G(id).value="");G("cam-chauffeur").value="";G("modal-camion").classList.add("on");}
+function ouvrirModalCamion(){editingId=null;G("modal-cam-title").textContent="🚛 Ajouter un camion";["cam-nom","cam-immat","cam-marque","cam-modele","cam-annee","cam-ct-date","cam-assurance-date"].forEach(id=>G(id).value="");G("cam-chauffeur").value="";G("modal-camion").classList.add("on");}
 function editerCamion(id){
   db.collection("vehicules").doc(id).get().then(snap=>{
     const cam=snap.data();editingId=id;
@@ -2042,6 +2551,7 @@ function editerCamion(id){
     G("cam-nom").value=cam.nom||"";G("cam-immat").value=cam.immat||"";
     G("cam-marque").value=cam.marque||"";G("cam-modele").value=cam.modele||"";
     G("cam-annee").value=cam.annee||"";G("cam-chauffeur").value=cam.chauffeur_defaut||"";
+    G("cam-ct-date").value=cam.echeance_ct||"";G("cam-assurance-date").value=cam.echeance_assurance||"";
     G("modal-camion").classList.add("on");
   });
 }
@@ -2049,13 +2559,15 @@ function sauvegarderCamion(){
   const nom=G("cam-nom").value.trim(),immat=G("cam-immat").value.trim().toUpperCase();
   const marque=G("cam-marque").value.trim(),modele=G("cam-modele").value.trim();
   const annee=G("cam-annee").value;
+  const ctDate=G("cam-ct-date").value;
+  const assuranceDate=G("cam-assurance-date").value;
   const chVal=G("cam-chauffeur").value;
   const chObj=chauffeursList.find(c=>c.id===chVal||c.nom===chVal);
   const ch=chObj?chObj.nom:chVal;
   const chId=chObj?chObj.id:null;
   if(!nom){toast("Nom obligatoire","err");return;}
   loader(true);
-  const data={nom,immat,marque,modele,annee,chauffeur_defaut:ch,actif:true};
+  const data={nom,immat,marque,modele,annee,chauffeur_defaut:ch,actif:true,echeance_ct:ctDate||"",echeance_assurance:assuranceDate||""};
   const p=editingId?db.collection("vehicules").doc(editingId).update(data):db.collection("vehicules").add({...data,createdAt:firebase.firestore.FieldValue.serverTimestamp()});
   p.then(async()=>{
     // Sync: mettre à jour le champ camion dans le doc users du chauffeur assigné
@@ -3732,6 +4244,15 @@ async function confirmerPaiement(){
       collection:col, doc_id:id,
       createdAt:firebase.firestore.FieldValue.serverTimestamp()
     });
+    // Audit trail — traçabilité de qui confirme quel paiement
+    batch.set(db.collection("audit_log").doc(),{
+      action:"confirmation_paiement",
+      utilisateur:userAdmin?.nom||"Admin", utilisateur_role:userAdmin?.role||"admin",
+      collection_cible:col, doc_id:id, numero:numDoc,
+      client:nomClient, montant, mode_paiement:mode,
+      recu_num:recuNum, solde_complet:solde,
+      timestamp:firebase.firestore.FieldValue.serverTimestamp()
+    });
     await batch.commit();
     toast(`Paiement enregistré ✅ — Reçu ${recuNum}`);
     fermerModal("modal-paiement-solde");
@@ -4184,6 +4705,10 @@ function chargerDroitsOnglet(idx){
     s("d-commissions",     d.secretaire_commissions===true);
     s("d-carburant",       d.secretaire_carburant===true);
     s("d-recap",           d.secretaire_recap===true);
+    s("d-alertes-impayes", d.secretaire_alertes_impayes===true);
+    s("d-recherche-globale", d.secretaire_recherche_globale===true);
+    s("d-audit-log",        d.secretaire_audit_log===true);
+    s("d-echeances-camions", d.secretaire_echeances_camions===true);
     s("d-chauffeurs-voir", d.secretaire_chauffeurs_voir===true);
     s("d-camions-voir",    d.secretaire_camions_voir===true);
     if(hasDroits){
@@ -4234,6 +4759,10 @@ function sauvegarderDroits(){
     secretaire_commissions:    g("d-commissions"),
     secretaire_carburant:      g("d-carburant"),
     secretaire_recap:          g("d-recap"),
+    secretaire_alertes_impayes: g("d-alertes-impayes"),
+    secretaire_recherche_globale: g("d-recherche-globale"),
+    secretaire_audit_log:      g("d-audit-log"),
+    secretaire_echeances_camions: g("d-echeances-camions"),
     secretaire_chauffeurs_voir:g("d-chauffeurs-voir"),
     secretaire_camions_voir:   g("d-camions-voir"),
     secretaire_clients:        g("d-clients"),
