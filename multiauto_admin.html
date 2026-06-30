@@ -689,13 +689,18 @@ tr:hover td{background:var(--gris)}
       <div class="stats-grid" id="mag-stats"></div>
       <div class="card" style="padding:0">
         <div style="padding:12px 16px;border-bottom:1px solid var(--gris2);display:flex;gap:8px;align-items:center;flex-wrap:wrap">
-          <select class="filtre-inp" id="mag-filtre-statut" onchange="chargerMagasinage()">
+          <select class="filtre-inp" id="mag-filtre-statut">
             <option value="">Tous statuts</option>
             <option value="en_cours">🔄 En gardiennage</option>
             <option value="impaye">🔴 Impayé</option>
             <option value="partiel">🟣 Partiel</option>
             <option value="paye">✅ Payé</option>
           </select>
+          <select class="filtre-inp" id="mag-filtre-client" style="min-width:160px"><option value="">Tous les clients</option></select>
+          <input class="filtre-inp" type="date" id="mag-filtre-debut">
+          <input class="filtre-inp" type="date" id="mag-filtre-fin">
+          <button class="btn btn-primary" onclick="chargerMagasinage()">🔍 Filtrer</button>
+          <button class="btn btn-secondary btn-sm" onclick="G('mag-filtre-statut').value='';G('mag-filtre-client').value='';G('mag-filtre-debut').value='';G('mag-filtre-fin').value='';chargerMagasinage()">✕ Reset</button>
           <button class="btn btn-secondary btn-sm" onclick="selToutMag()">☑ Tout</button>
           <span id="mag-sel-lbl" style="font-size:12px;font-weight:700;color:var(--rouge)"></span>
           <button class="btn btn-secondary btn-sm" onclick="exporterMagasinagePDF()">⬇ Export PDF</button>
@@ -2325,8 +2330,20 @@ function confirmerReset(){
 // ── MAGASINAGE ──
 function chargerMagasinage(){
   const filtreStatut = G("mag-filtre-statut")?.value||"";
+  const filtreClient = G("mag-filtre-client")?.value||"";
+  const filtreDebut  = G("mag-filtre-debut")?.value||"";
+  const filtreFin    = G("mag-filtre-fin")?.value||"";
   db.collection("magasinage").orderBy("date_entree","desc").get().then(snap=>{
     let list=[]; snap.forEach(d=>list.push({id:d.id,...d.data()}));
+
+    // Peupler le select client depuis les données disponibles
+    const selCl=G("mag-filtre-client");
+    if(selCl){
+      const curVal=selCl.value;
+      const clients=[...new Set(list.map(m=>m.client).filter(c=>c&&c!=="—"))].sort();
+      selCl.innerHTML="<option value=''>Tous les clients</option>"+clients.map(c=>`<option value="${c}">${c}</option>`).join("");
+      if(curVal) selCl.value=curVal;
+    }
 
     // Calcul statut paiement pour chaque entrée
     list.forEach(m=>{
@@ -2340,10 +2357,13 @@ function chargerMagasinage(){
 
     // Filtre
     let filtered = list;
-    if(filtreStatut==="en_cours") filtered=list.filter(m=>m.statut==="en_cours");
-    else if(filtreStatut==="impaye") filtered=list.filter(m=>m.statut!=="en_cours"&&m._statutPaie==="impaye");
-    else if(filtreStatut==="partiel") filtered=list.filter(m=>m.statut!=="en_cours"&&m._statutPaie==="partiel");
-    else if(filtreStatut==="paye") filtered=list.filter(m=>m._statutPaie==="paye");
+    if(filtreStatut==="en_cours") filtered=filtered.filter(m=>m.statut==="en_cours");
+    else if(filtreStatut==="impaye") filtered=filtered.filter(m=>m.statut!=="en_cours"&&m._statutPaie==="impaye");
+    else if(filtreStatut==="partiel") filtered=filtered.filter(m=>m.statut!=="en_cours"&&m._statutPaie==="partiel");
+    else if(filtreStatut==="paye") filtered=filtered.filter(m=>m._statutPaie==="paye");
+    if(filtreClient) filtered=filtered.filter(m=>m.client===filtreClient);
+    if(filtreDebut) filtered=filtered.filter(m=>toComp(m.date_entree)>=filtreDebut);
+    if(filtreFin)   filtered=filtered.filter(m=>toComp(m.date_entree)<=filtreFin);
 
     const enCours=list.filter(m=>m.statut==="en_cours");
     const totalNet=list.filter(m=>m.statut!=="en_cours").reduce((s,m)=>s+(m.montant_net||0),0);
