@@ -1753,6 +1753,13 @@ function supprimerSelectionBL(){
 }
 
 // ── REÇUS ──
+function copierEmailClient(email){
+  navigator.clipboard.writeText(email).then(()=>{
+    toast("Email copié : "+email);
+  }).catch(()=>{
+    toast("Email : "+email);
+  });
+}
 function chargerRecus(){
   loader(true);
   db.collection("recus").limit(500).get().then(snap=>{
@@ -1799,6 +1806,7 @@ function chargerRecus(){
           <button class="btn btn-secondary btn-sm btn-icon" onclick="voirRecu('${r.id}')">👁</button>
           <button class="btn btn-secondary btn-sm btn-icon" onclick="imprimerRecu('${r.id}')">🖨</button>
           <button class="btn btn-secondary btn-sm btn-icon" onclick="telechargerRecu('${r.id}')">⬇</button>
+          ${r.email_client?`<button class="btn btn-secondary btn-sm btn-icon" title="${r.email_client}" onclick="copierEmailClient('${r.email_client.replace(/'/g,"\\'")}')">✉️</button>`:""}
           <button class="btn btn-danger btn-sm btn-icon" onclick="supprimerRecu('${r.id}')">🗑</button>
         </div></td></tr>`;
     });
@@ -3625,7 +3633,7 @@ async function confirmerPaiement(){
     batch.update(db.collection(col).doc(id),update);
     batch.set(db.collection("recus").doc(),{
       recu_num:recuNum, type_recu:"solde_client",
-      nom_client:nomClient, immatriculation:immat,
+      nom_client:nomClient, immatriculation:immat, email_client:data.email_client||"",
       designation, num_doc:numDoc,
       date:dateStr, heure:heureStr,
       montant, montant_total:montantTotal,
@@ -4294,7 +4302,9 @@ function genererBL(bon){
     return y+7.5;
   }
   y=pdfChamp(y,'Marque',bon.marque||'—','Modèle',bon.modele||'—');
-  y=pdfChamp(y,'Client',bon.nom_client||'—','Téléphone',bon.tel_client||'—');y+=3;
+  y=pdfChamp(y,'Client',bon.nom_client||'—','Téléphone',bon.tel_client||'—');
+  if(bon.email_client) y=pdfChamp(y,'Email',bon.email_client);
+  y+=3;
   // Section trajet
   doc.setFillColor(200,52,26);doc.rect(10,y,190,7,'F');doc.setTextColor(255,255,255);doc.setFont('helvetica','bold');doc.setFontSize(7.5);doc.text('TRAJET',13,y+4.8);y+=7+1;
   doc.setFillColor(246,246,246);doc.rect(10,y,190,14,'F');
@@ -4380,6 +4390,7 @@ function genererRecu(recu){
   }
   y=pdfL(y,'Client :',recu.nom_client||'—');
   y=pdfL(y,'Téléphone :',recu.tel_client||'—');
+  if(recu.email_client) y=pdfL(y,'Email :',recu.email_client);
   y=pdfL(y,'Véhicule :',(recu.marque||'')+' '+(recu.modele||'')+' — '+(recu.immatriculation||'—'));
   y=pdfL(y,'Mission :',recu.mission||(( recu.lieu_embarquement||'—')+' → '+(recu.destination||'—')));
   // N° BL
