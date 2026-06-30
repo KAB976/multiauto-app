@@ -842,21 +842,7 @@ function ouvrirModalClient(){
 
 function fermerModalClient(){ G("modal-client").classList.remove("on"); }
 
-function confirmerNouveauClient(){
-  var nom = G("new-client-nom").value.trim();
-  if(!nom){ G("new-client-nom").focus(); return; }
-  // Majuscule première lettre
-  nom = nom.charAt(0).toUpperCase()+nom.slice(1);
-  var tel = G("new-client-tel").value.trim();
-  // Ajouter à la liste locale
-  CLIENTS.push(nom);
-  var sel = G("sel-client");
-  var o = document.createElement("option");
-  o.value=nom; o.textContent=nom; sel.appendChild(o);
-  sel.value=nom;
-  if(tel) G("inp-tel").value=tel;
-  fermerModalClient();
-}
+// confirmerNouveauClient est définie dans le module Firebase (avec sauvegarde Firestore + email)
 
 // ════════════════════════════════════
 // LOGIN
@@ -1548,6 +1534,44 @@ async function initFirestore(){
 // ════════════════════════════════════
 // CONNEXION FIREBASE AUTH
 // ════════════════════════════════════
+function activerSyncTempsReel(){
+  if(window._clientsUnsubscribe) window._clientsUnsubscribe();
+  window._clientsUnsubscribe = onSnapshot(
+    query(collection(db,"clients"), orderBy("nom","asc")),
+    snap => {
+      window.CLIENTS = [];
+      snap.forEach(d => window.CLIENTS.push(d.data().nom));
+      initClients();
+    },
+    e => console.warn("Sync clients:", e)
+  );
+
+  if(window._vehiculesUnsubscribe) window._vehiculesUnsubscribe();
+  window._vehiculesUnsubscribe = onSnapshot(
+    query(collection(db,"vehicules_clients"), orderBy("marque","asc")),
+    snap => {
+      const fsMarques = {};
+      snap.forEach(d => {
+        const v = d.data();
+        const marque = v.marque||""; const modele = v.modele||"";
+        if(!marque) return;
+        if(!fsMarques[marque]) fsMarques[marque] = new Set();
+        if(modele) fsMarques[marque].add(modele);
+      });
+      Object.keys(fsMarques).forEach(marque => {
+        if(!window.MARQUES_MODELES[marque]) window.MARQUES_MODELES[marque] = [];
+        fsMarques[marque].forEach(modele => {
+          if(!window.MARQUES_MODELES[marque].includes(modele))
+            window.MARQUES_MODELES[marque].push(modele);
+        });
+      });
+      initMarques();
+      majModeles();
+    },
+    e => console.warn("Sync véhicules:", e)
+  );
+}
+
 window.seConnecter = async function(){
   var id = G("inp-id").value.trim();
   var pw = G("inp-pw").value;
@@ -1595,44 +1619,7 @@ window.seConnecter = async function(){
 
     // Charger clients et marques depuis Firestore
     await chargerClients();
-
-    // Sync temps réel clients
-    if(window._clientsUnsubscribe) window._clientsUnsubscribe();
-    window._clientsUnsubscribe = onSnapshot(
-      query(collection(db,"clients"), orderBy("nom","asc")),
-      snap => {
-        window.CLIENTS = [];
-        snap.forEach(d => window.CLIENTS.push(d.data().nom));
-        initClients();
-      },
-      e => console.warn("Sync clients:", e)
-    );
-
-    // Sync temps réel véhicules/marques/modèles
-    if(window._vehiculesUnsubscribe) window._vehiculesUnsubscribe();
-    window._vehiculesUnsubscribe = onSnapshot(
-      query(collection(db,"vehicules_clients"), orderBy("marque","asc")),
-      snap => {
-        const fsMarques = {};
-        snap.forEach(d => {
-          const v = d.data();
-          const marque = v.marque||""; const modele = v.modele||"";
-          if(!marque) return;
-          if(!fsMarques[marque]) fsMarques[marque] = new Set();
-          if(modele) fsMarques[marque].add(modele);
-        });
-        Object.keys(fsMarques).forEach(marque => {
-          if(!window.MARQUES_MODELES[marque]) window.MARQUES_MODELES[marque] = [];
-          fsMarques[marque].forEach(modele => {
-            if(!window.MARQUES_MODELES[marque].includes(modele))
-              window.MARQUES_MODELES[marque].push(modele);
-          });
-        });
-        initMarques();
-        majModeles();
-      },
-      e => console.warn("Sync véhicules:", e)
-    );
+    activerSyncTempsReel();
 
     loader(false);
     G("login-err").classList.remove("on");
@@ -1926,6 +1913,8 @@ onAuthStateChanged(auth, async (firebaseUser) => {
           recu_compteur: profil.recu_compteur || 1
         };
         await chargerClients();
+        activerSyncTempsReel();
+
         G("pg-login").classList.remove("on");
         G("pg-app").classList.add("on");
         initApp();
