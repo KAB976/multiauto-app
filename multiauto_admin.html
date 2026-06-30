@@ -1110,6 +1110,26 @@ tr:hover td{background:var(--gris)}
         <div class="form-group" style="margin-bottom:14px"><span class="fl">Téléphone</span><input class="inp" id="soc-tel" type="tel" placeholder="0639 69 13 58"></div>
         <div class="form-group" style="margin-bottom:14px"><span class="fl">Email</span><input class="inp" id="soc-email" type="email" placeholder="depannage.mayotte@multiauto.fr"></div>
       </div>
+
+      <div class="card" style="max-width:600px;margin-top:16px">
+        <div class="card-title">🖼️ Logo de la société</div>
+        <p style="font-size:12px;color:var(--gris3);margin-bottom:12px;line-height:1.5">
+          Format PNG recommandé (fond transparent), max 300 Ko. Le logo s'applique automatiquement à la connexion, au menu et aux PDF (BL, reçus) dans les 3 applications.
+        </p>
+        <div style="display:flex;gap:16px;align-items:center;margin-bottom:14px">
+          <div id="logo-preview-box" style="width:140px;height:80px;border:2px dashed var(--gris2);border-radius:8px;display:flex;align-items:center;justify-content:center;overflow:hidden;background:#fafafa">
+            <img id="logo-preview" src="" alt="" style="max-width:100%;max-height:100%;object-fit:contain;display:none">
+            <span id="logo-preview-empty" style="font-size:11px;color:var(--gris3)">Aucun logo</span>
+          </div>
+          <div>
+            <input type="file" id="logo-file-input" accept="image/png,image/jpeg" style="display:none" onchange="previewLogoUpload(event)">
+            <button class="btn btn-secondary btn-sm" onclick="G('logo-file-input').click()">📁 Choisir un fichier</button>
+            <div id="logo-file-info" style="font-size:11px;color:var(--gris3);margin-top:6px"></div>
+          </div>
+        </div>
+        <button class="btn btn-primary" onclick="sauvegarderLogo()" id="btn-save-logo" disabled>💾 Enregistrer le logo</button>
+        <div id="logo-save-result" style="font-size:12px;margin-top:10px"></div>
+      </div>
       <div class="card" style="max-width:600px;margin-top:16px">
         <div class="card-title">🔑 Changer mon mot de passe</div>
         <div class="form-group" style="margin-bottom:12px"><span class="fl">Nouveau mot de passe</span><input class="inp" id="new-mdp" type="password" placeholder="Minimum 6 caractères"></div>
@@ -1273,6 +1293,16 @@ const db=firebase.firestore();
 let userAdmin=null, chauffeursList=[], camionsList=[], clientsList=[], editingId=null;
 let leafletMapAdmin=null;
 
+// Charger le logo personnalisé dès l'arrivée sur la page (avant login)
+db.collection("parametres").doc("societe").get().then(snap=>{
+  const logo = snap.data()?.logo_base64;
+  if(logo){
+    window.LOGO_DYNAMIC = logo;
+    const loginImg = document.querySelector(".login-logo img");
+    if(loginImg) loginImg.src = logo;
+  }
+}).catch(()=>{});
+
 const G=id=>document.getElementById(id);
 function toast(msg,type="ok"){
   const t=G("toast"); t.className="toast on "+type;
@@ -1342,6 +1372,7 @@ function seConnecter(){
       loader(false);
       G("pg-login").style.display="none";
       G("pg-app").classList.add("on");
+      appliquerLogoPartout();
       initDashNotifSound();
       chargerDashboard();
       chargerBons();
@@ -4241,6 +4272,12 @@ function chargerParametres(){
     const p=snap.data()||{};
     const v=(id,val)=>{const el=G(id);if(el)el.value=val;};
     v("soc-nom",p.nom||"");v("soc-adresse",p.adresse||"");v("soc-tel",p.telephone||"");v("soc-email",p.email||"");
+    // Afficher le logo actuel s'il existe
+    if(p.logo_base64){
+      G("logo-preview").src=p.logo_base64;
+      G("logo-preview").style.display="block";
+      G("logo-preview-empty").style.display="none";
+    }
   });
 }
 function sauvegarderParametres(){
@@ -4251,6 +4288,62 @@ function sauvegarderParametres(){
     updatedAt:firebase.firestore.FieldValue.serverTimestamp()
   }).then(()=>{toast("Enregistré ✅");loader(false);}).catch(()=>{toast("Erreur","err");loader(false);});
 }
+
+// ── LOGO SOCIÉTÉ ──
+let _logoBase64Pending = null;
+function previewLogoUpload(event){
+  const file = event.target.files[0];
+  if(!file) return;
+  const maxSize = 300 * 1024; // 300 Ko
+  if(file.size > maxSize){
+    toast("Fichier trop lourd (max 300 Ko) — compressez l'image avant de l'importer","err");
+    G("logo-file-input").value="";
+    return;
+  }
+  if(!["image/png","image/jpeg"].includes(file.type)){
+    toast("Format non supporté — utilisez PNG ou JPEG","err");
+    G("logo-file-input").value="";
+    return;
+  }
+  const reader = new FileReader();
+  reader.onload = function(e){
+    _logoBase64Pending = e.target.result;
+    G("logo-preview").src = _logoBase64Pending;
+    G("logo-preview").style.display = "block";
+    G("logo-preview-empty").style.display = "none";
+    G("logo-file-info").textContent = `${file.name} — ${(file.size/1024).toFixed(0)} Ko`;
+    G("btn-save-logo").disabled = false;
+  };
+  reader.readAsDataURL(file);
+}
+function sauvegarderLogo(){
+  if(!_logoBase64Pending){ toast("Choisissez d'abord un fichier","err"); return; }
+  loader(true,"Enregistrement du logo...");
+  db.collection("parametres").doc("societe").set({
+    logo_base64: _logoBase64Pending,
+    logo_updatedAt: firebase.firestore.FieldValue.serverTimestamp()
+  },{merge:true}).then(()=>{
+    toast("Logo enregistré ✅ — synchronisé sur les 3 applications");
+    G("logo-save-result").innerHTML = `<div style="background:var(--vert-lt);border:1px solid var(--vert);border-radius:6px;padding:8px;color:var(--vert);font-weight:700">✅ Logo mis à jour avec succès</div>`;
+    G("btn-save-logo").disabled = true;
+    _logoBase64Pending = null;
+    G("logo-file-input").value="";
+    appliquerLogoPartout();
+    loader(false);
+  }).catch(e=>{toast("Erreur lors de l'enregistrement","err");loader(false);console.error(e);});
+}
+function appliquerLogoPartout(){
+  db.collection("parametres").doc("societe").get().then(snap=>{
+    const logo = snap.data()?.logo_base64;
+    if(!logo) return;
+    const loginImg = document.querySelector(".login-logo img");
+    const sbImg = G("sb-logo");
+    if(loginImg) loginImg.src = logo;
+    if(sbImg) sbImg.src = logo;
+    window.LOGO_DYNAMIC = logo; // logo personnalisé, prioritaire sur LOGO_DATA dans les PDF
+  });
+}
+
 function changerMDP(){
   const m1=G("new-mdp")?.value,m2=G("new-mdp2")?.value;
   if(!m1||m1!==m2){toast("Mots de passe différents","err");return;}
@@ -4283,7 +4376,11 @@ function initPDFSociete(){
 function pdfEntete(doc,titre,numero,dateStr,heureStr,chauffeur,camion,tarif){
   const W=210,rouge=[200,52,26],bleu=[26,37,64],blanc=[255,255,255];
   doc.setFillColor(...rouge);doc.rect(0,0,W,38,'F');
-  try{doc.setFillColor(255,255,255);doc.roundedRect(3,3,54,32,3,3,'F');doc.addImage(LOGO_DATA,'JPEG',4,4,52,30,'','FAST');}catch(e){}
+  try{
+    const logoSrc = window.LOGO_DYNAMIC || LOGO_DATA;
+    const logoFmt = logoSrc.startsWith('data:image/png') ? 'PNG' : 'JPEG';
+    doc.setFillColor(255,255,255);doc.roundedRect(3,3,54,32,3,3,'F');doc.addImage(logoSrc,logoFmt,4,4,52,30,'','FAST');
+  }catch(e){}
   doc.setTextColor(...blanc);doc.setFont('helvetica','bold');doc.setFontSize(12);
   doc.text('MULTI AUTO DÉPANNAGE',W/2+10,13,{align:'center'});
   doc.setFontSize(15);doc.text(titre,W/2+10,22,{align:'center'});

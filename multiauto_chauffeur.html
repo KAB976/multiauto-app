@@ -1497,6 +1497,15 @@ try {
   enableIndexedDbPersistence(db).catch(()=>{});
 } catch(e){}
 
+// Charger le logo personnalisé dès l'arrivée sur la page
+getDoc(doc(db,"parametres","societe")).then(snap=>{
+  const logo = snap.exists() ? snap.data().logo_base64 : null;
+  if(logo){
+    const img = document.getElementById("login-logo");
+    if(img) img.src = logo;
+  }
+}).catch(()=>{});
+
 // ════════════════════════════════════
 // STRUCTURE FIRESTORE
 // Collections :
