@@ -251,6 +251,10 @@ self.addEventListener('fetch', e => {
       <span class="fl">Téléphone <span class="tag-opt">Facultatif</span></span>
       <input class="inp" id="new-client-tel" type="tel" placeholder="Ex : 0639 00 00 00">
     </div>
+    <div class="mb14">
+      <span class="fl">Email <span class="tag-opt">Facultatif</span></span>
+      <input class="inp" id="new-client-email" type="email" placeholder="client@exemple.com">
+    </div>
     <button class="btn-modal-confirm" onclick="confirmerNouveauClient()">✅ Ajouter ce client</button>
     <button class="btn-modal-cancel" onclick="fermerModalClient()">Annuler</button>
   </div>
@@ -1719,10 +1723,11 @@ window.confirmerNouveauClient = async function(){
   if(!nom){ G("new-client-nom").focus(); return; }
   nom = nom.charAt(0).toUpperCase() + nom.slice(1);
   var tel = G("new-client-tel").value.trim();
+  var email = G("new-client-email").value.trim();
 
   try {
     await addDoc(collection(db,"clients"),{
-      nom, tel: tel || "", mode_paiement:"", solde:0,
+      nom, tel: tel || "", email: email || "", mode_paiement:"", solde:0,
       createdAt: serverTimestamp(),
       ajoute_par: user ? user.nom : ""
     });
@@ -1825,6 +1830,7 @@ window.enregistrer = async function(){
         modele: payload.modele || "",
         immat: payload.immatriculation || "",
         bon_num: bonNum,
+        recu_num: (espActif && payload.montant_especes > 0) ? recuNum : "",
         montant_assurance: 0,
         montant_client: 0,
         montant_reel: 0,
