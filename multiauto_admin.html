@@ -1305,8 +1305,6 @@ function chargerListeChauffeurs(){
     });
     const sc=G("cam-chauffeur");
     if(sc){sc.innerHTML="<option value=''>— Aucun —</option>";chauffeursList.forEach(ch=>{const o=document.createElement("option");o.value=ch.nom;o.textContent=ch.nom;sc.appendChild(o);});}
-    const sch=G("ch-camion");
-    if(sch){camionsList.forEach(cam=>{const o=document.createElement("option");o.value=cam.nom;o.textContent=cam.nom;sch.appendChild(o);});}
   });
 }
 
@@ -1320,6 +1318,14 @@ function chargerListeCamions(){
       const first=sel.options[0]; sel.innerHTML=""; sel.appendChild(first);
       camionsList.forEach(cam=>{const o=document.createElement("option");o.value=cam.nom;o.textContent=cam.nom+" "+(cam.immat||"");sel.appendChild(o);});
     });
+    // Peupler aussi ch-camion ici pour garantir l'ordre correct (camionsList déjà chargée)
+    const sch=G("ch-camion");
+    if(sch){
+      const curVal=sch.value;
+      sch.innerHTML="<option value=''>— Choisir —</option>";
+      camionsList.forEach(cam=>{const o=document.createElement("option");o.value=cam.nom;o.textContent=cam.nom;sch.appendChild(o);});
+      if(curVal) sch.value=curVal;
+    }
   });
 }
 
@@ -1786,7 +1792,11 @@ function editerChauffeur(uid){
     G("modal-ch-title").textContent="✏️ Modifier — "+ch.nom;
     G("ch-nom").value=ch.nom||""; G("ch-id").value=ch.identifiant||""; G("ch-mdp").value="";
     G("ch-pref-bl").value=ch.prefixe_bl||""; G("ch-immat").value=ch.immat_camion||"";
-    G("ch-camion").value=ch.camion||"";
+    // Re-peupler le select au cas où camionsList aurait changé
+    const sch=G("ch-camion");
+    sch.innerHTML="<option value=''>— Choisir —</option>";
+    camionsList.forEach(cam=>{const o=document.createElement("option");o.value=cam.nom;o.textContent=cam.nom;sch.appendChild(o);});
+    sch.value=ch.camion||"";
     G("modal-chauffeur").classList.add("on");
   });
 }
