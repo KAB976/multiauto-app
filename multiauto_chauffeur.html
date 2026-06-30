@@ -790,6 +790,7 @@ function majNums(){
 // ════════════════════════════════════
 function initMarques(){
   var sel = G("sel-marque");
+  if(!sel){ console.warn("⚠️ sel-marque introuvable dans le DOM"); return; }
   var current = sel.value;
   sel.innerHTML = "<option value=''>— Marque —</option>";
   var marques = Object.keys(MARQUES_MODELES).sort();
@@ -822,6 +823,7 @@ function majModeles(){
 // ════════════════════════════════════
 function initClients(){
   var sel = G("sel-client");
+  if(!sel){ console.warn("⚠️ sel-client introuvable dans le DOM"); return; }
   sel.innerHTML = "<option value=''>— Sélectionner —</option>";
   var liste = CLIENTS.slice().sort();
   liste.forEach(function(c){
@@ -1535,21 +1537,24 @@ async function initFirestore(){
 // CONNEXION FIREBASE AUTH
 // ════════════════════════════════════
 function activerSyncTempsReel(){
+  console.log("🔄 Activation sync temps réel — clients et véhicules");
   if(window._clientsUnsubscribe) window._clientsUnsubscribe();
   window._clientsUnsubscribe = onSnapshot(
     query(collection(db,"clients"), orderBy("nom","asc")),
     snap => {
       window.CLIENTS = [];
       snap.forEach(d => window.CLIENTS.push(d.data().nom));
+      console.log("✅ Sync clients reçue:", window.CLIENTS.length, "clients —", window.CLIENTS);
       initClients();
     },
-    e => console.warn("Sync clients:", e)
+    e => console.error("❌ Sync clients ERREUR:", e)
   );
 
   if(window._vehiculesUnsubscribe) window._vehiculesUnsubscribe();
   window._vehiculesUnsubscribe = onSnapshot(
     query(collection(db,"vehicules_clients"), orderBy("marque","asc")),
     snap => {
+      console.log("✅ Sync véhicules reçue:", snap.size, "documents");
       const fsMarques = {};
       snap.forEach(d => {
         const v = d.data();
@@ -1565,10 +1570,11 @@ function activerSyncTempsReel(){
             window.MARQUES_MODELES[marque].push(modele);
         });
       });
+      console.log("✅ MARQUES_MODELES mis à jour:", Object.keys(window.MARQUES_MODELES).length, "marques");
       initMarques();
       majModeles();
     },
-    e => console.warn("Sync véhicules:", e)
+    e => console.error("❌ Sync véhicules ERREUR:", e)
   );
 }
 
