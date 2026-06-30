@@ -524,6 +524,16 @@ tr:hover td{background:var(--gris)}
           <div class="chart-bar-wrap" id="dash-chart"></div>
         </div>
       </div>
+
+      <div class="card" style="margin-top:16px">
+        <div class="card-title" style="display:flex;align-items:center;justify-content:space-between">
+          <span>💾 Stockage Firestore (estimation)</span>
+          <button class="btn btn-secondary btn-sm" onclick="estimerStockage()">🔄 Recalculer</button>
+        </div>
+        <div id="storage-indicator" style="padding:8px 0">
+          <div style="color:var(--gris3);font-size:13px">Cliquez sur Recalculer pour estimer l'espace utilisé</div>
+        </div>
+      </div>
     </div>
 
     <!-- BONS DE LIVRAISON -->
@@ -1118,13 +1128,13 @@ tr:hover td{background:var(--gris)}
       <div class="card" style="max-width:600px;margin-top:16px;border:2px solid var(--rouge)">
         <div class="card-title" style="color:var(--rouge)">⚠️ Purge complète avant démarrage réel</div>
         <p style="font-size:13px;color:var(--gris4);margin-bottom:14px;line-height:1.6">
-          Supprime <strong>toutes les données de test</strong> (BL, reçus, carburant, clients, magasinage, prises en charge)
-          et remet tous les compteurs BL/reçus à zéro.<br>
+          Supprime <strong>toutes les données opérationnelles</strong> (BL, reçus, carburant, magasinage, prises en charge)
+          et remet tous les compteurs BL/reçus/SEC/MAG à zéro.<br>
           <strong style="color:var(--rouge)">À utiliser une seule fois avant le vrai démarrage !</strong>
         </p>
         <div style="background:var(--rouge-lt);border-radius:8px;padding:10px;font-size:12px;color:var(--rouge);margin-bottom:14px">
-          ✅ Ce qui sera conservé : camions, paramètres société, comptes utilisateurs<br>
-          ❌ Ce qui sera supprimé : BL, reçus, carburant, clients, magasinage, PC
+          ✅ Ce qui sera conservé : <strong>clients</strong>, camions, marques/modèles, paramètres société, comptes utilisateurs<br>
+          ❌ Ce qui sera supprimé : BL, reçus, carburant, magasinage, PC
         </div>
         <button class="btn btn-danger" onclick="purgeCompleteDemarrage()">🚀 Purge complète et remise à zéro</button>
         <div id="purge-complete-result" style="font-size:12px;margin-top:10px"></div>
@@ -1423,6 +1433,54 @@ function initDashNotifSound(){
       o.start(); o.stop(ctx.currentTime+0.3);
     };
   } catch(e){}
+}
+
+// ── ESTIMATION STOCKAGE FIRESTORE ──
+async function estimerStockage(){
+  const el=G("storage-indicator");
+  el.innerHTML=`<div style="color:var(--gris3);font-size:13px">⏳ Calcul en cours...</div>`;
+  try{
+    const collections=["bons","recus","clients","magasinage","prises_en_charge","carburant","vehicules_clients","vehicules","users"];
+    let totalOctets=0, nbDocs=0, nbPhotos=0, octetsPhotos=0;
+
+    for(const col of collections){
+      const snap=await db.collection(col).get();
+      snap.forEach(d=>{
+        nbDocs++;
+        const json=JSON.stringify(d.data());
+        const taille=new Blob([json]).size;
+        totalOctets+=taille;
+        if(col==="bons" && d.data().photo_vehicule){
+          nbPhotos++;
+          octetsPhotos+=new Blob([d.data().photo_vehicule]).size;
+        }
+      });
+    }
+
+    const totalMo=(totalOctets/1024/1024);
+    const photosMo=(octetsPhotos/1024/1024);
+    const pctQuota=(totalOctets/(1024*1024*1024)*100);
+    const barColor = pctQuota>80?"var(--rouge)":pctQuota>50?"var(--jaune)":"var(--vert)";
+
+    el.innerHTML=`
+      <div style="display:flex;justify-content:space-between;align-items:baseline;margin-bottom:8px">
+        <span style="font-size:24px;font-weight:900;color:${barColor}">${totalMo.toFixed(1)} Mo</span>
+        <span style="font-size:12px;color:var(--gris3)">sur 1024 Mo (quota gratuit Spark)</span>
+      </div>
+      <div style="background:var(--gris2);border-radius:6px;height:14px;overflow:hidden;margin-bottom:10px">
+        <div style="width:${Math.min(pctQuota,100)}%;height:100%;background:${barColor};border-radius:6px;transition:width .4s"></div>
+      </div>
+      <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:10px;font-size:12px;color:var(--gris3)">
+        <div>📄 <strong style="color:var(--gris4)">${nbDocs}</strong> documents</div>
+        <div>📸 <strong style="color:var(--gris4)">${nbPhotos}</strong> photos BL</div>
+        <div>💾 <strong style="color:var(--gris4)">${photosMo.toFixed(1)} Mo</strong> en photos</div>
+      </div>
+      ${pctQuota>70?`<div style="margin-top:10px;background:#fff3e0;border:1px solid #f57c00;border-radius:6px;padding:8px;font-size:12px;color:#e65100">⚠️ Approche du quota gratuit — pensez à purger les anciennes photos (onglet Maintenance)</div>`:""}
+    `;
+  }catch(e){
+    el.innerHTML=`<div style="color:var(--rouge);font-size:13px">Erreur lors du calcul</div>`;
+    console.error(e);
+  }
 }
 
 function chargerDashboard(){
@@ -4953,15 +5011,15 @@ function afficherModalResetMDP(nom, emailUser, mdpSouhaite, adminEmail){
 
 // ── PURGE COMPLÈTE AVANT DÉMARRAGE ──
 async function purgeCompleteDemarrage(){
-  if(!confirm("⚠️ PURGE COMPLÈTE\n\nToutes les données de test seront supprimées :\n• Bons de livraison\n• Reçus\n• Carburant\n• Clients\n• Magasinage\n• Prises en charge\n\nLes compteurs BL seront remis à 1.\n\nCette action est IRRÉVERSIBLE !\n\nContinuer ?")) return;
-  if(!confirm("Dernière confirmation :\nToutes les données seront perdues.\n\nÊtes-vous sûr ?")) return;
+  if(!confirm("⚠️ PURGE COMPLÈTE\n\nDonnées qui seront supprimées :\n• Bons de livraison\n• Reçus\n• Carburant\n• Magasinage\n• Prises en charge\n\nDonnées CONSERVÉES :\n• ✅ Clients (liste gardée)\n• ✅ Chauffeurs, camions, comptes utilisateurs\n• ✅ Marques/modèles véhicules\n\nLes compteurs (BL, reçus, SEC, MAG) seront remis à zéro.\n\nCette action est IRRÉVERSIBLE !\n\nContinuer ?")) return;
+  if(!confirm("Dernière confirmation :\nLes BL, reçus, carburant, magasinage et PC seront définitivement perdus.\nLes clients seront conservés.\n\nÊtes-vous sûr ?")) return;
 
   const resultEl=G("purge-complete-result");
   resultEl.innerHTML="<span style='color:var(--rouge)'>⏳ Purge en cours...</span>";
   loader(true,"Purge complète en cours...");
 
   try{
-    const collections=["bons","recus","carburant","clients","magasinage","prises_en_charge"];
+    const collections=["bons","recus","carburant","magasinage","prises_en_charge"];
     let totalDel=0;
 
     for(const col of collections){
@@ -4987,7 +5045,7 @@ async function purgeCompleteDemarrage(){
       }
     }
 
-    // Remettre compteurs à zéro
+    // Remettre compteurs BL/reçus des chauffeurs à zéro
     loader(true,"Remise à zéro des compteurs...");
     const usersSnap=await db.collection("users").where("role","==","chauffeur").get();
     const batchCompteurs=db.batch();
@@ -4996,11 +5054,16 @@ async function purgeCompleteDemarrage(){
     });
     await batchCompteurs.commit();
 
+    // Remettre à zéro les compteurs de reçus secrétaire/admin (SEC-xxx et SEC/MAG-xxx)
+    await db.collection("parametres").doc("sec_compteur").set({val:0});
+    await db.collection("parametres").doc("mag_compteur").set({val:0});
+
     loader(false);
     resultEl.innerHTML=`<div style="background:var(--vert-lt);border:1.5px solid var(--vert);border-radius:8px;padding:12px;color:var(--vert);font-weight:700;font-size:13px;line-height:1.8">
       ✅ Purge terminée !<br>
       🗑 ${totalDel} document(s) supprimé(s)<br>
-      🔄 Compteurs remis à 1<br><br>
+      🔄 Compteurs BL/Reçus/SEC/MAG remis à zéro<br>
+      👥 Clients conservés<br><br>
       🚀 Votre application est prête pour le démarrage réel !
     </div>`;
 
