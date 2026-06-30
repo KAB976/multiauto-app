@@ -449,6 +449,10 @@ self.addEventListener('fetch', e => {
           <span class="fl">Téléphone <span class="tag-opt">Facultatif</span></span>
           <input class="inp" id="inp-tel" type="tel" placeholder="Ex : 0639 00 00 00">
         </div>
+        <div>
+          <span class="fl">Email <span class="tag-opt">Facultatif</span></span>
+          <input class="inp" id="inp-email" type="email" placeholder="client@exemple.com">
+        </div>
       </div>
     </div>
 
@@ -671,6 +675,7 @@ var CLIENTS = [
   "Assurance MMA","Assurance PACIFICA","Groupama","Préfecture",
   "Mairie Mamoudzou","CHM","Police Nationale","Gendarmerie"
 ];
+var CLIENTS_DATA = {}; // nom -> {tel, email} pour pré-remplissage
 
 // ════════════════════════════════════
 // ÉTAT
@@ -832,7 +837,15 @@ function initClients(){
 }
 
 function onClientChange(){
-  // Auto-remplir tel si client connu
+  var nom = G("sel-client").value;
+  var data = window.CLIENTS_DATA ? window.CLIENTS_DATA[nom] : null;
+  if(data){
+    if(data.tel && !G("inp-tel").value) G("inp-tel").value = data.tel;
+    if(data.email) G("inp-email").value = data.email;
+    else G("inp-email").value = "";
+  } else {
+    G("inp-email").value = "";
+  }
 }
 
 function ouvrirModalClient(){
@@ -1195,7 +1208,7 @@ function soumettre(){
       immatriculation:G("inp-immat").value.trim().toUpperCase(),
       type_bl: typeIntervention==="pc" ? "pc" : "client",
       marque:G("sel-marque").value, modele:G("sel-modele").value,
-      nom_client:G("sel-client").value, tel_client:G("inp-tel").value.trim(),
+      nom_client:G("sel-client").value, tel_client:G("inp-tel").value.trim(), email_client:G("inp-email").value.trim(),
       lieu_embarquement:G("inp-emb").value.trim(),
       destination:G("inp-dest").value.trim(),
       gps_emb_lat:gpsEmb.lat||(function(){ try{ return JSON.parse(localStorage.getItem('gps_emb_pending')||'{}').lat||""; }catch(e){ return ""; } })(),
@@ -1242,7 +1255,7 @@ function nouveauBon(){
   // Reset tout
   G("pg-success").classList.remove("on");
   G("pg-app").classList.add("on");
-  ["inp-immat","inp-tel","inp-emb","inp-dest","inp-montant"].forEach(function(id){ G(id).value=""; });
+  ["inp-immat","inp-tel","inp-email","inp-emb","inp-dest","inp-montant"].forEach(function(id){ G(id).value=""; });
   G("sel-marque").value=""; G("sel-modele").innerHTML="<option value=''>— Modèle —</option>";
   G("sel-client").value="";
   photoData=null;
@@ -1543,7 +1556,12 @@ function activerSyncTempsReel(){
     query(collection(db,"clients"), orderBy("nom","asc")),
     snap => {
       window.CLIENTS = [];
-      snap.forEach(d => window.CLIENTS.push(d.data().nom));
+      window.CLIENTS_DATA = {};
+      snap.forEach(d => {
+        const c = d.data();
+        window.CLIENTS.push(c.nom);
+        window.CLIENTS_DATA[c.nom] = { tel: c.tel||"", email: c.email||"" };
+      });
       console.log("✅ Sync clients reçue:", window.CLIENTS.length, "clients —", window.CLIENTS);
       initClients();
     },
@@ -1558,19 +1576,18 @@ function activerSyncTempsReel(){
       const fsMarques = {};
       snap.forEach(d => {
         const v = d.data();
-        const marque = v.marque||""; const modele = v.modele||"";
+        const marque = v.marque||"";
         if(!marque) return;
-        if(!fsMarques[marque]) fsMarques[marque] = new Set();
-        if(modele) fsMarques[marque].add(modele);
+        // Structure réelle Firestore : un doc par marque, champ "modeles" (tableau)
+        const modeles = Array.isArray(v.modeles) ? v.modeles : [];
+        fsMarques[marque] = modeles.filter(m=>m);
       });
+      // Remplacer entièrement MARQUES_MODELES par les données Firestore à jour
+      // (fusion avec la base statique pour ne pas perdre les marques par défaut)
       Object.keys(fsMarques).forEach(marque => {
-        if(!window.MARQUES_MODELES[marque]) window.MARQUES_MODELES[marque] = [];
-        fsMarques[marque].forEach(modele => {
-          if(!window.MARQUES_MODELES[marque].includes(modele))
-            window.MARQUES_MODELES[marque].push(modele);
-        });
+        window.MARQUES_MODELES[marque] = fsMarques[marque];
       });
-      console.log("✅ MARQUES_MODELES mis à jour:", Object.keys(window.MARQUES_MODELES).length, "marques");
+      console.log("✅ MARQUES_MODELES mis à jour:", Object.keys(window.MARQUES_MODELES).length, "marques —", Object.keys(fsMarques));
       initMarques();
       majModeles();
     },
@@ -1671,7 +1688,12 @@ async function chargerClients(){
   try {
     const snap = await getDocs(query(collection(db,"clients"), orderBy("nom","asc")));
     window.CLIENTS = [];
-    snap.forEach(d => window.CLIENTS.push(d.data().nom));
+    window.CLIENTS_DATA = {};
+    snap.forEach(d => {
+      const c = d.data();
+      window.CLIENTS.push(c.nom);
+      window.CLIENTS_DATA[c.nom] = { tel: c.tel||"", email: c.email||"" };
+    });
     if(window.CLIENTS.length === 0){
       const defauts = [
         "Divers","Assurance LADOM","Assurance AESIO","Assurance ALLIANZ",
@@ -1770,6 +1792,7 @@ window.enregistrer = async function(){
     // Client
     nom_client: G("sel-client").value,
     tel_client: G("inp-tel").value.trim(),
+    email_client: G("inp-email").value.trim(),
     // Trajet
     lieu_embarquement:   G("inp-emb").value.trim(),
     heure_embarquement:  heureEmb  ? fmtHeure(heureEmb)    : "",
