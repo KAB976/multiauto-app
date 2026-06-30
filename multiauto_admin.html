@@ -434,6 +434,7 @@ tr:hover td{background:var(--gris)}
       <div class="sb-item" onclick="afficherPage('pg-pc')" id="nav-pc"><span class="ico">📄</span> Prises en charge</div>
       <div class="sb-section">Opérations</div>
       <div class="sb-item" onclick="afficherPage('pg-carburant')" id="nav-carburant"><span class="ico">⛽</span> Carburant</div>
+      <div class="sb-item" onclick="afficherPage('pg-recap')" id="nav-recap"><span class="ico">📈</span> Récapitulation</div>
       <div class="sb-item" onclick="afficherPage('pg-soldes')" id="nav-soldes"><span class="ico">💳</span> Soldes clients</div>
       <div class="sb-item" onclick="afficherPage('pg-gps')" id="nav-gps"><span class="ico">🗺️</span> GPS & Trajets</div>
       <div class="sb-item" onclick="afficherPage('pg-historique')" id="nav-historique"><span class="ico">🔍</span> Historique immat.</div>
@@ -785,7 +786,56 @@ tr:hover td{background:var(--gris)}
       </div>
     </div>
 
-    <!-- GPS -->
+    <!-- RÉCAPITULATION / PROFITABILITÉ -->
+    <div class="pg" id="pg-recap">
+      <div class="page-header">
+        <div><div class="page-title">📈 Récapitulation — Profitabilité</div></div>
+        <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center">
+          <button class="btn btn-secondary btn-sm" onclick="selToutRecap()">☑ Tout</button>
+          <span id="recap-sel-lbl" style="font-size:12px;font-weight:700;color:var(--rouge)"></span>
+          <button class="btn btn-secondary" onclick="exporterRecapPDF()">⬇ Export PDF</button>
+          <button class="btn btn-secondary" onclick="window.print()">🖨 Imprimer</button>
+        </div>
+      </div>
+      <div class="card">
+        <div class="filtres">
+          <select class="filtre-inp" id="recap-camion"><option value="">Tous les camions</option></select>
+          <input class="filtre-inp" type="date" id="recap-debut">
+          <input class="filtre-inp" type="date" id="recap-fin">
+          <div class="form-group" style="display:flex;align-items:center;gap:6px">
+            <span class="fl" style="margin:0">Frais fixes (%)</span>
+            <input class="filtre-inp" type="number" id="recap-taux" value="15" min="0" max="100" step="0.5" style="width:80px">
+          </div>
+          <select class="filtre-inp" id="recap-mode">
+            <option value="montant">📊 Montant global</option>
+            <option value="detail">📋 Avec détails</option>
+          </select>
+          <button class="btn btn-primary" onclick="chargerRecap()">📊 Calculer</button>
+        </div>
+      </div>
+
+      <div class="stats-grid" id="recap-stats"></div>
+
+      <div class="card">
+        <div class="card-title">📊 Profit par camion</div>
+        <div id="recap-chart" style="padding:10px 0"></div>
+      </div>
+
+      <div class="card" style="padding:0">
+        <div class="table-wrap">
+          <table>
+            <thead><tr>
+              <th><input type="checkbox" id="recap-check-all" onclick="selToutRecap()"></th>
+              <th>Camion</th><th>Nb BL</th><th>Chiffre d'affaires</th><th>Carburant</th>
+              <th>Frais fixes (%)</th><th>Total charges</th><th>Profit net</th><th>Marge %</th>
+            </tr></thead>
+            <tbody id="recap-tbody"><tr><td colspan="9" style="text-align:center;color:var(--gris3);padding:24px">Cliquez sur Calculer</td></tr></tbody>
+          </table>
+        </div>
+      </div>
+
+      <div id="recap-detail-container"></div>
+    </div>
     <div class="pg" id="pg-gps">
       <div class="page-header">
         <div><div class="page-title">🗺️ GPS & Trajets</div></div>
@@ -873,10 +923,11 @@ tr:hover td{background:var(--gris)}
       </div>
       <div class="card">
         <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:16px;align-items:center">
-          <input class="inp" id="hist-immat" placeholder="Immatriculation..." style="text-transform:uppercase;flex:1;max-width:200px" oninput="this.value=this.value.toUpperCase();rechercherHistorique()">
-          <select class="filtre-inp" id="hist-client" style="min-width:180px" onchange="rechercherHistorique()"><option value="">— Tous clients —</option></select>
-          <input class="filtre-inp" type="date" id="hist-debut" onchange="rechercherHistorique()">
-          <input class="filtre-inp" type="date" id="hist-fin" onchange="rechercherHistorique()">
+          <input class="inp" id="hist-immat" placeholder="Immatriculation..." style="text-transform:uppercase;flex:1;max-width:200px" oninput="this.value=this.value.toUpperCase()">
+          <select class="filtre-inp" id="hist-client" style="min-width:180px"><option value="">— Tous clients —</option></select>
+          <input class="filtre-inp" type="date" id="hist-debut">
+          <input class="filtre-inp" type="date" id="hist-fin">
+          <button class="btn btn-primary" onclick="rechercherHistorique()">🔍 Filtrer</button>
           <button class="btn btn-secondary btn-sm" onclick="G('hist-immat').value='';G('hist-client').value='';G('hist-debut').value='';G('hist-fin').value='';rechercherHistorique()">✕ Reset</button>
         </div>
         <div id="hist-result"><div style="color:var(--gris3);padding:24px;text-align:center">Chargement...</div></div>
@@ -986,6 +1037,7 @@ tr:hover td{background:var(--gris)}
               <div class="switch-row"><div class="switch-info"><div class="switch-label">Accès GPS & Trajets</div></div><label class="switch"><input type="checkbox" id="d-gps"><span class="sw-slider"></span></label></div>
               <div class="switch-row"><div class="switch-info"><div class="switch-label">Accès commissions</div></div><label class="switch"><input type="checkbox" id="d-commissions"><span class="sw-slider"></span></label></div>
               <div class="switch-row"><div class="switch-info"><div class="switch-label">Opérations carburant</div></div><label class="switch"><input type="checkbox" id="d-carburant"><span class="sw-slider"></span></label></div>
+              <div class="switch-row"><div class="switch-info"><div class="switch-label">📈 Récapitulation / Profitabilité</div></div><label class="switch"><input type="checkbox" id="d-recap"><span class="sw-slider"></span></label></div>
             </div>
             <div class="perm-group">
               <div class="perm-group-title">Gestion flotte</div>
@@ -1235,7 +1287,9 @@ function afficherPage(id){
   if(id==="pg-magasinage") chargerMagasinage();
   if(id==="pg-pc")         chargerPC();
   if(id==="pg-carburant")  chargerCarburant();
-  if(id==="pg-soldes")      chargerSoldes("");
+  if(id==="pg-recap")      initRecapFiltres();
+  if(id==="pg-soldes")      { chargerSoldes(""); activerSyncSoldes(); }
+  else { desactiverSyncSoldes(); }
   if(id==="pg-gps")        chargerGPS();
   if(id==="pg-historique")  rechercherHistorique();
   if(id==="pg-stats")      chargerStats();
@@ -2928,6 +2982,211 @@ function chargerCarburant(){
   }).catch(()=>{loader(false);});
 }
 function supprimerCarburant(id){if(!confirm("Supprimer ?"))return;db.collection("carburant").doc(id).delete().then(()=>{toast("Supprimé ✅");chargerCarburant();});}
+
+// ════════════════════════════════════
+// RÉCAPITULATION / PROFITABILITÉ PAR CAMION
+// ════════════════════════════════════
+let recapData=[];
+
+function initRecapFiltres(){
+  const sel=G("recap-camion");
+  if(sel){
+    const cur=sel.value;
+    sel.innerHTML="<option value=''>Tous les camions</option>";
+    camionsList.forEach(c=>{const o=document.createElement("option");o.value=c.nom;o.textContent=c.nom+(c.immat?" "+c.immat:"");sel.appendChild(o);});
+    if(cur) sel.value=cur;
+  }
+  // Charger le taux par défaut depuis paramètres si disponible
+  db.collection("parametres").doc("societe").get().then(sp=>{
+    const p=sp.data()||{};
+    if(p.taux_depenses_fixes && G("recap-taux")) G("recap-taux").value=p.taux_depenses_fixes;
+  }).catch(()=>{});
+}
+
+async function chargerRecap(){
+  loader(true,"Calcul de la profitabilité...");
+  const camionFiltre=G("recap-camion")?.value||"";
+  const debut=G("recap-debut")?.value||"";
+  const fin=G("recap-fin")?.value||"";
+  const tauxFixe=parseFloat(G("recap-taux")?.value)||15;
+  const mode=G("recap-mode")?.value||"montant";
+
+  try{
+    // 1. Charger tous les BL (CA par camion)
+    const blSnap=await db.collection("bons").orderBy("timestamp","desc").limit(2000).get();
+    let bons=[]; blSnap.forEach(d=>bons.push({id:d.id,...d.data()}));
+    if(debut) bons=bons.filter(b=>toComp(b.date_bl)>=debut);
+    if(fin)   bons=bons.filter(b=>toComp(b.date_bl)<=fin);
+
+    // 2. Charger tout le carburant (dépenses par camion)
+    const fuelSnap=await db.collection("carburant").orderBy("date","desc").limit(2000).get();
+    let fuels=[]; fuelSnap.forEach(d=>fuels.push({id:d.id,...d.data()}));
+    if(debut) fuels=fuels.filter(f=>toComp(f.date)>=debut);
+    if(fin)   fuels=fuels.filter(f=>toComp(f.date)<=fin);
+
+    // 3. Agréger par camion
+    const parCamion={};
+    function ensureCamion(nom){
+      if(!parCamion[nom]) parCamion[nom]={nom, nbBL:0, ca:0, carburant:0, bons:[], fuels:[]};
+      return parCamion[nom];
+    }
+    bons.forEach(b=>{
+      const camNom=b.camion||"Non assigné";
+      if(camionFiltre && camNom!==camionFiltre) return;
+      const c=ensureCamion(camNom);
+      c.nbBL++;
+      c.ca+=parseFloat(b.montant)||0;
+      c.bons.push(b);
+    });
+    fuels.forEach(f=>{
+      const camNom=f.camion||"Non assigné";
+      if(camionFiltre && camNom!==camionFiltre) return;
+      const c=ensureCamion(camNom);
+      c.carburant+=parseFloat(f.montant)||0;
+      c.fuels.push(f);
+    });
+
+    const liste=Object.values(parCamion).sort((a,b)=>b.ca-a.ca);
+    liste.forEach(c=>{
+      c.fraisFixes = c.ca * (tauxFixe/100);
+      c.totalCharges = c.carburant + c.fraisFixes;
+      c.profit = c.ca - c.totalCharges;
+      c.marge = c.ca>0 ? (c.profit/c.ca*100) : 0;
+    });
+    recapData=liste;
+
+    // Stats globales
+    const totalCA=liste.reduce((s,c)=>s+c.ca,0);
+    const totalCarb=liste.reduce((s,c)=>s+c.carburant,0);
+    const totalFixe=liste.reduce((s,c)=>s+c.fraisFixes,0);
+    const totalProfit=liste.reduce((s,c)=>s+c.profit,0);
+    const margeGlobale=totalCA>0?(totalProfit/totalCA*100):0;
+
+    G("recap-stats").innerHTML=`
+      <div class="stat-card"><div class="stat-num">${fmtMontant(totalCA)}</div><div class="stat-label">Chiffre d'affaires</div></div>
+      <div class="stat-card" style="border-left-color:#f57c00"><div class="stat-num">${fmtMontant(totalCarb)}</div><div class="stat-label">Carburant</div></div>
+      <div class="stat-card" style="border-left-color:#9c27b0"><div class="stat-num">${fmtMontant(totalFixe)}</div><div class="stat-label">Frais fixes (${tauxFixe}%)</div></div>
+      <div class="stat-card" style="border-left-color:${totalProfit>=0?'var(--vert)':'var(--rouge)'}"><div class="stat-num" style="color:${totalProfit>=0?'var(--vert)':'var(--rouge)'}">${fmtMontant(totalProfit)}</div><div class="stat-label">Profit net</div></div>
+      <div class="stat-card" style="border-left-color:var(--bleu)"><div class="stat-num">${margeGlobale.toFixed(1)}%</div><div class="stat-label">Marge globale</div></div>`;
+
+    // Graphique en barres horizontales — profit par camion
+    const maxAbsProfit=Math.max(...liste.map(c=>Math.abs(c.profit)),1);
+    G("recap-chart").innerHTML = liste.length ? liste.map(c=>{
+      const pct=Math.round(Math.abs(c.profit)/maxAbsProfit*100);
+      const isNeg=c.profit<0;
+      return `<div style="margin-bottom:14px">
+        <div style="display:flex;justify-content:space-between;font-size:13px;font-weight:700;margin-bottom:4px">
+          <span style="color:var(--gris4)">${c.nom}</span>
+          <span style="color:${isNeg?'var(--rouge)':'var(--vert)'}">${fmtMontant(c.profit)} (${c.marge.toFixed(1)}%)</span>
+        </div>
+        <div style="background:var(--gris2);border-radius:6px;height:18px;overflow:hidden;position:relative">
+          <div style="width:${pct}%;height:100%;background:${isNeg?'linear-gradient(90deg,#ef5350,#e53935)':'linear-gradient(90deg,#66bb6a,#43a047)'};border-radius:6px;transition:width .4s"></div>
+        </div>
+        <div style="display:flex;gap:14px;font-size:10px;color:var(--gris3);margin-top:3px">
+          <span>CA: ${fmtMontant(c.ca)}</span><span>⛽ ${fmtMontant(c.carburant)}</span><span>Fixe: ${fmtMontant(c.fraisFixes)}</span><span>${c.nbBL} BL</span>
+        </div>
+      </div>`;
+    }).join("") : `<div style="text-align:center;color:var(--gris3);padding:20px">Aucune donnée pour cette période</div>`;
+
+    // Tableau récap
+    let html="";
+    liste.forEach((c,idx)=>{
+      html+=`<tr style="${c.profit<0?'background:#fff5f5':''}">
+        <td><input type="checkbox" class="recap-cb" data-idx="${idx}" onchange="majSelRecap()"></td>
+        <td style="font-weight:700">${c.nom}</td>
+        <td style="text-align:center">${c.nbBL}</td>
+        <td style="font-weight:700;color:var(--bleu)">${fmtMontant(c.ca)}</td>
+        <td style="color:#f57c00">${fmtMontant(c.carburant)}</td>
+        <td style="color:#9c27b0">${fmtMontant(c.fraisFixes)}</td>
+        <td style="font-weight:700">${fmtMontant(c.totalCharges)}</td>
+        <td style="font-weight:900;color:${c.profit>=0?'var(--vert)':'var(--rouge)'}">${fmtMontant(c.profit)}</td>
+        <td style="font-weight:700;color:${c.marge>=0?'var(--vert)':'var(--rouge)'}">${c.marge.toFixed(1)}%</td>
+      </tr>`;
+    });
+    G("recap-tbody").innerHTML=html||`<tr><td colspan="9" style="text-align:center;color:var(--gris3);padding:24px">Aucune donnée pour cette période</td></tr>`;
+
+    // Mode détail
+    const existingDet=document.getElementById("recap-detail-table");
+    if(existingDet) existingDet.remove();
+    if(mode==="detail"){
+      let dhtml="";
+      liste.forEach(c=>{
+        dhtml+=`<div class="card" style="margin-top:14px">
+          <div class="card-title">🚛 ${c.nom} — Détail des opérations</div>
+          <div class="table-wrap"><table>
+            <thead><tr><th>N° BL</th><th>Date</th><th>Client</th><th>Trajet</th><th>Montant</th></tr></thead>
+            <tbody>${c.bons.map(b=>`<tr>
+              <td style="font-weight:700;color:var(--bleu);font-size:11px">${b.bon_num||"—"}</td>
+              <td>${b.date_bl||"—"}</td><td>${b.nom_client||"—"}</td>
+              <td style="font-size:11px">${b.lieu_embarquement||""} → ${b.destination||""}</td>
+              <td style="font-weight:700;color:var(--vert)">${fmtMontant(b.montant)}</td>
+            </tr>`).join("")||"<tr><td colspan='5' style='text-align:center;color:var(--gris3)'>Aucun BL</td></tr>"}</tbody>
+          </table></div>
+          <div class="table-wrap" style="margin-top:10px"><table>
+            <thead><tr><th>Date carburant</th><th>Litres</th><th>Montant</th></tr></thead>
+            <tbody>${c.fuels.map(f=>`<tr><td>${f.date||"—"}</td><td>${f.litres||"—"} L</td><td style="color:#f57c00;font-weight:700">${fmtMontant(f.montant)}</td></tr>`).join("")||"<tr><td colspan='3' style='text-align:center;color:var(--gris3)'>Aucune saisie</td></tr>"}</tbody>
+          </table></div>
+        </div>`;
+      });
+      G("recap-detail-container").innerHTML=`<div id="recap-detail-table">${dhtml}</div>`;
+    } else {
+      G("recap-detail-container").innerHTML="";
+    }
+
+    loader(false);
+  }catch(e){ loader(false); toast("Erreur calcul","err"); console.error(e); }
+}
+
+function selToutRecap(){
+  const all=G("recap-check-all");
+  document.querySelectorAll(".recap-cb").forEach(cb=>cb.checked=all?all.checked:true);
+  majSelRecap();
+}
+function majSelRecap(){
+  const nb=document.querySelectorAll(".recap-cb:checked").length;
+  const lbl=G("recap-sel-lbl"); if(lbl) lbl.textContent=nb>0?nb+" sélectionné(s)":"";
+}
+
+function exporterRecapPDF(){
+  if(!recapData.length){ toast("Calculez d'abord la récapitulation","err"); return; }
+  const cbs=document.querySelectorAll(".recap-cb:checked");
+  const indices=cbs.length>0 ? Array.from(cbs).map(cb=>parseInt(cb.dataset.idx)) : recapData.map((_,i)=>i);
+  const liste=indices.map(i=>recapData[i]);
+  loader(true,"Export PDF...");
+  const {jsPDF}=window.jspdf;
+  const doc=new jsPDF('landscape','mm','a4');
+  doc.setFont('helvetica','bold');doc.setFontSize(14);doc.setTextColor(200,52,26);
+  doc.text('RÉCAPITULATION — PROFITABILITÉ PAR CAMION',148,15,{align:'center'});
+  doc.setFontSize(9);doc.setFont('helvetica','normal');doc.setTextColor(100,100,100);
+  const debut=G("recap-debut")?.value||"", fin=G("recap-fin")?.value||"";
+  const periode=(debut||fin)?`Période: ${debut||"..."} au ${fin||"..."}`:"Toutes périodes";
+  doc.text(periode+' — Édité le '+new Date().toLocaleDateString('fr-FR'),148,21,{align:'center'});
+
+  const totalCA=liste.reduce((s,c)=>s+c.ca,0);
+  const totalProfit=liste.reduce((s,c)=>s+c.profit,0);
+  doc.setFontSize(10);doc.setFont('helvetica','bold');doc.setTextColor(26,26,26);
+  doc.text(`Total CA: ${totalCA.toFixed(2)} €    Total Profit: ${totalProfit.toFixed(2)} €`,148,27,{align:'center'});
+
+  const rows=liste.map(c=>[
+    c.nom, c.nbBL, c.ca.toFixed(2)+' €', c.carburant.toFixed(2)+' €',
+    c.fraisFixes.toFixed(2)+' €', c.totalCharges.toFixed(2)+' €',
+    c.profit.toFixed(2)+' €', c.marge.toFixed(1)+'%'
+  ]);
+  doc.autoTable({
+    startY:32,
+    head:[['Camion','Nb BL','CA','Carburant','Frais fixes','Total charges','Profit net','Marge %']],
+    body:rows,
+    headStyles:{fillColor:[26,37,64],textColor:255,fontSize:8,fontStyle:'bold'},
+    bodyStyles:{fontSize:8},
+    alternateRowStyles:{fillColor:[246,246,246]},
+    margin:{left:10,right:10},
+    columnStyles:{6:{fontStyle:'bold'}}
+  });
+  doc.save('recapitulation-profitabilite.pdf');
+  loader(false); toast('PDF exporté ✅');
+}
+
+
 function exporterHistCarburantPDF(){
   loader(true,"Export carburant...");
   const {jsPDF}=window.jspdf;
@@ -3079,6 +3338,17 @@ var soldesData = [];
 // Clients PC auto (GAA, Mondiale Assistance)
 const PC_CLIENTS_AUTO = ["gaa","mondiale assistance","mondiale"];
 function estClientPC(nom){ return PC_CLIENTS_AUTO.some(k=>(nom||"").toLowerCase().includes(k)); }
+
+// ── SYNC TEMPS RÉEL SOLDES ──
+let _soldesUnsub=null;
+function activerSyncSoldes(){
+  if(_soldesUnsub) return; // déjà actif
+  _soldesUnsub = db.collection("bons").orderBy("timestamp","desc").limit(1)
+    .onSnapshot(()=>{ if(G("pg-soldes")?.classList.contains("on")) chargerSoldes(""); }, ()=>{});
+}
+function desactiverSyncSoldes(){
+  if(_soldesUnsub){ _soldesUnsub(); _soldesUnsub=null; }
+}
 
 async function chargerSoldes(prefix){
   const pfx = prefix||"";
@@ -3773,6 +4043,7 @@ function chargerDroitsOnglet(idx){
     s("d-gps",             d.secretaire_gps===true);
     s("d-commissions",     d.secretaire_commissions===true);
     s("d-carburant",       d.secretaire_carburant===true);
+    s("d-recap",           d.secretaire_recap===true);
     s("d-chauffeurs-voir", d.secretaire_chauffeurs_voir===true);
     s("d-camions-voir",    d.secretaire_camions_voir===true);
     if(hasDroits){
@@ -3822,6 +4093,7 @@ function sauvegarderDroits(){
     secretaire_gps:            g("d-gps"),
     secretaire_commissions:    g("d-commissions"),
     secretaire_carburant:      g("d-carburant"),
+    secretaire_recap:          g("d-recap"),
     secretaire_chauffeurs_voir:g("d-chauffeurs-voir"),
     secretaire_camions_voir:   g("d-camions-voir"),
     secretaire_clients:        g("d-clients"),
