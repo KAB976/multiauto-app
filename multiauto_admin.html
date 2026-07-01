@@ -4581,9 +4581,11 @@ function chargerCommissions(){
       if(fin)   bons=bons.filter(b=>toComp(b.date_bl)<=fin);
       let parCh={};
       bons.forEach(b=>{
-        const k=b.chauffeur_nom||"—";if(!parCh[k])parCh[k]={blN:[],montN:0,blTW:[],montTW:0};
-        const m=b.montant_especes||0;
-        if(b.tarif==="NORMAL"){parCh[k].blN.push(b);parCh[k].montN+=m;}else{parCh[k].blTW.push(b);parCh[k].montTW+=m;}
+        const k=b.chauffeur_nom||"—"; if(!parCh[k]) parCh[k]={blN:[],montN:0,blTW:[],montTW:0};
+        // Base de calcul = montant réel du BL (pas les espèces encaissées)
+        const m=parseFloat(b.montant)||0;
+        if(b.tarif==="NORMAL"){parCh[k].blN.push(b);parCh[k].montN+=m;}
+        else{parCh[k].blTW.push(b);parCh[k].montTW+=m;}
       });
       let html="", total=0;
       const totalCA=Object.values(parCh).reduce((s,d)=>s+(d.montN+d.montTW),0);
@@ -4601,7 +4603,7 @@ function chargerCommissions(){
         } else {
           html+=`<tr style="background:var(--gris)"><td colspan="8"><strong>👤 ${nom}</strong> — Normal: ${d.blN.length} BL / ${fmtMontant(d.montN)} → <span style="color:var(--vert)">${fmtMontant(cN)}</span> | TN/TW: ${d.blTW.length} BL / ${fmtMontant(d.montTW)} → <span style="color:var(--violet)">${fmtMontant(cTW)}</span> | <strong style="color:var(--rouge)">${fmtMontant(t)}</strong></td></tr>`;
           [...d.blN,...d.blTW].sort((a,b)=>(a.date_bl||"").localeCompare(b.date_bl||"")).forEach(b=>{
-            const m=b.montant_especes||0, tx=b.tarif==="NORMAL"?txN:txTW, comm=m*tx/100;
+            const m=parseFloat(b.montant)||0, tx=b.tarif==="NORMAL"?txN:txTW, comm=m*tx/100;
             html+=`<tr style="font-size:11px"><td colspan="2" style="padding-left:20px;color:var(--gris3)">${b.date_bl||"—"}</td><td colspan="2">${b.bon_num||"—"} — ${b.nom_client||"—"}</td><td colspan="2">${b.lieu_embarquement||"—"} → ${b.destination||"—"}</td><td><span class="badge ${b.tarif==="NORMAL"?"tarif-normal":"tarif-tw"}">${b.tarif}</span></td><td style="font-weight:700;color:var(--vert)">${fmtMontant(comm)}</td></tr>`;
           });
         }
