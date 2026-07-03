@@ -8,6 +8,7 @@
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.8.2/jspdf.plugin.autotable.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 <style>
 :root{
   --rouge:#C8341A;--rouge-dk:#9E2510;--rouge-lt:#FFF0EB;
@@ -516,6 +517,7 @@ tr:hover td{background:var(--gris)}
       <div class="sb-item" onclick="afficherPage('pg-stats')" id="nav-stats"><span class="ico">📈</span> Statistiques</div>
       <div class="sb-item" onclick="afficherPage('pg-commissions')" id="nav-commissions"><span class="ico">💰</span> Commissions</div>
       <div class="sb-section">Configuration</div>
+      <div class="sb-item" onclick="afficherPage('pg-audit-log')" id="nav-audit-log"><span class="ico">🕵️</span> Journal d'audit</div>
       <div class="sb-item" onclick="afficherPage('pg-droits')" id="nav-droits"><span class="ico">🔛</span> Droits accès</div>
       <div class="sb-item" onclick="afficherPage('pg-utilisateurs')" id="nav-utilisateurs"><span class="ico">👥</span> Utilisateurs</div>
       <div class="sb-item" onclick="afficherPage('pg-parametres')" id="nav-parametres"><span class="ico">⚙️</span> Paramètres</div>
@@ -910,6 +912,7 @@ tr:hover td{background:var(--gris)}
           <button class="btn btn-secondary btn-sm" onclick="selToutRecap()">☑ Tout</button>
           <span id="recap-sel-lbl" style="font-size:12px;font-weight:700;color:var(--rouge)"></span>
           <button class="btn btn-secondary" onclick="exporterRecapPDF()">⬇ Export PDF</button>
+          <button class="btn btn-secondary" onclick="exporterRecapExcel()">📊 Export Excel</button>
           <button class="btn btn-primary" onclick="ouvrirExportComptable()">📊 Export Comptable Mensuel</button>
           <button class="btn btn-secondary" onclick="window.print()">🖨 Imprimer</button>
         </div>
@@ -991,6 +994,7 @@ tr:hover td{background:var(--gris)}
         <div style="display:flex;gap:8px">
           <button class="btn btn-secondary" onclick="selToutSoldes()">☑ Tout sélectionner</button>
           <button class="btn btn-secondary" onclick="exporterSoldesPDF()">⬇ Export PDF</button>
+          <button class="btn btn-secondary" onclick="exporterSoldesExcel()">📊 Export Excel</button>
         </div>
       </div>
       <div class="card" style="padding:0">
@@ -1035,6 +1039,7 @@ tr:hover td{background:var(--gris)}
           <span id="hist-sel-lbl" style="font-size:12px;font-weight:700;color:var(--rouge)"></span>
           <button class="btn btn-secondary" onclick="selToutHistorique()">☑ Tout</button>
           <button class="btn btn-secondary" onclick="exporterHistoriquePDF()">⬇ Export PDF</button>
+          <button class="btn btn-secondary" onclick="exporterHistoriqueExcel()">📊 Export Excel</button>
           <button class="btn btn-secondary" onclick="window.print()">🖨 Imprimer</button>
         </div>
       </div>
@@ -1285,16 +1290,28 @@ tr:hover td{background:var(--gris)}
         <div id="purge-complete-result" style="font-size:12px;margin-top:10px"></div>
       </div>
 
-      <div class="card" style="max-width:900px;margin-top:16px">
-        <div class="card-title" style="display:flex;align-items:center;justify-content:space-between">
-          <span>🕵️ Journal d'audit — Confirmations de paiement</span>
+    </div>
+
+    <!-- JOURNAL D'AUDIT -->
+    <div class="pg" id="pg-audit-log">
+      <div class="page-header">
+        <div><div class="page-title">🕵️ Journal d'audit — Confirmations de paiement</div></div>
+        <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center">
+          <span id="audit-sel-lbl" style="font-size:12px;font-weight:700;color:var(--rouge)"></span>
+          <button class="btn btn-secondary btn-sm" onclick="toutCocherAudit()">☑ Tout</button>
+          <button class="btn btn-secondary" onclick="exporterAuditPDF()">⬇ Export PDF</button>
+          <button class="btn btn-secondary" onclick="window.print()">🖨 Imprimer</button>
           <button class="btn btn-secondary btn-sm" onclick="chargerAuditLog()">🔄 Actualiser</button>
         </div>
-        <p style="font-size:12px;color:var(--gris3);margin-bottom:12px">Trace qui a confirmé chaque paiement, pour éviter les litiges internes. Les 100 dernières opérations.</p>
+      </div>
+      <div class="card" style="padding:0">
+        <p style="font-size:12px;color:var(--gris3);padding:14px 14px 0">Trace qui a confirmé chaque paiement, pour éviter les litiges internes. Les 100 dernières opérations.</p>
         <div class="table-wrap">
           <table>
-            <thead><tr><th>Date/Heure</th><th>Utilisateur</th><th>Action</th><th>Client</th><th>N°</th><th>Montant</th><th>Mode</th><th>Reçu</th></tr></thead>
-            <tbody id="audit-log-tbody"><tr><td colspan="8" style="text-align:center;color:var(--gris3);padding:20px">Cliquez sur Actualiser</td></tr></tbody>
+            <thead><tr>
+              <th><input type="checkbox" id="audit-check-all" onclick="toutCocherAudit()"></th>
+              <th>Date/Heure</th><th>Utilisateur</th><th>Action</th><th>Client</th><th>N°</th><th>Montant</th><th>Mode</th><th>Reçu</th></tr></thead>
+            <tbody id="audit-log-tbody"><tr><td colspan="9" style="text-align:center;color:var(--gris3);padding:20px">Cliquez sur Actualiser</td></tr></tbody>
           </table>
         </div>
       </div>
@@ -1443,6 +1460,14 @@ db.collection("parametres").doc("societe").get().then(snap=>{
 }).catch(()=>{});
 
 const G=id=>document.getElementById(id);
+function exporterExcel(headers,rows,filename,sheetName){
+  if(!rows||!rows.length){toast("Aucune donnée à exporter","err");return;}
+  const ws=XLSX.utils.aoa_to_sheet([headers,...rows]);
+  const wb=XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb,ws,sheetName||"Feuille1");
+  XLSX.writeFile(wb,filename);
+  toast("Excel exporté ✅");
+}
 
 // ── MODE SOMBRE ──
 function toggleDarkMode(){
@@ -1511,6 +1536,7 @@ function afficherPage(id){
   if(id==="pg-droits")     {chargerDroits(); chargerPermChauffeursFn();}
   if(id==="pg-utilisateurs") chargerUtilisateurs();
   if(id==="pg-parametres") chargerParametres();
+  if(id==="pg-audit-log")  chargerAuditLog();
 }
 function fermerModal(id){ G(id)?.classList.remove("on"); }
 
@@ -2012,7 +2038,7 @@ async function genererExportComptable(){
 // ── JOURNAL D'AUDIT ──
 async function chargerAuditLog(){
   const tbody=G("audit-log-tbody");
-  tbody.innerHTML=`<tr><td colspan="8" style="text-align:center;color:var(--gris3);padding:20px">⏳ Chargement...</td></tr>`;
+  tbody.innerHTML=`<tr><td colspan="9" style="text-align:center;color:var(--gris3);padding:20px">⏳ Chargement...</td></tr>`;
   try{
     const snap=await db.collection("audit_log").limit(200).get();
     let logs=[]; snap.forEach(d=>logs.push({id:d.id,...d.data()}));
@@ -2022,17 +2048,22 @@ async function chargerAuditLog(){
     });
     logs=logs.slice(0,100);
     if(!logs.length){
-      tbody.innerHTML=`<tr><td colspan="8" style="text-align:center;color:var(--gris3);padding:20px">Aucune entrée pour le moment</td></tr>`;
+      tbody.innerHTML=`<tr><td colspan="9" style="text-align:center;color:var(--gris3);padding:20px">Aucune entrée pour le moment</td></tr>`;
       return;
     }
     let html="";
     logs.forEach(l=>{
       const dt = l.timestamp?.seconds ? new Date(l.timestamp.seconds*1000).toLocaleString("fr-FR") : "—";
       const modeLabel={especes:"💵 Esp.",cb:"💳 CB",cheque:"📝 Chq.",virement:"🏦 Vir."}[l.mode_paiement]||l.mode_paiement||"—";
+      const actionLabel=l.action==="confirmation_paiement"?"💰 Paiement confirmé":l.action||"—";
       html+=`<tr>
+        <td><input type="checkbox" class="audit-check" onchange="majSelAudit()"
+          data-dt="${dt}" data-user="${(l.utilisateur||"—")}" data-action="${actionLabel}"
+          data-client="${(l.client||"—")}" data-numero="${(l.numero||"—")}"
+          data-montant="${fmtMontant(l.montant)}" data-mode="${modeLabel}" data-recu="${(l.recu_num||"—")}"></td>
         <td style="font-size:11px">${dt}</td>
         <td style="font-weight:700">${l.utilisateur||"—"} <span style="font-size:10px;color:var(--gris3)">(${l.utilisateur_role||""})</span></td>
-        <td style="font-size:11px">${l.action==="confirmation_paiement"?"💰 Paiement confirmé":l.action||"—"}</td>
+        <td style="font-size:11px">${actionLabel}</td>
         <td>${l.client||"—"}</td>
         <td style="font-size:11px;color:var(--bleu)">${l.numero||"—"}</td>
         <td style="font-weight:700;color:var(--vert)">${fmtMontant(l.montant)}</td>
@@ -2041,10 +2072,46 @@ async function chargerAuditLog(){
       </tr>`;
     });
     tbody.innerHTML=html;
+    majSelAudit();
   }catch(e){
-    tbody.innerHTML=`<tr><td colspan="8" style="text-align:center;color:var(--rouge);padding:20px">Erreur chargement</td></tr>`;
+    tbody.innerHTML=`<tr><td colspan="9" style="text-align:center;color:var(--rouge);padding:20px">Erreur chargement</td></tr>`;
     console.error(e);
   }
+}
+function toutCocherAudit(){
+  const all=G("audit-check-all");
+  document.querySelectorAll(".audit-check").forEach(cb=>cb.checked=all?.checked);
+  majSelAudit();
+}
+function majSelAudit(){
+  const nb=document.querySelectorAll(".audit-check:checked").length;
+  const lbl=G("audit-sel-lbl"); if(lbl) lbl.textContent=nb>0?nb+" sélectionné(s)":"";
+}
+function exporterAuditPDF(){
+  const cochees=document.querySelectorAll(".audit-check:checked");
+  const {jsPDF}=window.jspdf;
+  const doc=new jsPDF('landscape','mm','a4');
+  doc.setFont('helvetica','bold');doc.setFontSize(14);doc.setTextColor(200,52,26);
+  doc.text("JOURNAL D'AUDIT — "+SOC.nom,148,15,{align:'center'});
+  doc.setFontSize(9);doc.setTextColor(100,100,100);
+  doc.text('Généré le '+new Date().toLocaleDateString('fr-FR'),148,21,{align:'center'});
+  const rows=[];
+  if(cochees.length>0){
+    doc.text('Sélection : '+cochees.length+' entrée(s)',148,26,{align:'center'});
+    cochees.forEach(cb=>{
+      rows.push([cb.dataset.dt,cb.dataset.user,cb.dataset.action,cb.dataset.client,cb.dataset.numero,cb.dataset.montant,cb.dataset.mode,cb.dataset.recu]);
+    });
+  } else {
+    document.querySelectorAll("#audit-log-tbody tr").forEach(tr=>{
+      const cells=[];tr.querySelectorAll("td").forEach((td,i)=>{if(i>0)cells.push(td.textContent.trim().replace(/\s+/g,' '));});
+      if(cells.length>2)rows.push(cells);
+    });
+  }
+  doc.autoTable({startY:30,head:[['Date/Heure','Utilisateur','Action','Client','N°','Montant','Mode','Reçu']],body:rows,
+    headStyles:{fillColor:[26,37,64],textColor:255,fontSize:7},bodyStyles:{fontSize:8},
+    alternateRowStyles:{fillColor:[246,246,246]},margin:{left:10,right:10}});
+  doc.save('journal-audit'+(cochees.length>0?'-selection':'')+'.pdf');
+  toast(cochees.length>0?cochees.length+' entrée(s) exportée(s) ✅':'Journal exporté ✅');
 }
 
 function chargerDashboard(){
@@ -2284,6 +2351,27 @@ function exporterHistoriquePDF(){
     });
     doc.save('historique'+(cbs.length>0?'-selection':'-tous')+'.pdf');
     loader(false);toast("PDF exporté ✅ ("+ids.length+" BL)");
+  }).catch(e=>{loader(false);toast("Erreur","err");console.error(e);});
+}
+function exporterHistoriqueExcel(){
+  const cbs=document.querySelectorAll(".hist-cb:checked");
+  const allCbs=document.querySelectorAll(".hist-cb");
+  if(!allCbs.length){ toast("Aucun historique à exporter","err"); return; }
+  loader(true,"Export Excel...");
+  const ids=cbs.length>0?Array.from(cbs).map(cb=>cb.dataset.id):Array.from(allCbs).map(cb=>cb.dataset.id);
+  Promise.all(ids.map(id=>db.collection("bons").doc(id).get())).then(snaps=>{
+    const headers=['N° BL','Date','Heure','Tarif','Chauffeur','Client','Immat','Véhicule','Embarquement','Destination','Espèces'];
+    const rows=[];
+    snaps.forEach(snap=>{
+      if(!snap.exists)return;
+      const b=snap.data();
+      rows.push([b.bon_num||'—',b.date_bl||'—',b.heure_bl||'—',b.tarif||'—',b.chauffeur_nom||'—',
+        b.nom_client||'—',b.immatriculation||'—',(b.marque||'')+' '+(b.modele||''),
+        b.lieu_embarquement||'—',b.destination||'—',
+        b.especes===true&&b.montant_especes>0?b.montant_especes:0]);
+    });
+    exporterExcel(headers,rows,'historique'+(cbs.length>0?'-selection':'-tous')+'.xlsx','Historique');
+    loader(false);
   }).catch(e=>{loader(false);toast("Erreur","err");console.error(e);});
 }
 
@@ -3969,6 +4057,15 @@ function exporterRecapPDF(){
   doc.save('recapitulation-profitabilite.pdf');
   loader(false); toast('PDF exporté ✅');
 }
+function exporterRecapExcel(){
+  if(!recapData.length){ toast("Calculez d'abord la récapitulation","err"); return; }
+  const cbs=document.querySelectorAll(".recap-cb:checked");
+  const indices=cbs.length>0 ? Array.from(cbs).map(cb=>parseInt(cb.dataset.idx)) : recapData.map((_,i)=>i);
+  const liste=indices.map(i=>recapData[i]);
+  const headers=['Camion','Nb BL','Chiffre d\'affaires','Carburant','Frais fixes','Total charges','Profit net','Marge %'];
+  const rows=liste.map(c=>[c.nom,c.nbBL,c.ca,c.carburant,c.fraisFixes,c.totalCharges,c.profit,c.marge]);
+  exporterExcel(headers,rows,'recapitulation-profitabilite.xlsx','Récapitulation');
+}
 
 
 function exporterHistCarburantPDF(){
@@ -4506,6 +4603,19 @@ function exporterSoldesPDF(prefix){
   toast("PDF exporté ✅");
 }
 function exporterSoldesPDFSec(){ exporterSoldesPDF("soldes-sec-"); }
+function exporterSoldesExcel(prefix){
+  const cbs=document.querySelectorAll(".soldes-cb:checked");
+  const selected = cbs.length>0 ? [...cbs].map(cb=>soldesData[parseInt(cb.dataset.idx)]) : soldesData;
+  const headers=['Date','Client','Type','N° Document','Désignation','Montant','Payé','Solde','Mode paiement','Statut'];
+  const rows=selected.map(item=>{
+    const typeL=item.type==="bl"?"BL":item.type==="magasinage"?"Magasinage":"PC";
+    return [item.date||'—',item.client,typeL,item.doc,item.designation,
+      item.montant,item.paye,item.montant-item.paye,item.mode||'—',
+      item.statut==='solde'?'Soldé':item.statut==='partiel'?'Partiel':item.statut==='incomplet'?'Sans montant':'Impayé'];
+  });
+  exporterExcel(headers,rows,'soldes-clients.xlsx','Soldes');
+}
+function exporterSoldesExcelSec(){ exporterSoldesExcel("soldes-sec-"); }
 
 // Wrappers pour les 2 contextes
 function chargerSoldesSec(){ chargerSoldes("soldes-sec-"); }
