@@ -391,6 +391,44 @@ tr:hover td{background:var(--gris)}
 </div>
 </div>
 
+<!-- Modal Paiement PC -->
+<div class="modal-bg" id="modal-paiement-pc">
+<div class="modal" style="max-width:440px">
+  <div class="modal-title">💰 Encaisser paiement client — PC</div>
+  <input type="hidden" id="paiement-pc-id">
+  <div id="paiement-pc-info" style="background:var(--gris);border-radius:8px;padding:12px;margin-bottom:14px;font-size:13px;line-height:1.8"></div>
+  <div class="form-group" style="margin-bottom:12px"><span class="fl">Montant encaissé (€)</span><input class="inp" id="paiement-pc-montant" type="number" step="0.01" min="0" placeholder="0.00"></div>
+  <div class="form-group" style="margin-bottom:12px"><span class="fl">Mode de paiement</span>
+    <select class="inp" id="paiement-pc-mode">
+      <option value="especes">💵 Espèces</option>
+      <option value="cb">💳 CB</option>
+      <option value="cheque">📝 Chèque</option>
+      <option value="virement">🏦 Virement</option>
+    </select>
+  </div>
+  <div class="form-group" style="margin-bottom:12px"><span class="fl">Date paiement</span><input class="inp" id="paiement-pc-date" type="date"></div>
+  <div class="modal-footer">
+    <button class="btn btn-secondary" onclick="fermerModal('modal-paiement-pc')">Annuler</button>
+    <button class="btn btn-primary" onclick="confirmerPaiementPC()">✅ Enregistrer</button>
+  </div>
+</div>
+</div>
+
+<!-- Modal Paiement Assurance PC -->
+<div class="modal-bg" id="modal-paiement-assurance-pc">
+<div class="modal" style="max-width:440px">
+  <div class="modal-title">💶 Réception paiement assurance — PC</div>
+  <input type="hidden" id="paiement-ass-pc-id">
+  <div id="paiement-ass-pc-info" style="background:var(--gris);border-radius:8px;padding:12px;margin-bottom:14px;font-size:13px;line-height:1.8"></div>
+  <div class="form-group" style="margin-bottom:12px"><span class="fl">Montant reçu de l'assurance (€)</span><input class="inp" id="paiement-ass-pc-montant" type="number" step="0.01" min="0" placeholder="0.00"></div>
+  <div class="form-group" style="margin-bottom:12px"><span class="fl">Date de réception</span><input class="inp" id="paiement-ass-pc-date" type="date"></div>
+  <div class="modal-footer">
+    <button class="btn btn-secondary" onclick="fermerModal('modal-paiement-assurance-pc')">Annuler</button>
+    <button class="btn btn-primary" onclick="confirmerPaiementAssurancePC()">✅ Marquer reçu</button>
+  </div>
+</div>
+</div>
+
 <!-- Modal PC -->
 <div class="modal-bg" id="modal-pc">
 <div class="modal">
@@ -688,7 +726,7 @@ tr:hover td{background:var(--gris)}
       <div class="card" style="margin-top:16px">
         <div class="card-title">📱 Permissions spéciales par chauffeur</div>
         <p style="font-size:12px;color:var(--gris3);margin-bottom:14px">Permissions définies individuellement — les ON/OFF ci-dessous s'appliquent à chaque chauffeur séparément</p>
-        <div id="perm-chauffeurs-list"><div style="color:var(--gris3);font-size:12px">Allez dans Droits d'accès pour gérer les permissions</div></div>
+        <div class="perm-chauffeurs-list"><div style="color:var(--gris3);font-size:12px">Chargement...</div></div>
       </div>
     </div>
 
@@ -1162,7 +1200,7 @@ tr:hover td{background:var(--gris)}
       <!-- Permissions individuelles par chauffeur -->
       <div class="card" style="margin-top:16px">
         <div class="card-title">📱 Permissions spéciales par chauffeur</div>
-        <div id="perm-chauffeurs-list"><div style="color:var(--gris3);font-size:12px">Chargement...</div></div>
+        <div class="perm-chauffeurs-list"><div style="color:var(--gris3);font-size:12px">Chargement...</div></div>
       </div>
     </div>
 
@@ -1180,43 +1218,42 @@ tr:hover td{background:var(--gris)}
       </div>
 
       <div class="card" style="max-width:600px;margin-top:16px">
-        <div class="card-title">🖼️ Logo de la société</div>
+        <div class="card-title">🖼️ Logo & Cachet de la société</div>
         <p style="font-size:12px;color:var(--gris3);margin-bottom:12px;line-height:1.5">
-          Format PNG recommandé (fond transparent), max 300 Ko. Le logo s'applique automatiquement à la connexion, au menu et aux PDF (BL, reçus) dans les 3 applications.
+          Format PNG recommandé (fond transparent), max 300 Ko chacun.
         </p>
-        <div style="display:flex;gap:16px;align-items:center;margin-bottom:14px">
+
+        <div style="font-weight:700;font-size:13px;margin-bottom:8px;color:var(--gris4)">🖼️ Logo</div>
+        <div style="display:flex;gap:16px;align-items:center;margin-bottom:10px">
           <div id="logo-preview-box" style="width:140px;height:80px;border:2px dashed var(--gris2);border-radius:8px;display:flex;align-items:center;justify-content:center;overflow:hidden;background:#fafafa">
             <img id="logo-preview" src="" alt="" style="max-width:100%;max-height:100%;object-fit:contain;display:none">
             <span id="logo-preview-empty" style="font-size:11px;color:var(--gris3)">Aucun logo</span>
           </div>
           <div>
             <input type="file" id="logo-file-input" accept="image/png,image/jpeg" style="display:none" onchange="previewLogoUpload(event)">
-            <button class="btn btn-secondary btn-sm" onclick="G('logo-file-input').click()">📁 Choisir un fichier</button>
+            <button class="btn btn-secondary btn-sm" onclick="G('logo-file-input').click()">📁 Choisir</button>
             <div id="logo-file-info" style="font-size:11px;color:var(--gris3);margin-top:6px"></div>
           </div>
         </div>
-        <button class="btn btn-primary" onclick="sauvegarderLogo()" id="btn-save-logo" disabled>💾 Enregistrer le logo</button>
-        <div id="logo-save-result" style="font-size:12px;margin-top:10px"></div>
-      </div>
+        <button class="btn btn-primary btn-sm" onclick="sauvegarderLogo()" id="btn-save-logo" disabled>💾 Enregistrer le logo</button>
+        <div id="logo-save-result" style="font-size:12px;margin-top:6px"></div>
 
-      <div class="card" style="max-width:600px;margin-top:16px">
-        <div class="card-title">🔵 Cachet de la société</div>
-        <p style="font-size:12px;color:var(--gris3);margin-bottom:12px;line-height:1.5">
-          PNG recommandé (fond transparent), max 300 Ko. Le cachet s'applique automatiquement dans les reçus (bas droite, avec date du document).
-        </p>
-        <div style="display:flex;gap:16px;align-items:center;margin-bottom:14px">
+        <hr style="border:none;border-top:1px solid var(--gris2);margin:16px 0">
+
+        <div style="font-weight:700;font-size:13px;margin-bottom:8px;color:var(--gris4)">🔵 Cachet (apposé sur les reçus)</div>
+        <div style="display:flex;gap:16px;align-items:center;margin-bottom:10px">
           <div id="cachet-preview-box" style="width:120px;height:86px;border:2px dashed var(--gris2);border-radius:8px;display:flex;align-items:center;justify-content:center;overflow:hidden;background:#fafafa">
             <img id="cachet-preview" src="" alt="" style="max-width:100%;max-height:100%;object-fit:contain;display:none">
             <span id="cachet-preview-empty" style="font-size:11px;color:var(--gris3);text-align:center">Aucun cachet</span>
           </div>
           <div>
             <input type="file" id="cachet-file-input" accept="image/png,image/jpeg" style="display:none" onchange="previewCachetUpload(event)">
-            <button class="btn btn-secondary btn-sm" onclick="G('cachet-file-input').click()">📁 Choisir un fichier</button>
+            <button class="btn btn-secondary btn-sm" onclick="G('cachet-file-input').click()">📁 Choisir</button>
             <div id="cachet-file-info" style="font-size:11px;color:var(--gris3);margin-top:6px"></div>
           </div>
         </div>
-        <button class="btn btn-primary" onclick="sauvegarderCachet()" id="btn-save-cachet" disabled>💾 Enregistrer le cachet</button>
-        <div id="cachet-save-result" style="font-size:12px;margin-top:10px"></div>
+        <button class="btn btn-primary btn-sm" onclick="sauvegarderCachet()" id="btn-save-cachet" disabled>💾 Enregistrer le cachet</button>
+        <div id="cachet-save-result" style="font-size:12px;margin-top:6px"></div>
       </div>
       <div class="card" style="max-width:600px;margin-top:16px">
         <div class="card-title">🔑 Changer mon mot de passe</div>
@@ -2500,8 +2537,9 @@ function chargerPermChauffeursFn(){
         </div>
       </div>`;
     });
-    const el=G("perm-chauffeurs-list");
-    if(el) el.innerHTML=html||"<div style='color:var(--gris3);font-size:12px'>Aucun chauffeur</div>";
+    document.querySelectorAll(".perm-chauffeurs-list").forEach(el=>{
+      el.innerHTML=html||"<div style='color:var(--gris3);font-size:12px'>Aucun chauffeur</div>";
+    });
   });
 }
 function majPermCh(uid,perm,val){
@@ -3387,6 +3425,8 @@ function chargerPC(){
       const stAss=p.statut_assureur==="recu"
         ?`<span class="badge" style="background:#e8f5e9;color:#2e7d32;border:1px solid #2e7d32">✅ Reçu</span>`
         :`<span class="badge" style="background:#fff8e1;color:#f57c00;border:1px solid #f57c00">⏳ En attente</span>`;
+      const btnAssurance=p.statut_assureur!=="recu"&&(parseFloat(p.montant_assurance)||0)>0
+        ?`<button class="btn btn-secondary btn-sm" style="margin-top:3px;font-size:11px" onclick="ouvrirPaiementAssurancePC('${p.id}',${parseFloat(p.montant_assurance)||0},'${(p.client||"").replace(/'/g,"\\'")}','${p.dossier||""}','${p.assureur||""}')">💶 Assurance</button>`:"";
 
       let stClient="";
       if(montantClient===0)          stClient=`<span style="color:var(--gris3);font-size:11px">N/A</span>`;
@@ -3409,7 +3449,7 @@ function chargerPC(){
         <td style="font-size:11px">${p.marque||""} ${p.modele||""}<br><span style="font-family:monospace;font-size:10px;font-weight:700">${p.immat||""}</span></td>
         <td style="color:var(--vert);font-weight:700;font-size:13px">${fmtMontant(p.montant_reel||((p.montant_assurance||0)+montantClient))}</td>
         <td style="color:var(--bleu);font-weight:700">${fmtMontant(p.montant_assurance)}</td>
-        <td>${stAss}</td>
+        <td>${stAss}<br>${btnAssurance}</td>
         <td style="font-weight:700;color:var(--bleu)">${fmtMontant(montantClient)}<br><span style="font-size:10px;color:var(--gris3)">${modeClient}</span></td>
         <td>${stClient}<br>${btnPayer}</td>
         <td style="font-size:11px;color:var(--bleu)">${p.bon_num||"—"}</td>
@@ -3556,6 +3596,66 @@ function changerStatutPC(id,statut){
     .then(()=>{toast(statut==="annule"?"Mission annulée":"Livraison confirmée ✅");chargerPC();}).catch(()=>toast("Erreur","err"));
 }
 function annulerPC(){if(editingId)changerStatutPC(editingId,"annule");fermerModal("modal-pc");}
+function ouvrirPaiementPC(id,montantTotal,dejaPaye,client,dossier,assureur){
+  G("paiement-pc-id").value=id;
+  G("paiement-pc-montant").value=Math.max(0,montantTotal-dejaPaye).toFixed(2);
+  G("paiement-pc-date").value=new Date().toISOString().split("T")[0];
+  G("paiement-pc-info").innerHTML=`<strong>${client}</strong> — ${dossier} (${assureur})<br>
+    Total client: <strong style="color:var(--rouge)">${fmtMontant(montantTotal)}</strong> |
+    Déjà payé: <strong style="color:var(--vert)">${fmtMontant(dejaPaye)}</strong> |
+    Reste: <strong style="color:var(--bleu)">${fmtMontant(Math.max(0,montantTotal-dejaPaye))}</strong>`;
+  G("modal-paiement-pc").classList.add("on");
+}
+async function confirmerPaiementPC(){
+  const id=G("paiement-pc-id").value;
+  const montant=parseFloat(G("paiement-pc-montant").value)||0;
+  const mode=G("paiement-pc-mode").value;
+  const date=G("paiement-pc-date").value;
+  if(!montant){toast("Montant obligatoire","err");return;}
+  loader(true);
+  try{
+    const snap=await db.collection("prises_en_charge").doc(id).get();
+    const p=snap.data();
+    const montantClient=parseFloat(p.montant_client)||0;
+    const dejaPaye=parseFloat(p.montant_client_paye||p.paye_client)||0;
+    const newPaye=dejaPaye+montant;
+    await db.collection("prises_en_charge").doc(id).update({
+      montant_client_paye:newPaye,
+      mode_paiement_client:mode,
+      date_paiement_client:date
+    });
+    toast("Paiement enregistré ✅");
+    fermerModal("modal-paiement-pc");
+    chargerPC();
+    loader(false);
+  }catch(e){ toast("Erreur","err"); loader(false); console.error(e); }
+}
+function ouvrirPaiementAssurancePC(id,montantAssurance,client,dossier,assureur){
+  G("paiement-ass-pc-id").value=id;
+  G("paiement-ass-pc-montant").value=montantAssurance.toFixed(2);
+  G("paiement-ass-pc-date").value=new Date().toISOString().split("T")[0];
+  G("paiement-ass-pc-info").innerHTML=`<strong>${client||"—"}</strong> — ${dossier} (${assureur})<br>
+    Part assurance attendue : <strong style="color:var(--bleu)">${fmtMontant(montantAssurance)}</strong>`;
+  G("modal-paiement-assurance-pc").classList.add("on");
+}
+async function confirmerPaiementAssurancePC(){
+  const id=G("paiement-ass-pc-id").value;
+  const montant=parseFloat(G("paiement-ass-pc-montant").value)||0;
+  const date=G("paiement-ass-pc-date").value;
+  if(!montant){toast("Montant obligatoire","err");return;}
+  loader(true);
+  try{
+    await db.collection("prises_en_charge").doc(id).update({
+      statut_assureur:"recu",
+      montant_assurance:montant,
+      date_reception_assurance:date
+    });
+    toast("Paiement assurance enregistré ✅");
+    fermerModal("modal-paiement-assurance-pc");
+    chargerPC();
+    loader(false);
+  }catch(e){ toast("Erreur","err"); loader(false); console.error(e); }
+}
 function supprimerPC(id){if(!confirm("Supprimer ?"))return;db.collection("prises_en_charge").doc(id).delete().then(()=>{toast("Supprimé");chargerPC();});}
 function selToutPC(){
   const all=G("pc-check-all");
