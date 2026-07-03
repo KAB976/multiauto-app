@@ -251,10 +251,6 @@ self.addEventListener('fetch', e => {
       <span class="fl">Téléphone <span class="tag-opt">Facultatif</span></span>
       <input class="inp" id="new-client-tel" type="tel" placeholder="Ex : 0639 00 00 00">
     </div>
-    <div class="mb14">
-      <span class="fl">Email <span class="tag-opt">Facultatif</span></span>
-      <input class="inp" id="new-client-email" type="email" placeholder="client@exemple.com">
-    </div>
     <button class="btn-modal-confirm" onclick="confirmerNouveauClient()">✅ Ajouter ce client</button>
     <button class="btn-modal-cancel" onclick="fermerModalClient()">Annuler</button>
   </div>
@@ -448,10 +444,6 @@ self.addEventListener('fetch', e => {
         <div>
           <span class="fl">Téléphone <span class="tag-opt">Facultatif</span></span>
           <input class="inp" id="inp-tel" type="tel" placeholder="Ex : 0639 00 00 00">
-        </div>
-        <div>
-          <span class="fl">Email <span class="tag-opt">Facultatif</span></span>
-          <input class="inp" id="inp-email" type="email" placeholder="client@exemple.com">
         </div>
       </div>
     </div>
@@ -675,7 +667,6 @@ var CLIENTS = [
   "Assurance MMA","Assurance PACIFICA","Groupama","Préfecture",
   "Mairie Mamoudzou","CHM","Police Nationale","Gendarmerie"
 ];
-var CLIENTS_DATA = {}; // nom -> {tel, email} pour pré-remplissage
 
 // ════════════════════════════════════
 // ÉTAT
@@ -701,6 +692,8 @@ function setTypeIntervention(type){
 }
 var gpsEmb = {lat:"",lng:"",lieu:""};
 var gpsDest = {lat:"",lng:"",lieu:""};
+var gpsEmbPromise = null;
+var gpsDestPromise = null;
 var heureEmb = null;
 var heureArrivee = null;
 var chronoInterval = null;
@@ -795,7 +788,6 @@ function majNums(){
 // ════════════════════════════════════
 function initMarques(){
   var sel = G("sel-marque");
-  if(!sel){ console.warn("⚠️ sel-marque introuvable dans le DOM"); return; }
   var current = sel.value;
   sel.innerHTML = "<option value=''>— Marque —</option>";
   var marques = Object.keys(MARQUES_MODELES).sort();
@@ -828,7 +820,6 @@ function majModeles(){
 // ════════════════════════════════════
 function initClients(){
   var sel = G("sel-client");
-  if(!sel){ console.warn("⚠️ sel-client introuvable dans le DOM"); return; }
   sel.innerHTML = "<option value=''>— Sélectionner —</option>";
   var liste = CLIENTS.slice().sort();
   liste.forEach(function(c){
@@ -837,15 +828,7 @@ function initClients(){
 }
 
 function onClientChange(){
-  var nom = G("sel-client").value;
-  var data = window.CLIENTS_DATA ? window.CLIENTS_DATA[nom] : null;
-  if(data){
-    if(data.tel && !G("inp-tel").value) G("inp-tel").value = data.tel;
-    if(data.email) G("inp-email").value = data.email;
-    else G("inp-email").value = "";
-  } else {
-    G("inp-email").value = "";
-  }
+  // Auto-remplir tel si client connu
 }
 
 function ouvrirModalClient(){
@@ -857,7 +840,21 @@ function ouvrirModalClient(){
 
 function fermerModalClient(){ G("modal-client").classList.remove("on"); }
 
-// confirmerNouveauClient est définie dans le module Firebase (avec sauvegarde Firestore + email)
+function confirmerNouveauClient(){
+  var nom = G("new-client-nom").value.trim();
+  if(!nom){ G("new-client-nom").focus(); return; }
+  // Majuscule première lettre
+  nom = nom.charAt(0).toUpperCase()+nom.slice(1);
+  var tel = G("new-client-tel").value.trim();
+  // Ajouter à la liste locale
+  CLIENTS.push(nom);
+  var sel = G("sel-client");
+  var o = document.createElement("option");
+  o.value=nom; o.textContent=nom; sel.appendChild(o);
+  sel.value=nom;
+  if(tel) G("inp-tel").value=tel;
+  fermerModalClient();
+}
 
 // ════════════════════════════════════
 // LOGIN
@@ -890,7 +887,7 @@ function initApp(){
   initMarques();
   initClients();
   resetTrajet();
-  captureGPS(function(g){ gpsEmb=g; });
+  gpsEmbPromise = captureGPSPromise().then(function(g){ gpsEmb=g; return g; });
   // Sync offline si réseau
   syncOffline();
 }
@@ -921,6 +918,12 @@ function captureGPS(cb, _essai){
       }).catch(function(){ cb({lat:lat,lng:lng,lieu:""}); });
   },function(){ cb({lat:"",lng:"",lieu:""}); },{enableHighAccuracy:true,timeout:20000,maximumAge:0});
 }
+// Version "attendable" de captureGPS — permet d'await le résultat avant de sauvegarder le BL
+function captureGPSPromise(){
+  return new Promise(function(resolve){
+    captureGPS(function(g){ resolve(g); });
+  });
+}
 
 // ════════════════════════════════════
 // TRAJET — BOUTONS EMBARQUEMENT / ARRIVÉE
@@ -949,7 +952,7 @@ function enregistrerEmbarquement(){
   heureEmb=new Date();
 
   // GPS en arrière-plan — capture IMMÉDIATE et sauvegarde dès réception
-  captureGPS(function(g){
+  gpsEmbPromise = captureGPSPromise().then(function(g){
     gpsEmb=g;
     // Sauvegarder les coords dans une variable persistante localStorage
     try{
@@ -958,6 +961,7 @@ function enregistrerEmbarquement(){
         heure: heureEmb ? heureEmb.toISOString() : new Date().toISOString()
       }));
     }catch(e){}
+    return g;
   });
 
   // UI
@@ -976,7 +980,17 @@ function enregistrerEmbarquement(){
 function enregistrerArrivee(){
   arriveeFaite=true;
   heureArrivee=new Date();
-  captureGPS(function(g){ gpsDest=g; });
+  gpsDestPromise = captureGPSPromise().then(function(g){
+    gpsDest=g;
+    // Sauvegarder les coords dans une variable persistante localStorage (même filet de sécurité que l'embarquement)
+    try{
+      localStorage.setItem('gps_dest_pending', JSON.stringify({
+        lat:g.lat, lng:g.lng, lieu:g.lieu,
+        heure: heureArrivee ? heureArrivee.toISOString() : new Date().toISOString()
+      }));
+    }catch(e){}
+    return g;
+  });
   if(chronoInterval){ clearInterval(chronoInterval); chronoInterval=null; }
   G("btn-arrive").style.display="none";
   G("inp-dest").style.display="block";
@@ -1192,33 +1206,44 @@ function soumettre(){
   if(espActif && !G("inp-montant").value){ afficherAlerte("⚠️ Saisis le montant reçu en espèces"); return; }
 
   loader(true,"Enregistrement...");
-  // Appel Firebase (défini dans le module ES)
-  if(window.enregistrer){
-    window.enregistrer();
-  } else {
-    // Fallback offline
-    var now=new Date();
-    var bonNum=fmtBL(user.prefixBL, getBLNum());
-    var recuNum=espActif?fmtRC(user.prefixR, getRCNum()):"";
-    var payload={
-      bon_num:bonNum, recu_num:recuNum,
-      chauffeur_nom:user.nom, camion:user.camion||"",
-      date_bl:fmtDate(now), heure_bl:fmtHeure(now),
-      tarif:calculerTarif(),
-      immatriculation:G("inp-immat").value.trim().toUpperCase(),
-      type_bl: typeIntervention==="pc" ? "pc" : "client",
-      marque:G("sel-marque").value, modele:G("sel-modele").value,
-      nom_client:G("sel-client").value, tel_client:G("inp-tel").value.trim(), email_client:G("inp-email").value.trim(),
-      lieu_embarquement:G("inp-emb").value.trim(),
-      destination:G("inp-dest").value.trim(),
-      gps_emb_lat:gpsEmb.lat||(function(){ try{ return JSON.parse(localStorage.getItem('gps_emb_pending')||'{}').lat||""; }catch(e){ return ""; } })(),
-      gps_emb_lng:gpsEmb.lng||(function(){ try{ return JSON.parse(localStorage.getItem('gps_emb_pending')||'{}').lng||""; }catch(e){ return ""; } })(),
-      gps_dest_lat:gpsDest.lat, gps_dest_lng:gpsDest.lng,
-      especes:espActif,
-      montant_especes:espActif?(parseFloat(G("inp-montant").value)||0):0
-    };
-    sauvegarderOffline(payload, bonNum+"★", recuNum);
-  }
+  // Attendre la capture GPS (max 8s) pour éviter les coordonnées manquantes,
+  // sans bloquer indéfiniment si le GPS/réseau est mauvais
+  (async function(){
+    try{
+      await Promise.race([
+        Promise.all([gpsEmbPromise, gpsDestPromise].filter(Boolean)),
+        new Promise(function(resolve){ setTimeout(resolve, 8000); })
+      ]);
+    }catch(e){}
+    // Appel Firebase (défini dans le module ES)
+    if(window.enregistrer){
+      window.enregistrer();
+    } else {
+      // Fallback offline
+      var now=new Date();
+      var bonNum=fmtBL(user.prefixBL, getBLNum());
+      var recuNum=espActif?fmtRC(user.prefixR, getRCNum()):"";
+      var payload={
+        bon_num:bonNum, recu_num:recuNum,
+        chauffeur_nom:user.nom, camion:user.camion||"",
+        date_bl:fmtDate(now), heure_bl:fmtHeure(now),
+        tarif:calculerTarif(),
+        immatriculation:G("inp-immat").value.trim().toUpperCase(),
+        type_bl: typeIntervention==="pc" ? "pc" : "client",
+        marque:G("sel-marque").value, modele:G("sel-modele").value,
+        nom_client:G("sel-client").value, tel_client:G("inp-tel").value.trim(),
+        lieu_embarquement:G("inp-emb").value.trim(),
+        destination:G("inp-dest").value.trim(),
+        gps_emb_lat:gpsEmb.lat||(function(){ try{ return JSON.parse(localStorage.getItem('gps_emb_pending')||'{}').lat||""; }catch(e){ return ""; } })(),
+        gps_emb_lng:gpsEmb.lng||(function(){ try{ return JSON.parse(localStorage.getItem('gps_emb_pending')||'{}').lng||""; }catch(e){ return ""; } })(),
+        gps_dest_lat:gpsDest.lat||(function(){ try{ return JSON.parse(localStorage.getItem('gps_dest_pending')||'{}').lat||""; }catch(e){ return ""; } })(),
+        gps_dest_lng:gpsDest.lng||(function(){ try{ return JSON.parse(localStorage.getItem('gps_dest_pending')||'{}').lng||""; }catch(e){ return ""; } })(),
+        especes:espActif,
+        montant_especes:espActif?(parseFloat(G("inp-montant").value)||0):0
+      };
+      sauvegarderOffline(payload, bonNum+"★", recuNum);
+    }
+  })();
 }
 
 // enregistrer() est défini dans le module Firebase ES ci-dessous
@@ -1255,7 +1280,7 @@ function nouveauBon(){
   // Reset tout
   G("pg-success").classList.remove("on");
   G("pg-app").classList.add("on");
-  ["inp-immat","inp-tel","inp-email","inp-emb","inp-dest","inp-montant"].forEach(function(id){ G(id).value=""; });
+  ["inp-immat","inp-tel","inp-emb","inp-dest","inp-montant"].forEach(function(id){ G(id).value=""; });
   G("sel-marque").value=""; G("sel-modele").innerHTML="<option value=''>— Modèle —</option>";
   G("sel-client").value="";
   photoData=null;
@@ -1270,12 +1295,14 @@ function nouveauBon(){
   typeIntervention="normal"; setTypeIntervention("normal");
   G("form-alert").style.display="none"; G("form-alert2").classList.remove("on");
   gpsEmb={lat:"",lng:"",lieu:""}; gpsDest={lat:"",lng:"",lieu:""};
+  try{ localStorage.removeItem('gps_dest_pending'); }catch(e){}
   resetTrajet();
   majTarif();
   majNums();
   window.scrollTo(0,0);
   if(G("div-type-intervention")) G("div-type-intervention").style.display="block";
-  captureGPS(function(g){ gpsEmb=g; });
+  gpsEmbPromise = captureGPSPromise().then(function(g){ gpsEmb=g; return g; });
+  gpsDestPromise = null;
 }
 
 
@@ -1497,15 +1524,6 @@ try {
   enableIndexedDbPersistence(db).catch(()=>{});
 } catch(e){}
 
-// Charger le logo personnalisé dès l'arrivée sur la page
-getDoc(doc(db,"parametres","societe")).then(snap=>{
-  const logo = snap.exists() ? snap.data().logo_base64 : null;
-  if(logo){
-    const img = document.getElementById("login-logo");
-    if(img) img.src = logo;
-  }
-}).catch(()=>{});
-
 // ════════════════════════════════════
 // STRUCTURE FIRESTORE
 // Collections :
@@ -1558,52 +1576,6 @@ async function initFirestore(){
 // ════════════════════════════════════
 // CONNEXION FIREBASE AUTH
 // ════════════════════════════════════
-function activerSyncTempsReel(){
-  console.log("🔄 Activation sync temps réel — clients et véhicules");
-  if(window._clientsUnsubscribe) window._clientsUnsubscribe();
-  window._clientsUnsubscribe = onSnapshot(
-    query(collection(db,"clients"), orderBy("nom","asc")),
-    snap => {
-      window.CLIENTS = [];
-      window.CLIENTS_DATA = {};
-      snap.forEach(d => {
-        const c = d.data();
-        window.CLIENTS.push(c.nom);
-        window.CLIENTS_DATA[c.nom] = { tel: c.tel||"", email: c.email||"" };
-      });
-      console.log("✅ Sync clients reçue:", window.CLIENTS.length, "clients —", window.CLIENTS);
-      initClients();
-    },
-    e => console.error("❌ Sync clients ERREUR:", e)
-  );
-
-  if(window._vehiculesUnsubscribe) window._vehiculesUnsubscribe();
-  window._vehiculesUnsubscribe = onSnapshot(
-    query(collection(db,"vehicules_clients"), orderBy("marque","asc")),
-    snap => {
-      console.log("✅ Sync véhicules reçue:", snap.size, "documents");
-      const fsMarques = {};
-      snap.forEach(d => {
-        const v = d.data();
-        const marque = v.marque||"";
-        if(!marque) return;
-        // Structure réelle Firestore : un doc par marque, champ "modeles" (tableau)
-        const modeles = Array.isArray(v.modeles) ? v.modeles : [];
-        fsMarques[marque] = modeles.filter(m=>m);
-      });
-      // Remplacer entièrement MARQUES_MODELES par les données Firestore à jour
-      // (fusion avec la base statique pour ne pas perdre les marques par défaut)
-      Object.keys(fsMarques).forEach(marque => {
-        window.MARQUES_MODELES[marque] = fsMarques[marque];
-      });
-      console.log("✅ MARQUES_MODELES mis à jour:", Object.keys(window.MARQUES_MODELES).length, "marques —", Object.keys(fsMarques));
-      initMarques();
-      majModeles();
-    },
-    e => console.error("❌ Sync véhicules ERREUR:", e)
-  );
-}
-
 window.seConnecter = async function(){
   var id = G("inp-id").value.trim();
   var pw = G("inp-pw").value;
@@ -1651,7 +1623,44 @@ window.seConnecter = async function(){
 
     // Charger clients et marques depuis Firestore
     await chargerClients();
-    activerSyncTempsReel();
+
+    // Sync temps réel clients
+    if(window._clientsUnsubscribe) window._clientsUnsubscribe();
+    window._clientsUnsubscribe = onSnapshot(
+      query(collection(db,"clients"), orderBy("nom","asc")),
+      snap => {
+        window.CLIENTS = [];
+        snap.forEach(d => window.CLIENTS.push(d.data().nom));
+        initClients();
+      },
+      e => console.warn("Sync clients:", e)
+    );
+
+    // Sync temps réel véhicules/marques/modèles
+    if(window._vehiculesUnsubscribe) window._vehiculesUnsubscribe();
+    window._vehiculesUnsubscribe = onSnapshot(
+      query(collection(db,"vehicules_clients"), orderBy("marque","asc")),
+      snap => {
+        const fsMarques = {};
+        snap.forEach(d => {
+          const v = d.data();
+          const marque = v.marque||""; const modele = v.modele||"";
+          if(!marque) return;
+          if(!fsMarques[marque]) fsMarques[marque] = new Set();
+          if(modele) fsMarques[marque].add(modele);
+        });
+        Object.keys(fsMarques).forEach(marque => {
+          if(!window.MARQUES_MODELES[marque]) window.MARQUES_MODELES[marque] = [];
+          fsMarques[marque].forEach(modele => {
+            if(!window.MARQUES_MODELES[marque].includes(modele))
+              window.MARQUES_MODELES[marque].push(modele);
+          });
+        });
+        initMarques();
+        majModeles();
+      },
+      e => console.warn("Sync véhicules:", e)
+    );
 
     loader(false);
     G("login-err").classList.remove("on");
@@ -1697,12 +1706,7 @@ async function chargerClients(){
   try {
     const snap = await getDocs(query(collection(db,"clients"), orderBy("nom","asc")));
     window.CLIENTS = [];
-    window.CLIENTS_DATA = {};
-    snap.forEach(d => {
-      const c = d.data();
-      window.CLIENTS.push(c.nom);
-      window.CLIENTS_DATA[c.nom] = { tel: c.tel||"", email: c.email||"" };
-    });
+    snap.forEach(d => window.CLIENTS.push(d.data().nom));
     if(window.CLIENTS.length === 0){
       const defauts = [
         "Divers","Assurance LADOM","Assurance AESIO","Assurance ALLIANZ",
@@ -1747,11 +1751,10 @@ window.confirmerNouveauClient = async function(){
   if(!nom){ G("new-client-nom").focus(); return; }
   nom = nom.charAt(0).toUpperCase() + nom.slice(1);
   var tel = G("new-client-tel").value.trim();
-  var email = G("new-client-email").value.trim();
 
   try {
     await addDoc(collection(db,"clients"),{
-      nom, tel: tel || "", email: email || "", mode_paiement:"", solde:0,
+      nom, tel: tel || "", mode_paiement:"", solde:0,
       createdAt: serverTimestamp(),
       ajoute_par: user ? user.nom : ""
     });
@@ -1801,7 +1804,6 @@ window.enregistrer = async function(){
     // Client
     nom_client: G("sel-client").value,
     tel_client: G("inp-tel").value.trim(),
-    email_client: G("inp-email").value.trim(),
     // Trajet
     lieu_embarquement:   G("inp-emb").value.trim(),
     heure_embarquement:  heureEmb  ? fmtHeure(heureEmb)    : "",
@@ -1813,9 +1815,9 @@ window.enregistrer = async function(){
     gps_emb_lat:  gpsEmb.lat || (function(){ try{ var p=JSON.parse(localStorage.getItem('gps_emb_pending')||'{}'); return p.lat||""; }catch(e){ return ""; } })(),
     gps_emb_lng:  gpsEmb.lng || (function(){ try{ var p=JSON.parse(localStorage.getItem('gps_emb_pending')||'{}'); return p.lng||""; }catch(e){ return ""; } })(),
     gps_emb_lieu: gpsEmb.lieu || (function(){ try{ var p=JSON.parse(localStorage.getItem('gps_emb_pending')||'{}'); return p.lieu||""; }catch(e){ return ""; } })(),
-    gps_dest_lat:  gpsDest.lat,
-    gps_dest_lng:  gpsDest.lng,
-    gps_dest_lieu: gpsDest.lieu,
+    gps_dest_lat:  gpsDest.lat || (function(){ try{ var p=JSON.parse(localStorage.getItem('gps_dest_pending')||'{}'); return p.lat||""; }catch(e){ return ""; } })(),
+    gps_dest_lng:  gpsDest.lng || (function(){ try{ var p=JSON.parse(localStorage.getItem('gps_dest_pending')||'{}'); return p.lng||""; }catch(e){ return ""; } })(),
+    gps_dest_lieu: gpsDest.lieu || (function(){ try{ var p=JSON.parse(localStorage.getItem('gps_dest_pending')||'{}'); return p.lieu||""; }catch(e){ return ""; } })(),
     // Paiement
     especes:         espActif,
     montant_especes: espActif ? (parseFloat(G("inp-montant").value)||0) : 0,
@@ -1855,7 +1857,6 @@ window.enregistrer = async function(){
         modele: payload.modele || "",
         immat: payload.immatriculation || "",
         bon_num: bonNum,
-        recu_num: (espActif && payload.montant_especes > 0) ? recuNum : "",
         montant_assurance: 0,
         montant_client: 0,
         montant_reel: 0,
@@ -1926,7 +1927,6 @@ async function syncOffline(){
     console.log(`✅ ${off.length - restants.length} bon(s) synchronisé(s)`);
   }
 }
-window.syncOffline = syncOffline;
 
 // ════════════════════════════════════
 // INIT FIREBASE AU CHARGEMENT
@@ -1951,8 +1951,6 @@ onAuthStateChanged(auth, async (firebaseUser) => {
           recu_compteur: profil.recu_compteur || 1
         };
         await chargerClients();
-        activerSyncTempsReel();
-
         G("pg-login").classList.remove("on");
         G("pg-app").classList.add("on");
         initApp();
