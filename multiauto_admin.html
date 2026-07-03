@@ -5353,9 +5353,13 @@ function genererRecu(recu){
   const doc=new jsPDF('portrait','mm','a4');
   let y=pdfEntete(doc,'REÇU DE PAIEMENT',recu.recu_num||'—',recu.date||'—',recu.heure||'—',recu.chauffeur_nom||'—',recu.camion||'',recu.tarif||'NORMAL');
   y+=6;
+  // Libellé dynamique selon le mode de paiement réel (espèces / CB / chèque / virement)
+  const modeMap={especes:'ESPÈCES',cb:'CB',cheque:'CHÈQUE',virement:'VIREMENT'};
+  const modeTxt=modeMap[recu.mode_paiement]||'ESPÈCES';
+  const prepTxt=(!recu.mode_paiement||recu.mode_paiement==='especes')?'EN':'PAR';
   // Montant en grand
   doc.setFillColor(255,251,234);doc.setDrawColor(232,192,64);doc.setLineWidth(0.8);doc.roundedRect(10,y,190,32,3,3,'FD');
-  doc.setTextColor(122,90,58);doc.setFont('helvetica','bold');doc.setFontSize(7.5);doc.text('MONTANT REÇU EN ESPÈCES',105,y+7,{align:'center'});
+  doc.setTextColor(122,90,58);doc.setFont('helvetica','bold');doc.setFontSize(7.5);doc.text('MONTANT REÇU '+prepTxt+' '+modeTxt,105,y+7,{align:'center'});
   doc.setTextColor(26,37,64);doc.setFont('helvetica','bold');doc.setFontSize(30);
   const montantStr=recu.montant?recu.montant.toFixed(2).replace('.',',')+' €':'0,00 €';
   doc.text(montantStr,105,y+20,{align:'center'});
