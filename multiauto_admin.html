@@ -3355,7 +3355,7 @@ async function confirmerLivraison(){
       batch.set(db.collection("recus").doc(),{
         recu_num:recuNum, type_recu:"magasinage",
         nom_client:m.client||"—", immatriculation:m.immat||"—",
-        vehicule:m.vehicule||"—",
+        vehicule:m.vehicule||"—", mission:"Magasinage "+(m.immat||"—"),
         date:new Date().toLocaleDateString("fr-FR"),
         heure:new Date().toLocaleTimeString("fr-FR",{hour:"2-digit",minute:"2-digit"}),
         montant:montantPaye, montant_net:net, jours,
@@ -3418,7 +3418,7 @@ async function confirmerPaiementMag(){
     batch.set(db.collection("recus").doc(),{
       recu_num:recuNum, type_recu:"magasinage",
       nom_client:m.client||"—", immatriculation:m.immat||"—",
-      vehicule:m.vehicule||"—",
+      vehicule:m.vehicule||"—", mission:"Magasinage "+(m.immat||"—"),
       date:new Date().toLocaleDateString("fr-FR"),
       heure:new Date().toLocaleTimeString("fr-FR",{hour:"2-digit",minute:"2-digit"}),
       montant, montant_net:net, jours:m.jours||0,
@@ -4423,13 +4423,14 @@ async function confirmerPaiement(){
     const snap=await db.collection(col).doc(id).get();
     const data=snap.data();
 
-    let dejaPaye, montantTotal, nomClient, numDoc, immat, designation;
+    let dejaPaye, montantTotal, nomClient, numDoc, immat, designation, marque="", modele="", chauffeurNom="";
     if(col==="prises_en_charge"){
       dejaPaye=parseFloat(data.montant_client_paye||data.paye_client)||0;
       montantTotal=parseFloat(data.montant_client)||0;
       nomClient=data.client||data.assureur||"—";
       numDoc=data.dossier||"—";
       immat=data.immat||"—";
+      marque=data.marque||""; modele=data.modele||"";
       designation=`PC ${data.assureur||""} — ${data.marque||""} ${data.modele||""}`;
     } else if(col==="magasinage"){
       dejaPaye=parseFloat(data.paye_montant)||0;
@@ -4437,6 +4438,7 @@ async function confirmerPaiement(){
       nomClient=data.client||"—";
       numDoc=data.recu_num||"MAG";
       immat=data.immat||"—";
+      marque=data.vehicule||"";
       designation=`Magasinage ${data.immat||""}`;
     } else {
       // BL — inclure espèces chauffeur dans dejaPaye
@@ -4447,6 +4449,7 @@ async function confirmerPaiement(){
       nomClient=data.nom_client||"—";
       numDoc=data.bon_num||"—";
       immat=data.immatriculation||"—";
+      marque=data.marque||""; modele=data.modele||""; chauffeurNom=data.chauffeur_nom||"";
       designation=`Remorquage ${data.immatriculation||""} — ${data.lieu_embarquement||""}→${data.destination||""}`;
     }
 
@@ -4477,7 +4480,8 @@ async function confirmerPaiement(){
     batch.set(db.collection("recus").doc(),{
       recu_num:recuNum, type_recu:"solde_client",
       nom_client:nomClient, immatriculation:immat, email_client:data.email_client||"",
-      designation, num_doc:numDoc,
+      marque, modele, chauffeur_nom:chauffeurNom,
+      designation, mission:designation, num_doc:numDoc,
       date:dateStr, heure:heureStr,
       montant, montant_total:montantTotal,
       montant_cumul:newPaye,
@@ -5388,8 +5392,9 @@ function genererRecu(recu){
   y=pdfL(y,'Client :',recu.nom_client||'—');
   y=pdfL(y,'Téléphone :',recu.tel_client||'—');
   if(recu.email_client) y=pdfL(y,'Email :',recu.email_client);
-  y=pdfL(y,'Véhicule :',(recu.marque||'')+' '+(recu.modele||'')+' — '+(recu.immatriculation||'—'));
-  y=pdfL(y,'Mission :',recu.mission||(( recu.lieu_embarquement||'—')+' → '+(recu.destination||'—')));
+  const vehiculeTxt=(recu.marque||recu.modele)?(recu.marque||'')+' '+(recu.modele||''):(recu.vehicule||'');
+  y=pdfL(y,'Véhicule :',vehiculeTxt+' — '+(recu.immatriculation||'—'));
+  y=pdfL(y,'Mission :',recu.mission||recu.designation||(( recu.lieu_embarquement||'—')+' → '+(recu.destination||'—')));
   // N° BL
   doc.setFillColor(246,246,246);doc.rect(10,y,190,7.5,'F');doc.setTextColor(122,90,58);doc.setFont('helvetica','bold');doc.setFontSize(7);doc.text('N° BON DE LIVRAISON :',13,y+4.8);doc.setTextColor(21,101,192);doc.setFont('helvetica','bold');doc.setFontSize(8.5);doc.text(recu.bon_num||'—',65,y+4.8);doc.setDrawColor(224,224,224);doc.setLineWidth(0.3);doc.line(10,y+7.5,200,y+7.5);y+=7.5;
   y=pdfL(y,'Chauffeur :',recu.chauffeur_nom||'—');y+=5;
