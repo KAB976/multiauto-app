@@ -4224,7 +4224,6 @@ async function chargerSoldes(prefix){
     if(fin)   filtered = filtered.filter(i=>toComp(i.date)<=fin);
     filtered.sort((a,b)=>toComp(b.date).localeCompare(toComp(a.date)));
     soldesData = filtered;
-    alert("DEBUG — items total: " + items.length + " | filtered: " + filtered.length + " | statut: '" + statutSel + "'");
 
     // Stats
     const totalDu   = filtered.filter(i=>i.montant>0).reduce((s,i)=>s+i.montant,0);
