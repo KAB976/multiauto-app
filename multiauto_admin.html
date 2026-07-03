@@ -1507,6 +1507,11 @@ function calcKmGPS(lat1,lng1,lat2,lng2){
   const distVol=R*2*Math.atan2(Math.sqrt(a),Math.sqrt(1-a));
   return Math.round(distVol*1.3*10)/10; // coeff routier 1.3, arrondi à 0.1 km
 }
+function fmtDuree(min){
+  if(!min) return "—";
+  const h=Math.floor(min/60), m=min%60;
+  return h>0 ? h+"h"+String(m).padStart(2,"0") : m+" min";
+}
 
 // ── PAGES ──
 function afficherPage(id){
@@ -2280,7 +2285,7 @@ function rechercherHistorique(){
       let html=`<div style="font-size:13px;font-weight:700;color:var(--gris4);margin-bottom:10px">${bons.length} résultat(s)</div>`;
       html+=`<div class="table-wrap"><table><thead><tr>
         <th><input type="checkbox" id="hist-check-all" onclick="selToutHistorique()"></th>
-        <th>N° BL</th><th>N° Reçu</th><th>Date</th><th>Heure</th><th>Km</th><th>Tarif</th>
+        <th>N° BL</th><th>N° Reçu</th><th>Date</th><th>Heure</th><th>Durée</th><th>Km</th><th>Tarif</th>
         <th>Chauffeur</th><th>Client</th><th>Immat</th><th>Véhicule</th>
         <th>Embarquement</th><th>Destination</th><th>Espèces</th><th>Actions</th>
       </tr></thead><tbody>`;
@@ -2293,6 +2298,7 @@ function rechercherHistorique(){
           <td style="font-weight:700;color:var(--bleu);font-size:11px">${b.bon_num||"—"}</td>
           <td style="color:var(--vert);font-size:11px">${recu.recu_num||"—"}</td>
           <td>${b.date_bl||"—"}</td><td>${b.heure_bl||"—"}</td>
+          <td style="font-size:11px">${fmtDuree(b.duree_trajet_min)}</td>
           <td>${kmCell}</td>
           <td><span class="badge ${b.tarif==="NORMAL"?"tarif-normal":b.tarif==="TN"?"tarif-tn":"tarif-tw"}">${b.tarif||"—"}</span></td>
           <td>${b.chauffeur_nom||"—"}</td>
@@ -2328,8 +2334,8 @@ function exporterHistoriquePDF(){
     doc.text('Historique des bons de livraison',148,14,{align:'center'});
     doc.setFontSize(8);doc.setFont('helvetica','normal');doc.setTextColor(100,100,100);
     doc.text('Édité le '+new Date().toLocaleDateString('fr-FR')+(cbs.length>0?' — Sélection: '+cbs.length+' BL':''),148,20,{align:'center'});
-    const cols=['N° BL','Date','Heure','Tarif','Chauffeur','Client','Immat','Véhicule','Embarquement','Destination','Espèces'];
-    const widths=[22,18,14,12,28,28,20,22,28,28,15];
+    const cols=['N° BL','Date','Heure','Durée','Km','Tarif','Chauffeur','Client','Immat','Véhicule','Embarquement','Destination','Espèces'];
+    const widths=[20,16,13,14,13,11,26,26,18,20,25,25,14];
     let y=28;
     doc.setFillColor(200,52,26);doc.rect(10,y,277,6,'F');
     doc.setTextColor(255,255,255);doc.setFont('helvetica','bold');doc.setFontSize(7);
@@ -2342,7 +2348,8 @@ function exporterHistoriquePDF(){
       doc.setFillColor(idx%2===0?248:255,idx%2===0?248:255,idx%2===0?248:255);
       doc.rect(10,y,277,5.5,'F');doc.setFontSize(6.5);
       let xi=10;
-      [b.bon_num||'—',b.date_bl||'—',b.heure_bl||'—',b.tarif||'—',b.chauffeur_nom||'—',
+      const km=calcKmGPS(b.gps_emb_lat,b.gps_emb_lng,b.gps_dest_lat,b.gps_dest_lng);
+      [b.bon_num||'—',b.date_bl||'—',b.heure_bl||'—',fmtDuree(b.duree_trajet_min),km?km+' km':'—',b.tarif||'—',b.chauffeur_nom||'—',
        b.nom_client||'—',b.immatriculation||'—',(b.marque||'')+' '+(b.modele||''),
        b.lieu_embarquement||'—',b.destination||'—',
        b.especes===true&&b.montant_especes>0?b.montant_especes.toFixed(2)+' €':'—'
@@ -2360,12 +2367,13 @@ function exporterHistoriqueExcel(){
   loader(true,"Export Excel...");
   const ids=cbs.length>0?Array.from(cbs).map(cb=>cb.dataset.id):Array.from(allCbs).map(cb=>cb.dataset.id);
   Promise.all(ids.map(id=>db.collection("bons").doc(id).get())).then(snaps=>{
-    const headers=['N° BL','Date','Heure','Tarif','Chauffeur','Client','Immat','Véhicule','Embarquement','Destination','Espèces'];
+    const headers=['N° BL','Date','Heure','Durée','Km','Tarif','Chauffeur','Client','Immat','Véhicule','Embarquement','Destination','Espèces'];
     const rows=[];
     snaps.forEach(snap=>{
       if(!snap.exists)return;
       const b=snap.data();
-      rows.push([b.bon_num||'—',b.date_bl||'—',b.heure_bl||'—',b.tarif||'—',b.chauffeur_nom||'—',
+      const km=calcKmGPS(b.gps_emb_lat,b.gps_emb_lng,b.gps_dest_lat,b.gps_dest_lng);
+      rows.push([b.bon_num||'—',b.date_bl||'—',b.heure_bl||'—',fmtDuree(b.duree_trajet_min),km||'—',b.tarif||'—',b.chauffeur_nom||'—',
         b.nom_client||'—',b.immatriculation||'—',(b.marque||'')+' '+(b.modele||''),
         b.lieu_embarquement||'—',b.destination||'—',
         b.especes===true&&b.montant_especes>0?b.montant_especes:0]);
