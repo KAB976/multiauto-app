@@ -1502,7 +1502,6 @@ function seConnecter(){
       G("pg-login").style.display="none";
       G("pg-app").classList.add("on");
       appliquerLogoPartout();
-      appliquerCachetPartout();
       initDashNotifSound();
       chargerDashboard();
       chargerAlertesImpayes();
@@ -4840,19 +4839,17 @@ function chargerParametres(){
     const p=snap.data()||{};
     const v=(id,val)=>{const el=G(id);if(el)el.value=val;};
     v("soc-nom",p.nom||"");v("soc-adresse",p.adresse||"");v("soc-tel",p.telephone||"");v("soc-email",p.email||"");
-    // Afficher le logo actuel s'il existe
     if(p.logo_base64){
       G("logo-preview").src=p.logo_base64;
       G("logo-preview").style.display="block";
       G("logo-preview-empty").style.display="none";
     }
-    // Afficher le cachet actuel s'il existe
     if(p.cachet_base64){
       G("cachet-preview").src=p.cachet_base64;
       G("cachet-preview").style.display="block";
       G("cachet-preview-empty").style.display="none";
     }
-  });
+  }).catch(e=>{ console.warn("chargerParametres:", e); });
 }
 function sauvegarderParametres(){
   loader(true);
@@ -4906,18 +4903,6 @@ function sauvegarderLogo(){
     loader(false);
   }).catch(e=>{toast("Erreur lors de l'enregistrement","err");loader(false);console.error(e);});
 }
-function appliquerLogoPartout(){
-  db.collection("parametres").doc("societe").get().then(snap=>{
-    const logo = snap.data()?.logo_base64;
-    if(!logo) return;
-    const loginImg = document.querySelector(".login-logo img");
-    const sbImg = G("sb-logo");
-    if(loginImg) loginImg.src = logo;
-    if(sbImg) sbImg.src = logo;
-    window.LOGO_DYNAMIC = logo; // logo personnalisé, prioritaire sur LOGO_DATA dans les PDF
-  });
-}
-
 // ── CACHET SOCIÉTÉ ──
 let _cachetBase64Pending = null;
 function previewCachetUpload(event){
@@ -4952,16 +4937,28 @@ function sauvegarderCachet(){
     loader(false);
   }).catch(e=>{ toast("Erreur lors de l'enregistrement","err"); loader(false); console.error(e); });
 }
-function appliquerCachetPartout(){
+function appliquerLogoPartout(){
   db.collection("parametres").doc("societe").get().then(snap=>{
-    const cachet = snap.data()?.cachet_base64;
-    if(!cachet) return;
-    window.CACHET_DYNAMIC = cachet;
-    const prev = G("cachet-preview");
-    if(prev){ prev.src = cachet; prev.style.display = "block"; }
-    const empt = G("cachet-preview-empty");
-    if(empt) empt.style.display = "none";
-  }).catch(()=>{});
+    const p = snap.data()||{};
+    // Logo
+    if(p.logo_base64){
+      window.LOGO_DYNAMIC = p.logo_base64;
+      const loginImg = document.querySelector(".login-logo img");
+      const sbImg = G("sb-logo");
+      if(loginImg) loginImg.src = p.logo_base64;
+      if(sbImg) sbImg.src = p.logo_base64;
+    }
+    // Cachet
+    if(p.cachet_base64){
+      window.CACHET_DYNAMIC = p.cachet_base64;
+    }
+  }).catch(e=>{ console.warn("appliquerLogoPartout:", e); });
+}
+function appliquerCachetPartout(){
+  // Fusionné dans appliquerLogoPartout — appel unique Firestore
+  const prev = G("cachet-preview");
+  const empt = G("cachet-preview-empty");
+  if(window.CACHET_DYNAMIC && prev){ prev.src=window.CACHET_DYNAMIC; prev.style.display="block"; if(empt) empt.style.display="none"; }
 }
 
 function changerMDP(){
