@@ -951,6 +951,11 @@ function enregistrerEmbarquement(){
   embarquementFait=true;
   heureEmb=new Date();
 
+  if(window.majStatutLive) window.majStatutLive({
+    en_mission:true, lieu_embarquement:emb, destination:"",
+    heure_debut_mission:new Date().toISOString()
+  });
+
   // GPS en arrière-plan — capture IMMÉDIATE et sauvegarde dès réception
   gpsEmbPromise = captureGPSPromise().then(function(g){
     gpsEmb=g;
@@ -961,6 +966,7 @@ function enregistrerEmbarquement(){
         heure: heureEmb ? heureEmb.toISOString() : new Date().toISOString()
       }));
     }catch(e){}
+    if(window.majStatutLive) window.majStatutLive({lat:g.lat||null, lng:g.lng||null});
     return g;
   });
 
@@ -1005,6 +1011,7 @@ function majDestValidee(){
     G("zv-dest").style.display="flex";
     G("zv-dest-txt").textContent="🏁 "+dest;
     G("zv-dest-duree").textContent="";
+    if(window.majStatutLive) window.majStatutLive({destination:dest});
   }
 }
 
@@ -1576,6 +1583,20 @@ async function initFirestore(){
 // ════════════════════════════════════
 // CONNEXION FIREBASE AUTH
 // ════════════════════════════════════
+// ════════════════════════════════════
+// STATUT EN DIRECT (pour admin/secrétaire — carte live + alerte missions bloquées)
+// ════════════════════════════════════
+async function majStatutLive(patch){
+  if(!user || !user.uid) return;
+  try{
+    await setDoc(doc(db,"chauffeurs_live",user.uid),Object.assign({
+      nom:user.nom||"", camion:user.camion||"", immat_camion:user.immatCam||"",
+      updated_at:serverTimestamp()
+    },patch),{merge:true});
+  }catch(e){ /* silencieux — ne doit jamais bloquer le chauffeur */ }
+}
+window.majStatutLive = majStatutLive;
+
 window.seConnecter = async function(){
   var id = G("inp-id").value.trim();
   var pw = G("inp-pw").value;
@@ -1667,6 +1688,7 @@ window.seConnecter = async function(){
     G("pg-login").classList.remove("on");
     G("pg-app").classList.add("on");
     initApp();
+    majStatutLive({en_ligne:true, en_mission:false});
     // Recharger les selects avec les données Firestore (CLIENTS est maintenant rempli)
     initClients();
     initMarques();
@@ -1684,6 +1706,9 @@ window.seConnecter = async function(){
 // DÉCONNEXION
 // ════════════════════════════════════
 window.seDeconnecter = async function(){
+  if(user && user.uid){
+    try{ await setDoc(doc(db,"chauffeurs_live",user.uid),{en_ligne:false,en_mission:false,updated_at:serverTimestamp()},{merge:true}); }catch(e){}
+  }
   await signOut(auth);
   // Arrêter les listeners temps réel
   if(window._clientsUnsubscribe){ window._clientsUnsubscribe(); window._clientsUnsubscribe=null; }
@@ -1895,6 +1920,7 @@ window.enregistrer = async function(){
     }
 
     await incrementerBL();
+    majStatutLive({en_mission:false, lieu_embarquement:"", destination:""});
     terminer(bonNum, recuNum, payload);
 
   } catch(err){
