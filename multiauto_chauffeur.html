@@ -1663,28 +1663,28 @@ window.seConnecter = async function(){
     window._vehiculesUnsubscribe = onSnapshot(
       query(collection(db,"vehicules_clients"), orderBy("marque","asc")),
       snap => {
-        const fsMarques = {};
+        // Source unique de vérité : identique à ce que voient admin et secrétaire.
+        // Pas de fusion avec un catalogue générique — ajouts/suppressions faits dans
+        // l'admin ou la secrétaire se répercutent ici à l'identique, immédiatement.
+        const merged = {};
         snap.forEach(d => {
           const v = d.data();
           const marque = v.marque||"";
           if(!marque) return;
-          if(!fsMarques[marque]) fsMarques[marque] = new Set();
-          (v.modeles||[]).forEach(modele => { if(modele) fsMarques[marque].add(modele); });
-        });
-        // Reconstruire à chaque synchro : catalogue générique de base + personnalisations Firestore
-        // (ainsi les ajouts ET les suppressions faites par l'admin/secrétaire sont toujours reflétés)
-        const merged = {};
-        Object.keys(MARQUES_MODELES_BASE).forEach(m => merged[m] = MARQUES_MODELES_BASE[m].slice());
-        Object.keys(fsMarques).forEach(marque => {
-          const set = new Set(merged[marque]||[]);
-          fsMarques[marque].forEach(modele => set.add(modele));
-          merged[marque] = Array.from(set);
+          merged[marque] = (v.modeles||[]).slice();
         });
         window.MARQUES_MODELES = merged;
         initMarques();
         majModeles();
       },
-      e => console.warn("Sync véhicules:", e)
+      e => {
+        console.warn("Sync véhicules:", e);
+        // Hors-ligne au tout premier lancement (aucune donnée jamais reçue) → filet de secours
+        if(Object.keys(window.MARQUES_MODELES||{}).length===0){
+          window.MARQUES_MODELES = MARQUES_MODELES_BASE;
+          initMarques(); majModeles();
+        }
+      }
     );
 
     loader(false);
