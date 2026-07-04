@@ -619,7 +619,7 @@ var CHAUFFEURS = [
   {id:"PAP",  nom:"Papa",    mdp:"1234", camion:"Isuzu",    immatCam:"EF-789-GH", prefixBL:"PAP", prefixR:"PAP", photoOblig:true}
 ];
 
-var MARQUES_MODELES = {
+var MARQUES_MODELES_BASE = {
   "Alfa Romeo":["147","156","159","Giulia","Giulietta","Stelvio","MiTo"],
   "Audi":["A1","A3","A4","A5","A6","A7","A8","Q2","Q3","Q5","Q7","Q8","TT","RS3","RS6"],
   "BMW":["Série 1","Série 2","Série 3","Série 4","Série 5","Série 6","Série 7","X1","X2","X3","X4","X5","X6","X7","M3","M5"],
@@ -660,6 +660,7 @@ var MARQUES_MODELES = {
   "Suzuki Moto":["Address","Bandit 650","Burgman","DL 650","DL 1000","GSR 750","GSX-R 600","GSX-R 750","GSX-R 1000","SV 650","V-Strom"],
   "Yamaha":["FZ 07","FZ 09","MT-03","MT-07","MT-09","MT-10","NMAX","TMAX","Tenere 700","Tracer 700","Tracer 900","XJ6","XJR 1300","YZF-R1","YZF-R3","YZF-R6"]
 };
+var MARQUES_MODELES = MARQUES_MODELES_BASE;
 
 var CLIENTS = [
   "Divers","Assurance LADOM","Assurance AESIO","Assurance ALLIANZ",
@@ -711,14 +712,14 @@ function calculerTarif(){
   var h = now.getHours();
   var m = now.getMinutes();
   var hDec = h + m/60;
-  // Lun-Ven 7h-17h = NORMAL
-  if(jour >= 1 && jour <= 5 && hDec >= 7 && hDec < 17) return "NORMAL";
-  // Sam ≥ 12h → TW, Sam < 12h et jour ouvré = TN
+  // TW : samedi dès 12h, tout dimanche, et lundi avant 7h
   if(jour === 6 && hDec >= 12) return "TW";
-  if(jour === 0) return "TW"; // Dimanche
-  // Lundi avant 7h = TW
+  if(jour === 0) return "TW";
   if(jour === 1 && hDec < 7) return "TW";
-  // Reste = TN (soirs semaine, sam matin)
+  // NORMAL : lundi-vendredi 7h-17h, et samedi matin (avant 12h)
+  if(jour >= 1 && jour <= 5 && hDec >= 7 && hDec < 17) return "NORMAL";
+  if(jour === 6 && hDec < 12) return "NORMAL";
+  // TN : le reste = soirs/nuits de semaine (lundi soir à vendredi >17h, et nuits mar-ven avant 7h)
   return "TN";
 }
 
@@ -1665,18 +1666,21 @@ window.seConnecter = async function(){
         const fsMarques = {};
         snap.forEach(d => {
           const v = d.data();
-          const marque = v.marque||""; const modele = v.modele||"";
+          const marque = v.marque||"";
           if(!marque) return;
           if(!fsMarques[marque]) fsMarques[marque] = new Set();
-          if(modele) fsMarques[marque].add(modele);
+          (v.modeles||[]).forEach(modele => { if(modele) fsMarques[marque].add(modele); });
         });
+        // Reconstruire à chaque synchro : catalogue générique de base + personnalisations Firestore
+        // (ainsi les ajouts ET les suppressions faites par l'admin/secrétaire sont toujours reflétés)
+        const merged = {};
+        Object.keys(MARQUES_MODELES_BASE).forEach(m => merged[m] = MARQUES_MODELES_BASE[m].slice());
         Object.keys(fsMarques).forEach(marque => {
-          if(!window.MARQUES_MODELES[marque]) window.MARQUES_MODELES[marque] = [];
-          fsMarques[marque].forEach(modele => {
-            if(!window.MARQUES_MODELES[marque].includes(modele))
-              window.MARQUES_MODELES[marque].push(modele);
-          });
+          const set = new Set(merged[marque]||[]);
+          fsMarques[marque].forEach(modele => set.add(modele));
+          merged[marque] = Array.from(set);
         });
+        window.MARQUES_MODELES = merged;
         initMarques();
         majModeles();
       },
