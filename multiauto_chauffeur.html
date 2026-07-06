@@ -1276,7 +1276,7 @@ function soumettre(){
       var recuNum=espActif?fmtRC(user.prefixR, getRCNum()):"";
       var payload={
         bon_num:bonNum, recu_num:recuNum,
-        chauffeur_nom:user.nom, camion:user.camion||"",
+        chauffeur_uid:user.uid, chauffeur_nom:user.nom, camion:user.camion||"",
         date_bl:fmtDate(now), heure_bl:fmtHeure(now),
         tarif:calculerTarif(),
         immatriculation:G("inp-immat").value.trim().toUpperCase(),
@@ -1991,6 +1991,7 @@ async function syncOffline(){
   var restants = [];
   for(const p of off){
     try {
+      if(!p.chauffeur_uid && user) p.chauffeur_uid = user.uid; // filet de sécurité pour BL créés avant correctif
       p.synced = true;
       p.timestamp = serverTimestamp();
       await addDoc(collection(db,"bons"), p);
