@@ -896,9 +896,27 @@ function initApp(){
 // ════════════════════════════════════
 // GPS
 // ════════════════════════════════════
+// Position de secours mise à jour en continu en arrière-plan (résout le délai
+// de "démarrage à froid" du GPS : au moment où le chauffeur appuie sur Embarquement,
+// une position récente est déjà disponible au lieu de démarrer une recherche GPS à zéro)
+var _watchGPSId = null;
+var _lastKnownPos = {lat:"",lng:""};
+function demarrerSuiviGPSContinu(){
+  if(!navigator.geolocation || _watchGPSId!==null) return;
+  _watchGPSId = navigator.geolocation.watchPosition(function(pos){
+    var latN = pos.coords.latitude, lngN = pos.coords.longitude;
+    var horsZone = (latN < -14 || latN > -11 || lngN < 44 || lngN > 46);
+    if(horsZone || pos.coords.accuracy > 5000) return;
+    _lastKnownPos = {lat:latN.toFixed(6), lng:lngN.toFixed(6)};
+  }, function(){ /* silencieux */ }, {enableHighAccuracy:true, maximumAge:15000, timeout:30000});
+}
+function arreterSuiviGPSContinu(){
+  if(_watchGPSId!==null && navigator.geolocation){ navigator.geolocation.clearWatch(_watchGPSId); _watchGPSId=null; }
+}
+
 function captureGPS(cb, _essai){
   _essai = _essai || 1;
-  if(!navigator.geolocation){ cb({lat:"",lng:"",lieu:""}); return; }
+  if(!navigator.geolocation){ cb(secoursOuVide()); return; }
   navigator.geolocation.getCurrentPosition(function(pos){
     var acc = pos.coords.accuracy;
     var lat = pos.coords.latitude.toFixed(6);
@@ -910,6 +928,11 @@ function captureGPS(cb, _essai){
       setTimeout(function(){ captureGPS(cb, _essai+1); }, 3000);
       return;
     }
+    if(horsZone || acc > 5000){
+      // Échec après 3 tentatives : se replier sur la position de secours (suivi continu)
+      cb(secoursOuVide());
+      return;
+    }
     fetch("https://nominatim.openstreetmap.org/reverse?format=json&lat="+lat+"&lon="+lng)
       .then(function(r){ return r.json(); })
       .then(function(d){
@@ -917,7 +940,11 @@ function captureGPS(cb, _essai){
         var lieu=a.quarter||a.neighbourhood||a.village||a.suburb||a.town||a.city||a.county||"";
         cb({lat:lat,lng:lng,lieu:lieu});
       }).catch(function(){ cb({lat:lat,lng:lng,lieu:""}); });
-  },function(){ cb({lat:"",lng:"",lieu:""}); },{enableHighAccuracy:true,timeout:20000,maximumAge:0});
+  },function(){ cb(secoursOuVide()); },{enableHighAccuracy:true,timeout:20000,maximumAge:0});
+}
+function secoursOuVide(){
+  if(_lastKnownPos.lat && _lastKnownPos.lng) return {lat:_lastKnownPos.lat, lng:_lastKnownPos.lng, lieu:""};
+  return {lat:"",lng:"",lieu:""};
 }
 // Version "attendable" de captureGPS — permet d'await le résultat avant de sauvegarder le BL
 function captureGPSPromise(){
@@ -1214,15 +1241,31 @@ function soumettre(){
   if(espActif && !G("inp-montant").value){ afficherAlerte("⚠️ Saisis le montant reçu en espèces"); return; }
 
   loader(true,"Enregistrement...");
-  // Attendre la capture GPS (max 8s) pour éviter les coordonnées manquantes,
+  // Attendre la capture GPS pour éviter les coordonnées manquantes,
   // sans bloquer indéfiniment si le GPS/réseau est mauvais
   (async function(){
     try{
       await Promise.race([
         Promise.all([gpsEmbPromise, gpsDestPromise].filter(Boolean)),
-        new Promise(function(resolve){ setTimeout(resolve, 8000); })
+        new Promise(function(resolve){ setTimeout(resolve, 12000); })
       ]);
     }catch(e){}
+
+    // GPS embarquement ET destination obligatoires pour ce chauffeur (sauf permission "Sans GPS emb.") :
+    // si l'un des deux est absent après l'attente, on bloque plutôt que d'enregistrer un BL incomplet.
+    var gpsEmbFinal = gpsEmb.lat || (function(){ try{ return JSON.parse(localStorage.getItem('gps_emb_pending')||'{}').lat||""; }catch(e){ return ""; } })();
+    var gpsDestFinal = gpsDest.lat || (function(){ try{ return JSON.parse(localStorage.getItem('gps_dest_pending')||'{}').lat||""; }catch(e){ return ""; } })();
+    if(user && user.gpsEmbOblig !== false && !gpsEmbFinal){
+      loader(false);
+      afficherAlerte("📍 GPS embarquement introuvable — active le GPS et réessaie");
+      return;
+    }
+    if(user && user.gpsEmbOblig !== false && !gpsDestFinal){
+      loader(false);
+      afficherAlerte("📍 GPS destination introuvable — active le GPS et réessaie");
+      return;
+    }
+
     // Appel Firebase (défini dans le module ES)
     if(window.enregistrer){
       window.enregistrer();
@@ -1639,6 +1682,7 @@ window.seConnecter = async function(){
       prefixBL: profil.prefixe_bl || profil.identifiant,
       prefixR:  profil.prefixe_recu || profil.identifiant,
       photoOblig: profil.photo_obligatoire !== false && profil.perm_sans_photo !== true,
+      gpsEmbOblig: profil.perm_sans_emb !== true,
       bl_compteur: profil.bl_compteur || 1,
       recu_compteur: profil.recu_compteur || 1
     };
@@ -1693,6 +1737,7 @@ window.seConnecter = async function(){
     G("pg-app").classList.add("on");
     initApp();
     majStatutLive({en_ligne:true, en_mission:false});
+    demarrerSuiviGPSContinu();
     // Recharger les selects avec les données Firestore (CLIENTS est maintenant rempli)
     initClients();
     initMarques();
@@ -1710,6 +1755,7 @@ window.seConnecter = async function(){
 // DÉCONNEXION
 // ════════════════════════════════════
 window.seDeconnecter = async function(){
+  arreterSuiviGPSContinu();
   if(user && user.uid){
     try{ await setDoc(doc(db,"chauffeurs_live",user.uid),{en_ligne:false,en_mission:false,updated_at:serverTimestamp()},{merge:true}); }catch(e){}
   }
@@ -1977,6 +2023,7 @@ onAuthStateChanged(auth, async (firebaseUser) => {
           prefixBL: profil.prefixe_bl || profil.identifiant,
           prefixR:  profil.prefixe_recu || profil.identifiant,
           photoOblig: profil.photo_obligatoire !== false && profil.perm_sans_photo !== true,
+          gpsEmbOblig: profil.perm_sans_emb !== true,
           bl_compteur: profil.bl_compteur || 1,
           recu_compteur: profil.recu_compteur || 1
         };
@@ -1984,6 +2031,7 @@ onAuthStateChanged(auth, async (firebaseUser) => {
         G("pg-login").classList.remove("on");
         G("pg-app").classList.add("on");
         initApp();
+        demarrerSuiviGPSContinu();
       }
     } catch(e){ console.warn("Session restore failed:", e); }
   }
