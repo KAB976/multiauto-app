@@ -433,10 +433,10 @@ tr:hover td{background:var(--gris)}
 
 <!-- Modal PC -->
 <div class="modal-bg" id="modal-pc">
-<div class="modal">
-  <div class="modal-title" id="modal-pc-title">📄 Prise en charge</div>
+<div class="modal" style="max-width:520px">
+  <div class="modal-title" id="modal-pc-title">📄 Nouvelle prise en charge</div>
   <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px">
-    <div class="form-group"><span class="fl">N° Dossier *</span><input class="inp inp-sm" id="pc-dossier" placeholder="Ex: T26 06 0094 WS3 G"></div>
+    <div class="form-group"><span class="fl">N° Dossier *</span><input class="inp inp-sm" id="pc-dossier" placeholder="T26 06 0094 WS3 G"></div>
     <div class="form-group"><span class="fl">Date dossier</span><input class="inp inp-sm" id="pc-date" type="date"></div>
   </div>
   <div class="form-group"><span class="fl">Assureur *</span><input class="inp inp-sm" id="pc-assureur" placeholder="Ex: AXA, MAAF..."></div>
@@ -462,6 +462,57 @@ tr:hover td{background:var(--gris)}
     <div class="form-group"><span class="fl">N° BL lié</span><input class="inp inp-sm" id="pc-bl" placeholder="AMD/BL-000001" oninput="chercherRecuPC()"></div>
     <div class="form-group"><span class="fl">N° Reçu</span><input class="inp inp-sm" id="pc-recu" readonly style="background:var(--gris-lt)"></div>
   </div>
+  <!-- Paiement part client -->
+  <div style="background:var(--gris-lt);border-radius:10px;padding:12px;margin-top:8px">
+    <div style="font-weight:700;font-size:13px;color:var(--bl);margin-bottom:10px">💰 Paiement part client</div>
+    <div class="form-group">
+      <span class="fl">Payé par le chauffeur ?</span>
+      <div style="display:flex;gap:8px;margin-top:4px">
+        <button type="button" id="pc-btn-paye-ch-oui" onclick="setPaieParChauffeur('pc-',true)"
+          style="flex:1;padding:10px;border-radius:8px;border:2px solid #ccc;background:white;color:#888;font-weight:700;cursor:pointer;font-family:inherit;font-size:13px">
+          ✅ Oui — chauffeur a encaissé
+        </button>
+        <button type="button" id="pc-btn-paye-ch-non" onclick="setPaieParChauffeur('pc-',false)"
+          style="flex:1;padding:10px;border-radius:8px;border:2px solid #ccc;background:white;color:#888;font-weight:700;cursor:pointer;font-family:inherit;font-size:13px">
+          🏦 Non — paiement société
+        </button>
+      </div>
+    </div>
+    <!-- Si chauffeur a encaissé -->
+    <div id="pc-zone-recu-chauffeur" style="display:none">
+      <div class="form-group"><span class="fl">N° Reçu chauffeur</span>
+        <input class="inp inp-sm" id="pc-recu-chauffeur" placeholder="Auto depuis N° BL" readonly style="background:white">
+      </div>
+    </div>
+    <!-- Si paiement société -->
+    <div id="pc-zone-paiement-societe" style="display:none">
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px">
+        <div class="form-group"><span class="fl">Mode paiement</span>
+          <select class="inp inp-sm" id="pc-mode-paiement-client">
+            <option value="especes">💵 Espèces</option>
+            <option value="virement">🏦 Virement</option>
+            <option value="cheque">📝 Chèque</option>
+            <option value="cb">💳 CB</option>
+          </select>
+        </div>
+        <div class="form-group"><span class="fl">Date paiement</span>
+          <input class="inp inp-sm" id="pc-date-paiement-client" type="date">
+        </div>
+      </div>
+      <div class="form-group"><span class="fl">N° Reçu généré</span>
+        <input class="inp inp-sm" id="pc-recu-societe" placeholder="Généré à l'enregistrement" readonly style="background:var(--gris-lt)">
+      </div>
+    </div>
+    <!-- Statut assureur -->
+    <div class="form-group" style="margin-top:8px">
+      <span class="fl">Paiement assureur</span>
+      <select class="inp inp-sm" id="pc-statut-assureur">
+        <option value="en_attente">⏳ En attente</option>
+        <option value="recu">✅ Reçu</option>
+      </select>
+    </div>
+  </div>
+  <div class="form-group"><span class="fl">Observation / Cause annulation</span><textarea class="inp inp-sm" id="pc-observation" rows="2" placeholder="Cause si annulation..."></textarea></div>
   <div class="form-group"><span class="fl">Notes</span><textarea class="inp inp-sm" id="pc-notes" rows="2"></textarea></div>
   <div class="modal-footer">
     <button class="btn btn-secondary" onclick="fermerModal('modal-pc')">Annuler</button>
@@ -3806,6 +3857,9 @@ function ouvrirModalPC(){
   chauffeursList.forEach(ch=>{const o=document.createElement("option");o.value=ch.nom;o.textContent=ch.nom;selCh.appendChild(o);});
   peuplerMarquesPC();
   if(G("pc-modele"))G("pc-modele").innerHTML="<option value=''>— Modèle —</option>";
+  if(G("pc-observation"))G("pc-observation").value="";
+  if(G("pc-statut-assureur"))G("pc-statut-assureur").value="en_attente";
+  resetPaieParChauffeur("pc-");
   G("modal-pc").classList.add("on");
 }
 function editerPC(id){
@@ -3828,6 +3882,20 @@ function editerPC(id){
     selCh.value=p.chauffeur||"";
     peuplerMarquesPC();
     if(G("pc-marque")){G("pc-marque").value=p.marque||"";majModelesPC();if(G("pc-modele"))G("pc-modele").value=p.modele||"";}
+    if(G("pc-observation"))G("pc-observation").value=p.observation||"";
+    // Charger statut paiement
+    if(G("pc-statut-assureur"))G("pc-statut-assureur").value=p.statut_assureur||"en_attente";
+    if(p.paye_par_chauffeur===true){
+      setPaieParChauffeur("pc-",true);
+      if(G("pc-recu-chauffeur"))G("pc-recu-chauffeur").value=p.recu_num||"";
+    } else if(p.paye_par_chauffeur===false){
+      setPaieParChauffeur("pc-",false);
+      if(G("pc-mode-paiement-client"))G("pc-mode-paiement-client").value=p.mode_paiement_client||"especes";
+      if(G("pc-date-paiement-client"))G("pc-date-paiement-client").value=p.date_paiement_client||"";
+      if(G("pc-recu-societe"))G("pc-recu-societe").value=p.recu_societe||"";
+    } else {
+      resetPaieParChauffeur("pc-");
+    }
     if(p.statut==="en_cours") G("btn-annuler-pc").style.display="inline-flex";
     G("modal-pc").classList.add("on");
   });
@@ -3844,7 +3912,22 @@ function sauvegarderPC(){
     chauffeur:G("pc-chauffeur").value,date:G("pc-date").value,
     date_intervention:G("pc-date-intervention")?.value||"",
     bon_num:G("pc-bl")?.value.trim()||"",recu_num:G("pc-recu")?.value.trim()||"",
-    notes:G("pc-notes").value.trim(),statut:editingId?"en_cours":"en_cours"};
+    notes:G("pc-notes").value.trim(),observation:G("pc-observation")?.value.trim()||""};
+  // Paiement client
+  const payCh = G("pc-zone-recu-chauffeur") && G("pc-zone-recu-chauffeur").style.display!=="none";
+  const paySoc = G("pc-zone-paiement-societe") && G("pc-zone-paiement-societe").style.display!=="none";
+  if(payCh){
+    data.paye_par_chauffeur=true;
+    data.recu_num=G("pc-recu-chauffeur")?.value.trim()||data.recu_num;
+    data.montant_client_paye=data.montant_client;
+  } else if(paySoc){
+    data.paye_par_chauffeur=false;
+    data.mode_paiement_client=G("pc-mode-paiement-client")?.value||"";
+    data.date_paiement_client=G("pc-date-paiement-client")?.value||"";
+    data.montant_client_paye=data.montant_client;
+  }
+  data.statut_assureur=G("pc-statut-assureur")?.value||"en_attente";
+  data.statut = data.statut_assureur==="recu" && (payCh||paySoc) ? "livre" : "en_cours";
   const p=editingId
     ?db.collection("prises_en_charge").doc(editingId).update(data)
     :db.collection("prises_en_charge").add({...data,paye_client:0,createdAt:firebase.firestore.FieldValue.serverTimestamp()});
@@ -3908,7 +3991,7 @@ async function confirmerPaiementAssurancePC(){
   try{
     await db.collection("prises_en_charge").doc(id).update({
       statut_assureur:"recu",
-      montant_assurance:montant,
+      montant_assurance_recu:montant,
       date_reception_assurance:date
     });
     toast("Paiement assurance enregistré ✅");
