@@ -720,10 +720,10 @@ tr:hover td{background:var(--gris)}
           <table>
             <thead><tr>
               <th><input type="checkbox" id="rc-check-all" onclick="toutCocher('rc')"></th>
-              <th>N° Reçu</th><th>Date</th><th>Chauffeur</th><th>Client</th>
+              <th>N° Reçu</th><th>Date</th><th>Type</th><th>Chauffeur</th><th>Client</th>
               <th>Véhicule</th><th>Mission</th><th>Montant</th><th>N° BL</th><th>Actions</th>
             </tr></thead>
-            <tbody id="recus-tbody"><tr><td colspan="10" style="text-align:center;color:var(--gris3);padding:24px">Chargement...</td></tr></tbody>
+            <tbody id="recus-tbody"><tr><td colspan="11" style="text-align:center;color:var(--gris3);padding:24px">Chargement...</td></tr></tbody>
           </table>
         </div>
       </div>
@@ -4998,6 +4998,7 @@ function chargerCommissions(){
     G("taux-normal").textContent=txN+"%"; G("taux-tntw").textContent=txTW+"%";
     return db.collection("bons").orderBy("timestamp","desc").limit(500).get().then(snap2=>{
       let bons=[]; snap2.forEach(d=>bons.push({id:d.id,...d.data()}));
+      const bonsComplet=bons.slice(); // copie non filtrée, pour retrouver le tarif des BL liés aux PC
       const ch=G("comm-chauffeur")?.value||"";
       const debut=G("comm-debut")?.value||"", fin=G("comm-fin")?.value||"";
       if(ch)    bons=bons.filter(b=>b.chauffeur_uid===ch);
@@ -5011,6 +5012,34 @@ function chargerCommissions(){
         if(b.tarif==="NORMAL"){parCh[k].blN.push(b);parCh[k].montN+=m;}
         else{parCh[k].blTW.push(b);parCh[k].montTW+=m;}
       });
+      // Inclure les dossiers PC (prises en charge) — base = montant réel (client + assurance),
+      // rattachés au chauffeur assigné, avec le MÊME tarif (Normal/TN/TW) que le BL lié
+      // (champ "N° BL" du dossier PC). Les PC annulés ne comptent pas.
+      const tarifParBonNum={};
+      bonsComplet.forEach(b=>{ if(b.bon_num) tarifParBonNum[b.bon_num]=b.tarif; });
+      return db.collection("prises_en_charge").get().then(snapPC=>{
+        let pcs=[]; snapPC.forEach(d=>pcs.push({id:d.id,...d.data()}));
+        pcs=pcs.filter(p=>p.statut!=="annule");
+        if(ch){
+          const chauffeurNomFiltre = chauffeursList.find(c=>c.id===ch)?.nom || "";
+          pcs=pcs.filter(p=>p.chauffeur===chauffeurNomFiltre);
+        }
+        if(debut) pcs=pcs.filter(p=>toComp(p.date_intervention||p.date)>=debut);
+        if(fin)   pcs=pcs.filter(p=>toComp(p.date_intervention||p.date)<=fin);
+        pcs.forEach(p=>{
+          const k=p.chauffeur||"—"; if(!parCh[k]) parCh[k]={blN:[],montN:0,blTW:[],montTW:0};
+          const m=parseFloat(p.montant_reel)||(parseFloat(p.montant_client)||0)+(parseFloat(p.montant_assurance)||0);
+          // Tarif hérité du BL lié (champ bon_num du dossier PC). Si pas de BL lié / introuvable → Normal par défaut.
+          const tarifPC = tarifParBonNum[p.bon_num] || "NORMAL";
+          const bucket = tarifPC==="NORMAL" ? "blN" : "blTW";
+          const montKey = tarifPC==="NORMAL" ? "montN" : "montTW";
+          parCh[k][bucket].push({...p, montant:m, tarif:"PC-"+tarifPC, bon_num:p.dossier, nom_client:p.client,
+            lieu_embarquement:p.assureur||"", destination:"", date_bl:p.date_intervention||p.date});
+          parCh[k][montKey]+=m;
+        });
+        return parCh;
+      });
+    }).then(parCh=>{
       let html="", total=0;
       const totalCA=Object.values(parCh).reduce((s,d)=>s+(d.montN+d.montTW),0);
       Object.entries(parCh).sort((a,b)=>a[0].localeCompare(b[0])).forEach(([nom,d])=>{
@@ -5027,8 +5056,9 @@ function chargerCommissions(){
         } else {
           html+=`<tr style="background:var(--gris)"><td colspan="8"><strong>👤 ${nom}</strong> — Normal: ${d.blN.length} BL / ${fmtMontant(d.montN)} → <span style="color:var(--vert)">${fmtMontant(cN)}</span> | TN/TW: ${d.blTW.length} BL / ${fmtMontant(d.montTW)} → <span style="color:var(--violet)">${fmtMontant(cTW)}</span> | <strong style="color:var(--rouge)">${fmtMontant(t)}</strong></td></tr>`;
           [...d.blN,...d.blTW].sort((a,b)=>(a.date_bl||"").localeCompare(b.date_bl||"")).forEach(b=>{
-            const m=parseFloat(b.montant)||0, tx=b.tarif==="NORMAL"?txN:txTW, comm=m*tx/100;
-            html+=`<tr style="font-size:11px"><td colspan="2" style="padding-left:20px;color:var(--gris3)">${b.date_bl||"—"}</td><td colspan="2">${b.bon_num||"—"} — ${b.nom_client||"—"}</td><td colspan="2">${b.lieu_embarquement||"—"} → ${b.destination||"—"}</td><td><span class="badge ${b.tarif==="NORMAL"?"tarif-normal":"tarif-tw"}">${b.tarif}</span></td><td style="font-weight:700;color:var(--vert)">${fmtMontant(comm)}</td></tr>`;
+            const estNormal = b.tarif==="NORMAL"||b.tarif==="PC-NORMAL";
+            const m=parseFloat(b.montant)||0, tx=estNormal?txN:txTW, comm=m*tx/100;
+            html+=`<tr style="font-size:11px"><td colspan="2" style="padding-left:20px;color:var(--gris3)">${b.date_bl||"—"}</td><td colspan="2">${b.bon_num||"—"} — ${b.nom_client||"—"}</td><td colspan="2">${b.lieu_embarquement||"—"} → ${b.destination||"—"}</td><td><span class="badge ${estNormal?"tarif-normal":"tarif-tw"}">${b.tarif}</span></td><td style="font-weight:700;color:var(--vert)">${fmtMontant(comm)}</td></tr>`;
           });
         }
       });
