@@ -349,7 +349,7 @@ tr:hover td{background:var(--gris)}
   <div style="background:var(--gris);border-radius:8px;padding:14px;margin-bottom:14px">
     <div style="font-size:11px;font-weight:800;color:var(--gris4);text-transform:uppercase;margin-bottom:10px">💳 Paiement</div>
     <div class="form-grid">
-      <div class="form-group"><span class="fl">Montant encaissé (€)</span><input class="inp inp-sm" id="mag-paiement-montant" type="number" step="0.01" min="0" placeholder="0.00"></div>
+      <div class="form-group"><span class="fl">Montant encaissé (€)</span><input class="inp inp-sm" id="mag-paiement-montant" type="number" step="0.01" min="0" placeholder="0.00" oninput="this.dataset.userEdited='1';majCalcLivraison()"></div>
       <div class="form-group"><span class="fl">Mode de paiement</span>
         <select class="inp inp-sm" id="mag-paiement-mode">
           <option value="especes">💵 Espèces</option>
@@ -445,10 +445,10 @@ tr:hover td{background:var(--gris)}
     <div class="form-group"><span class="fl">Téléphone</span><input class="inp inp-sm" id="pc-tel" type="tel" placeholder="0639 00 00 00"></div>
   </div>
   <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px">
-    <div class="form-group"><span class="fl">Marque</span><select class="inp inp-sm" id="pc-marque" onchange="majModelesPC()"><option value="">— Marque —</option></select></div>
-    <div class="form-group"><span class="fl">Modèle</span><select class="inp inp-sm" id="pc-modele"><option value="">— Modèle —</option></select></div>
+    <div class="form-group"><span class="fl">Marque *</span><select class="inp inp-sm" id="pc-marque" onchange="majModelesPC()"><option value="">— Marque —</option></select></div>
+    <div class="form-group"><span class="fl">Modèle *</span><select class="inp inp-sm" id="pc-modele"><option value="">— Modèle —</option></select></div>
   </div>
-  <div class="form-group"><span class="fl">Immatriculation</span><input class="inp inp-sm" id="pc-immat" placeholder="WV-111-EF" style="text-transform:uppercase" oninput="this.value=this.value.toUpperCase()"></div>
+  <div class="form-group"><span class="fl">Immatriculation *</span><input class="inp inp-sm" id="pc-immat" placeholder="WV-111-EF" style="text-transform:uppercase" oninput="this.value=this.value.toUpperCase()"></div>
   <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px">
     <div class="form-group"><span class="fl">Part assurance (€)</span><input class="inp inp-sm" id="pc-montant-ass" type="number" placeholder="0" min="0" oninput="calcMontantReelPC()"></div>
     <div class="form-group"><span class="fl">Part client (€)</span><input class="inp inp-sm" id="pc-montant-client" type="number" placeholder="0" min="0" oninput="calcMontantReelPC()"></div>
@@ -3562,7 +3562,7 @@ function majCalcLivraison(){
       ${remiseBase>0?`Remise initiale: -${fmtMontant(remiseBase)}<br>`:""}
       ${remiseSup>0?`Remise supplémentaire: -${fmtMontant(remiseSup)}<br>`:""}
       <strong style="color:var(--vert);font-size:15px">Net à encaisser: ${fmtMontant(net)}</strong>`;
-    if(G("mag-paiement-montant")&&!G("mag-paiement-montant").value) G("mag-paiement-montant").value=net.toFixed(2);
+    if(G("mag-paiement-montant")&&G("mag-paiement-montant").dataset.userEdited!=="1") G("mag-paiement-montant").value=net.toFixed(2);
     const montantSaisi=parseFloat(G("mag-paiement-montant")?.value)||0;
     const recap=G("mag-paiement-recap");
     if(recap&&montantSaisi>0){
@@ -3578,6 +3578,7 @@ function ouvrirLivraison(id){
   G("mag-date-sortie").value=new Date().toISOString().split("T")[0];
   G("mag-paiement-date").value=new Date().toISOString().split("T")[0];
   G("mag-paiement-montant").value="";
+  G("mag-paiement-montant").dataset.userEdited="";
   G("mag-paiement-remise").value="0";
   majCalcLivraison();
   G("modal-livraison-mag").classList.add("on");
@@ -3773,8 +3774,8 @@ function chargerPC(){
     if(global) list=list.filter(p=>calcStatutPC(p)===global);
     if(filtClNom) list=list.filter(p=>(p.client||p.assureur||"")===filtClNom);
     // Filtre dates — le champ date est au format DD/MM/YYYY, on compare en YYYY-MM-DD
-    if(debut) list=list.filter(p=>{ const d=p.date||""; const parts=d.split("/"); return parts.length===3?(parts[2]+"-"+parts[1]+"-"+parts[0])>=debut:true; });
-    if(fin)   list=list.filter(p=>{ const d=p.date||""; const parts=d.split("/"); return parts.length===3?(parts[2]+"-"+parts[1]+"-"+parts[0])<=fin:true; });
+    if(debut) list=list.filter(p=>(p.date||"")>=debut);
+    if(fin)   list=list.filter(p=>(p.date||"")<=fin);
     if(filtAss) list=list.filter(p=>calcStatutAssurance(p)===filtAss);
     if(filtCl==="paye")    list=list.filter(p=>(parseFloat(p.montant_client_paye||p.paye_client)||0)>=(p.montant_client||0)&&(p.montant_client||0)>0);
     else if(filtCl==="partiel") list=list.filter(p=>(parseFloat(p.montant_client_paye||p.paye_client)||0)>0&&(parseFloat(p.montant_client_paye||p.paye_client)||0)<(p.montant_client||0));
@@ -3928,6 +3929,18 @@ function peuplerMarquesPC(){
 function chercherRecuPC(){
   const bl=G("pc-bl").value.trim();
   if(!bl){if(G("pc-recu"))G("pc-recu").value="";return;}
+  // Auto-remplir marque/modèle/immat/chauffeur depuis le BL lié (obligatoires côté chauffeur)
+  db.collection("bons").where("bon_num","==",bl).limit(1).get().then(snap=>{
+    if(snap.empty) return;
+    const b=snap.docs[0].data();
+    if(G("pc-immat")&&!G("pc-immat").value) G("pc-immat").value=b.immatriculation||"";
+    if(G("pc-marque")&&!G("pc-marque").value&&b.marque){
+      G("pc-marque").value=b.marque;
+      majModelesPC();
+      if(G("pc-modele")&&b.modele) G("pc-modele").value=b.modele;
+    }
+    if(G("pc-chauffeur")&&!G("pc-chauffeur").value&&b.chauffeur_nom) G("pc-chauffeur").value=b.chauffeur_nom;
+  }).catch(()=>{});
   db.collection("recus").where("bon_num","==",bl).limit(1).get().then(snap=>{
     G("pc-recu").value=snap.empty?"":snap.docs[0].data().recu_num||"";
   });
@@ -3968,9 +3981,26 @@ function editerPC(id){
     sel.value=p.client||"";
     const selCh=G("pc-chauffeur");selCh.innerHTML="<option value=''>— Choisir —</option>";
     chauffeursList.forEach(ch=>{const o=document.createElement("option");o.value=ch.nom;o.textContent=ch.nom;selCh.appendChild(o);});
+    if(p.chauffeur && ![...selCh.options].some(o=>o.value===p.chauffeur)){
+      const o=document.createElement("option"); o.value=p.chauffeur; o.textContent=p.chauffeur+" (introuvable)"; selCh.appendChild(o);
+    }
     selCh.value=p.chauffeur||"";
     peuplerMarquesPC();
-    if(G("pc-marque")){G("pc-marque").value=p.marque||"";majModelesPC();if(G("pc-modele"))G("pc-modele").value=p.modele||"";}
+    if(G("pc-marque")){
+      const selM=G("pc-marque");
+      if(p.marque && ![...selM.options].some(o=>o.value===p.marque)){
+        const o=document.createElement("option"); o.value=p.marque; o.textContent=p.marque+" (hors catalogue)"; selM.appendChild(o);
+      }
+      selM.value=p.marque||"";
+      majModelesPC();
+      if(G("pc-modele")){
+        const selMo=G("pc-modele");
+        if(p.modele && ![...selMo.options].some(o=>o.value===p.modele)){
+          const o=document.createElement("option"); o.value=p.modele; o.textContent=p.modele+" (hors catalogue)"; selMo.appendChild(o);
+        }
+        selMo.value=p.modele||"";
+      }
+    }
     if(G("pc-observation"))G("pc-observation").value=p.observation||"";
     // Statut paiement (lecture seule pour l'assureur — le vrai encaissement se fait via le bouton de la liste)
     if(G("pc-statut-assureur"))G("pc-statut-assureur").value=p.statut_assureur||"en_attente";
@@ -3999,7 +4029,10 @@ function editerPC(id){
 }
 function sauvegarderPC(){
   const dossier=G("pc-dossier").value.trim(), assureur=G("pc-assureur").value.trim();
+  const marque=G("pc-marque")?.value||"", modele=G("pc-modele")?.value||"", immat=G("pc-immat").value.trim();
   if(!dossier||!assureur){toast("N° dossier et assureur obligatoires","err");return;}
+  if(!marque||!modele){toast("Marque et modèle obligatoires","err");return;}
+  if(!immat){toast("Immatriculation obligatoire","err");return;}
   loader(true);
   const ass=parseFloat(G("pc-montant-ass").value)||0, cl=parseFloat(G("pc-montant-client").value)||0;
   const data={dossier,assureur,client:G("pc-client").value,tel:G("pc-tel").value.trim(),
