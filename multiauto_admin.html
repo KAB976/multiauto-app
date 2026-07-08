@@ -326,7 +326,7 @@ tr:hover td{background:var(--gris)}
   <div class="form-grid">
     <div class="form-group"><span class="fl">Immatriculation</span><input class="inp inp-sm" id="mag-immat" placeholder="WV-111-EF" style="text-transform:uppercase" oninput="this.value=this.value.toUpperCase()"></div>
     <div class="form-group"><span class="fl">Client</span><select class="inp inp-sm" id="mag-client"><option value="">— Choisir —</option></select></div>
-    <div class="form-group"><span class="fl">Marque / Modèle</span><input class="inp inp-sm" id="mag-vehicule" placeholder="Ex: Volvo XC60"></div>
+    <div class="form-group"><span class="fl">Marque / Modèle *</span><input class="inp inp-sm" id="mag-vehicule" placeholder="Ex: Volvo XC60"></div>
     <div class="form-group"><span class="fl">Tarif / jour (€)</span><select class="inp inp-sm" id="mag-tarif"><option value="20">20 €</option><option value="30">30 €</option><option value="40" selected>40 €</option></select></div>
     <div class="form-group"><span class="fl">Date entrée</span><input class="inp inp-sm" id="mag-date-entree" type="date"></div>
     <div class="form-group"><span class="fl">Remise (€)</span><input class="inp inp-sm" id="mag-remise" type="number" placeholder="0" min="0" value="0"></div>
@@ -3529,10 +3529,12 @@ function ouvrirModalMagasinage(){
 
 function sauvegarderMagasinage(){
   const immat=G("mag-immat").value.trim().toUpperCase(), client=G("mag-client").value;
+  const vehicule=G("mag-vehicule").value.trim();
   if(!immat||!client){toast("Immat et client obligatoires","err");return;}
+  if(!vehicule){toast("Marque / Modèle obligatoire","err");return;}
   loader(true);
   db.collection("magasinage").add({
-    immat,client,vehicule:G("mag-vehicule").value.trim(),
+    immat,client,vehicule,
     tarif_jour:parseFloat(G("mag-tarif").value)||40,
     date_entree:G("mag-date-entree").value,date_sortie:null,
     remise:parseFloat(G("mag-remise").value)||0,
