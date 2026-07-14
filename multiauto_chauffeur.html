@@ -251,6 +251,10 @@ self.addEventListener('fetch', e => {
       <span class="fl">Téléphone <span class="tag-opt">Facultatif</span></span>
       <input class="inp" id="new-client-tel" type="tel" placeholder="Ex : 0639 00 00 00">
     </div>
+    <div class="mb14">
+      <span class="fl">Email <span class="tag-opt">Facultatif — pour l'envoi du reçu</span></span>
+      <input class="inp" id="new-client-email" type="email" placeholder="Ex : client@exemple.com" autocomplete="off">
+    </div>
     <button class="btn-modal-confirm" onclick="confirmerNouveauClient()">✅ Ajouter ce client</button>
     <button class="btn-modal-cancel" onclick="fermerModalClient()">Annuler</button>
   </div>
@@ -444,6 +448,10 @@ self.addEventListener('fetch', e => {
         <div>
           <span class="fl">Téléphone <span class="tag-opt">Facultatif</span></span>
           <input class="inp" id="inp-tel" type="tel" placeholder="Ex : 0639 00 00 00">
+        </div>
+        <div>
+          <span class="fl">Email <span class="tag-opt">Facultatif — pour l'envoi du reçu</span></span>
+          <input class="inp" id="inp-email" type="email" placeholder="Ex : client@exemple.com" autocomplete="off">
         </div>
       </div>
     </div>
@@ -839,6 +847,7 @@ function onClientChange(){
 function ouvrirModalClient(){
   G("new-client-nom").value="";
   G("new-client-tel").value="";
+  G("new-client-email").value="";
   G("modal-client").classList.add("on");
   setTimeout(function(){ G("new-client-nom").focus(); },100);
 }
@@ -851,6 +860,7 @@ function confirmerNouveauClient(){
   // Majuscule première lettre
   nom = nom.charAt(0).toUpperCase()+nom.slice(1);
   var tel = G("new-client-tel").value.trim();
+  var email = G("new-client-email").value.trim();
   // Ajouter à la liste locale
   CLIENTS.push(nom);
   var sel = G("sel-client");
@@ -858,6 +868,7 @@ function confirmerNouveauClient(){
   o.value=nom; o.textContent=nom; sel.appendChild(o);
   sel.value=nom;
   if(tel) G("inp-tel").value=tel;
+  if(email) G("inp-email").value=email;
   fermerModalClient();
 }
 
@@ -980,7 +991,7 @@ function resetTrajet(){
 function annulerTrajetEtRecommencer(){
   if(!confirm("Annuler ce trajet et repartir sur une nouvelle mission ?\nLa saisie actuelle sera définitivement effacée.")) return;
   effacerBrouillon();
-  ["inp-immat","inp-tel","inp-emb","inp-dest","inp-montant"].forEach(function(id){ G(id).value=""; });
+  ["inp-immat","inp-tel","inp-email","inp-emb","inp-dest","inp-montant"].forEach(function(id){ G(id).value=""; });
   G("sel-marque").value=""; G("sel-modele").innerHTML="<option value=''>— Modèle —</option>";
   G("sel-client").value="";
   photoData=null;
@@ -1011,7 +1022,7 @@ function annulerTrajetEtRecommencer(){
 // BROUILLON — garde la saisie en cours même si le chauffeur ferme l'appli
 // ════════════════════════════════════
 var DRAFT_KEY = "bl_draft_v1";
-var _draftFields = ["inp-immat","sel-marque","sel-modele","sel-client","inp-tel","inp-emb","inp-dest","inp-montant"];
+var _draftFields = ["inp-immat","sel-marque","sel-modele","sel-client","inp-tel","inp-email","inp-emb","inp-dest","inp-montant"];
 
 function sauvegarderBrouillon(){
   try{
@@ -1021,6 +1032,7 @@ function sauvegarderBrouillon(){
       modele: G("sel-modele")?G("sel-modele").value:"",
       client: G("sel-client")?G("sel-client").value:"",
       tel: G("inp-tel")?G("inp-tel").value:"",
+      email: G("inp-email")?G("inp-email").value:"",
       emb: G("inp-emb")?G("inp-emb").value:"",
       dest: G("inp-dest")?G("inp-dest").value:"",
       montant: G("inp-montant")?G("inp-montant").value:"",
@@ -1066,6 +1078,7 @@ function restaurerBrouillon(){
     if(G("sel-modele") && d.modele) G("sel-modele").value = d.modele;
     if(G("sel-client")) G("sel-client").value = d.client||"";
     if(G("inp-tel")) G("inp-tel").value = d.tel||"";
+    if(G("inp-email")) G("inp-email").value = d.email||"";
     if(G("inp-emb")) G("inp-emb").value = d.emb||"";
     if(G("inp-montant")) G("inp-montant").value = d.montant||"";
 
@@ -1430,7 +1443,7 @@ function soumettre(){
         immatriculation:G("inp-immat").value.trim().toUpperCase(),
         type_bl: typeIntervention==="pc" ? "pc" : "client",
         marque:G("sel-marque").value, modele:G("sel-modele").value,
-        nom_client:G("sel-client").value, tel_client:G("inp-tel").value.trim(),
+        nom_client:G("sel-client").value, tel_client:G("inp-tel").value.trim(), email_client:G("inp-email").value.trim(),
         lieu_embarquement:G("inp-emb").value.trim(),
         destination:G("inp-dest").value.trim(),
         gps_emb_lat:gpsEmb.lat||(function(){ try{ return JSON.parse(localStorage.getItem('gps_emb_pending')||'{}').lat||""; }catch(e){ return ""; } })(),
@@ -1481,7 +1494,7 @@ function nouveauBon(){
   effacerBrouillon();
   G("pg-success").classList.remove("on");
   G("pg-app").classList.add("on");
-  ["inp-immat","inp-tel","inp-emb","inp-dest","inp-montant"].forEach(function(id){ G(id).value=""; });
+  ["inp-immat","inp-tel","inp-email","inp-emb","inp-dest","inp-montant"].forEach(function(id){ G(id).value=""; });
   G("sel-marque").value=""; G("sel-modele").innerHTML="<option value=''>— Modèle —</option>";
   G("sel-client").value="";
   photoData=null;
@@ -2029,6 +2042,7 @@ window.enregistrer = async function(){
     // Client
     nom_client: G("sel-client").value,
     tel_client: G("inp-tel").value.trim(),
+    email_client: G("inp-email").value.trim(),
     // Trajet
     lieu_embarquement:   G("inp-emb").value.trim(),
     heure_embarquement:  heureEmb  ? fmtHeure(heureEmb)    : "",
@@ -2078,6 +2092,7 @@ window.enregistrer = async function(){
         assureur: payload.nom_client || "",
         client: payload.nom_client || "",
         tel: payload.tel_client || "",
+        email: payload.email_client || "",
         marque: payload.marque || "",
         modele: payload.modele || "",
         immat: payload.immatriculation || "",
@@ -2106,6 +2121,7 @@ window.enregistrer = async function(){
         chauffeur_nom: user.nom,
         nom_client:    payload.nom_client,
         tel_client:    payload.tel_client,
+        email_client:  payload.email_client || "",
         marque:        payload.marque,
         modele:        payload.modele,
         immatriculation: payload.immatriculation,
