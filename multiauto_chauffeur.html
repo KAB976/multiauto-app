@@ -477,6 +477,10 @@ self.addEventListener('fetch', e => {
             <div class="zv-sub" id="zv-emb-heure">—</div>
           </div>
         </div>
+        <button type="button" onclick="annulerTrajetEtRecommencer()" id="btn-annuler-trajet"
+          style="display:none;width:100%;margin-top:8px;padding:9px;background:none;border:1px solid #d33;color:#d33;border-radius:8px;font-size:12px;font-weight:700;cursor:pointer;font-family:inherit">
+          🗑️ Annuler ce trajet et commencer une nouvelle mission
+        </button>
       </div>
       <!-- Chrono invisible — enregistré en base, non affiché au chauffeur -->
       <div id="chrono-box" style="display:none" aria-hidden="true"></div>
@@ -891,6 +895,8 @@ function initApp(){
   gpsEmbPromise = captureGPSPromise().then(function(g){ gpsEmb=g; return g; });
   // Sync offline si réseau
   syncOffline();
+  demarrerAutoSaveBrouillon();
+  restaurerBrouillon();
 }
 
 // ════════════════════════════════════
@@ -968,6 +974,144 @@ function resetTrajet(){
   G("btn-arrive").style.display="none";
   G("inp-dest").style.display="none";
   G("zv-dest").style.display="none";
+  if(G("btn-annuler-trajet")) G("btn-annuler-trajet").style.display="none";
+}
+
+function annulerTrajetEtRecommencer(){
+  if(!confirm("Annuler ce trajet et repartir sur une nouvelle mission ?\nLa saisie actuelle sera définitivement effacée.")) return;
+  effacerBrouillon();
+  ["inp-immat","inp-tel","inp-emb","inp-dest","inp-montant"].forEach(function(id){ G(id).value=""; });
+  G("sel-marque").value=""; G("sel-modele").innerHTML="<option value=''>— Modèle —</option>";
+  G("sel-client").value="";
+  photoData=null;
+  G("photo-prev").style.display="none"; G("photo-prev").src="";
+  G("pz-inner").style.display="flex";
+  G("photo-zone").classList.remove("ok");
+  if(typeof clearSig==="function") clearSig();
+  if(G("sig-zone-active")) G("sig-zone-active").style.display="block";
+  if(G("sig-zone-validee")) G("sig-zone-validee").style.display="none";
+  if(G("sig-preview")) G("sig-preview").src="";
+  espActif=false; if(G("esp-switch")) G("esp-switch").classList.remove("on"); if(G("esp-box")) G("esp-box").style.display="none";
+  typeIntervention="normal"; setTypeIntervention("normal");
+  if(G("form-alert")) G("form-alert").style.display="none"; if(G("form-alert2")) G("form-alert2").classList.remove("on");
+  gpsEmb={lat:"",lng:"",lieu:""}; gpsDest={lat:"",lng:"",lieu:""};
+  try{ localStorage.removeItem('gps_emb_pending'); localStorage.removeItem('gps_dest_pending'); }catch(e){}
+  resetTrajet();
+  majTarif();
+  majNums();
+  window.scrollTo(0,0);
+  if(G("div-type-intervention")) G("div-type-intervention").style.display="block";
+  gpsEmbPromise = captureGPSPromise().then(function(g){ gpsEmb=g; return g; });
+  gpsDestPromise = null;
+  if(window.majStatutLive) window.majStatutLive({en_mission:false, lieu_embarquement:"", destination:""});
+  afficherAlerte("✅ Trajet annulé — prêt pour une nouvelle mission");
+}
+
+// ════════════════════════════════════
+// BROUILLON — garde la saisie en cours même si le chauffeur ferme l'appli
+// ════════════════════════════════════
+var DRAFT_KEY = "bl_draft_v1";
+var _draftFields = ["inp-immat","sel-marque","sel-modele","sel-client","inp-tel","inp-emb","inp-dest","inp-montant"];
+
+function sauvegarderBrouillon(){
+  try{
+    var d = {
+      immat: G("inp-immat")?G("inp-immat").value:"",
+      marque: G("sel-marque")?G("sel-marque").value:"",
+      modele: G("sel-modele")?G("sel-modele").value:"",
+      client: G("sel-client")?G("sel-client").value:"",
+      tel: G("inp-tel")?G("inp-tel").value:"",
+      emb: G("inp-emb")?G("inp-emb").value:"",
+      dest: G("inp-dest")?G("inp-dest").value:"",
+      montant: G("inp-montant")?G("inp-montant").value:"",
+      typeIntervention: typeIntervention,
+      espActif: espActif,
+      embarquementFait: embarquementFait,
+      arriveeFaite: arriveeFaite,
+      heureEmb: heureEmb ? heureEmb.toISOString() : null,
+      heureArrivee: heureArrivee ? heureArrivee.toISOString() : null,
+      photoData: photoData,
+      savedAt: new Date().toISOString()
+    };
+    localStorage.setItem(DRAFT_KEY, JSON.stringify(d));
+  }catch(e){ /* silencieux — stockage plein ou indisponible, ne doit jamais bloquer le chauffeur */ }
+}
+
+function effacerBrouillon(){
+  try{ localStorage.removeItem(DRAFT_KEY); }catch(e){}
+}
+
+function demarrerAutoSaveBrouillon(){
+  _draftFields.forEach(function(id){
+    var el=G(id);
+    if(el && !el.dataset.draftBound){
+      el.addEventListener("input", sauvegarderBrouillon);
+      el.addEventListener("change", sauvegarderBrouillon);
+      el.dataset.draftBound="1";
+    }
+  });
+}
+
+function restaurerBrouillon(){
+  try{
+    var raw = localStorage.getItem(DRAFT_KEY);
+    if(!raw) return;
+    var d = JSON.parse(raw);
+    if(!d) return;
+    // Ne restaurer que s'il y a vraiment eu une saisie (évite de "restaurer" un formulaire vide)
+    if(!d.immat && !d.emb && !d.client && !d.dest) return;
+
+    if(G("inp-immat")) G("inp-immat").value = d.immat||"";
+    if(G("sel-marque") && d.marque){ G("sel-marque").value = d.marque; majModeles(); }
+    if(G("sel-modele") && d.modele) G("sel-modele").value = d.modele;
+    if(G("sel-client")) G("sel-client").value = d.client||"";
+    if(G("inp-tel")) G("inp-tel").value = d.tel||"";
+    if(G("inp-emb")) G("inp-emb").value = d.emb||"";
+    if(G("inp-montant")) G("inp-montant").value = d.montant||"";
+
+    if(d.typeIntervention && d.typeIntervention!=="normal" && typeof setTypeIntervention==="function"){
+      typeIntervention=d.typeIntervention; setTypeIntervention(d.typeIntervention);
+    }
+    if(d.espActif){
+      espActif=true;
+      if(G("esp-switch")) G("esp-switch").classList.add("on");
+      if(G("esp-box")) G("esp-box").style.display="block";
+    }
+    if(d.photoData){
+      photoData=d.photoData;
+      if(G("photo-prev")){ G("photo-prev").src=photoData; G("photo-prev").style.display="block"; }
+      if(G("pz-inner")) G("pz-inner").style.display="none";
+      if(G("photo-zone")) G("photo-zone").classList.add("ok");
+    }
+
+    // Restaurer l'état embarquement / arrivée (zones visuelles)
+    if(d.embarquementFait){
+      embarquementFait=true;
+      heureEmb = d.heureEmb ? new Date(d.heureEmb) : new Date();
+      if(G("btn-je-pars")) G("btn-je-pars").style.display="none";
+      if(G("zv-emb")){ G("zv-emb").style.display="flex"; }
+      if(G("zv-emb-txt")) G("zv-emb-txt").textContent="📍 "+(d.emb||"");
+      if(G("section-dest")){ G("section-dest").style.opacity="1"; G("section-dest").style.pointerEvents="auto"; }
+      if(!d.arriveeFaite && G("btn-arrive")) G("btn-arrive").style.display="flex";
+      if(G("btn-annuler-trajet")) G("btn-annuler-trajet").style.display="block";
+    }
+    if(d.arriveeFaite){
+      arriveeFaite=true;
+      heureArrivee = d.heureArrivee ? new Date(d.heureArrivee) : new Date();
+      if(G("btn-arrive")) G("btn-arrive").style.display="none";
+      if(G("inp-dest")){
+        G("inp-dest").style.display="block";
+        G("inp-dest").value = d.dest||"";
+        G("inp-dest").addEventListener("input", majDestValidee);
+      }
+      if(d.dest && G("zv-dest")){
+        G("zv-dest").style.display="flex";
+        if(G("zv-dest-txt")) G("zv-dest-txt").textContent="🏁 "+d.dest;
+      }
+    }
+
+    setTimeout(function(){ afficherAlerte("📋 Saisie précédente restaurée — continue où tu en étais"); },400);
+  }catch(e){ console.warn("restaurerBrouillon:", e); }
 }
 
 function enregistrerEmbarquement(){
@@ -1007,8 +1151,10 @@ function enregistrerEmbarquement(){
   G("section-dest").style.opacity="1";
   G("section-dest").style.pointerEvents="auto";
   G("btn-arrive").style.display="flex";
+  if(G("btn-annuler-trajet")) G("btn-annuler-trajet").style.display="block";
   // Chrono silencieux
   chronoInterval=setInterval(function(){ /* durée calculée à l'arrivée */ },1000);
+  sauvegarderBrouillon();
 }
 
 function enregistrerArrivee(){
@@ -1031,6 +1177,7 @@ function enregistrerArrivee(){
   G("inp-dest").focus();
   // Écouter quand la destination est saisie
   G("inp-dest").addEventListener("input", majDestValidee);
+  sauvegarderBrouillon();
 }
 
 function majDestValidee(){
@@ -1075,6 +1222,7 @@ function onPhoto(inp){
       G("photo-prev").style.display="block";
       G("pz-inner").style.display="none";
       G("photo-zone").classList.add("ok");
+      sauvegarderBrouillon();
     };
     img.src=e.target.result;
   };
@@ -1307,6 +1455,7 @@ function sauvegarderOffline(payload,bon,recu){
 }
 
 function terminer(bon,recu,p){
+  effacerBrouillon();
   loader(false);
   G("pg-app").classList.remove("on");
   G("pg-success").classList.add("on");
@@ -1329,6 +1478,7 @@ function loader(on,txt){ G("loader").classList.toggle("on",on); if(txt) G("loade
 
 function nouveauBon(){
   // Reset tout
+  effacerBrouillon();
   G("pg-success").classList.remove("on");
   G("pg-app").classList.add("on");
   ["inp-immat","inp-tel","inp-emb","inp-dest","inp-montant"].forEach(function(id){ G(id).value=""; });
