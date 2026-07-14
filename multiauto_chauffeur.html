@@ -820,12 +820,14 @@ var _clientsUnsubscribe = null;
 function majModeles(){
   var marque = G("sel-marque").value;
   var sel = G("sel-modele");
+  var current = sel.value;
   sel.innerHTML = "<option value=''>— Modèle —</option>";
   if(!marque) return;
   var modeles = (MARQUES_MODELES[marque]||[]).slice().sort();
   modeles.forEach(function(m){
     var o = document.createElement("option"); o.value=m; o.textContent=m; sel.appendChild(o);
   });
+  if(current) sel.value = current;
 }
 
 // ════════════════════════════════════
@@ -833,11 +835,13 @@ function majModeles(){
 // ════════════════════════════════════
 function initClients(){
   var sel = G("sel-client");
+  var cur = sel.value;
   sel.innerHTML = "<option value=''>— Sélectionner —</option>";
   var liste = CLIENTS.slice().sort();
   liste.forEach(function(c){
     var o = document.createElement("option"); o.value=c; o.textContent=c; sel.appendChild(o);
   });
+  if(cur) sel.value=cur;
 }
 
 function onClientChange(){
