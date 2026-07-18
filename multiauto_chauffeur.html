@@ -1047,6 +1047,7 @@ function sauvegarderBrouillon(){
       heureEmb: heureEmb ? heureEmb.toISOString() : null,
       heureArrivee: heureArrivee ? heureArrivee.toISOString() : null,
       photoData: photoData,
+      signature: sigSigned ? (G("sig-preview")&&G("sig-preview").src&&G("sig-preview").src.startsWith("data:") ? G("sig-preview").src : (G("sig-canvas")?G("sig-canvas").toDataURL("image/png"):"")) : "",
       savedAt: new Date().toISOString()
     };
     localStorage.setItem(DRAFT_KEY, JSON.stringify(d));
@@ -1099,6 +1100,12 @@ function restaurerBrouillon(){
       if(G("photo-prev")){ G("photo-prev").src=photoData; G("photo-prev").style.display="block"; }
       if(G("pz-inner")) G("pz-inner").style.display="none";
       if(G("photo-zone")) G("photo-zone").classList.add("ok");
+    }
+    if(d.signature){
+      sigSigned=true;
+      if(G("sig-preview")) G("sig-preview").src=d.signature;
+      if(G("sig-zone-active")) G("sig-zone-active").style.display="none";
+      if(G("sig-zone-validee")) G("sig-zone-validee").style.display="block";
     }
 
     // Restaurer l'état embarquement / arrivée (zones visuelles)
@@ -1355,6 +1362,7 @@ function validerSig(){
   G("sig-zone-active").style.display  = "none";
   G("sig-zone-validee").style.display = "block";
   G("sig-preview").src = sigData;
+  sauvegarderBrouillon();
 }
 
 function supprimerSig(){
@@ -1366,6 +1374,7 @@ function supprimerSig(){
     var cv = G("sig-canvas");
     sigCtx.clearRect(0, 0, cv.width, cv.height);
   }
+  sauvegarderBrouillon();
   // Re-initialiser le canvas après affichage
   setTimeout(function(){
     var dpr = window.devicePixelRatio||1;
