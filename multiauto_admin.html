@@ -2857,12 +2857,12 @@ function chargerChauffeurs(){
   });
 }
 
-function ouvrirModalChauffeur(){editingId=null;G("modal-ch-title").textContent="👤 Ajouter un chauffeur";["ch-nom","ch-id","ch-mdp","ch-pref-bl","ch-immat"].forEach(id=>G(id).value="");G("modal-chauffeur").classList.add("on");}
+function ouvrirModalChauffeur(){editingId=null;G("modal-ch-title").textContent="👤 Ajouter un chauffeur";["ch-nom","ch-id","ch-mdp","ch-pref-bl","ch-immat"].forEach(id=>G(id).value="");G("ch-mdp").placeholder="Obligatoire pour un nouveau chauffeur";G("modal-chauffeur").classList.add("on");}
 function editerChauffeur(uid){
   db.collection("users").doc(uid).get().then(snap=>{
     const ch=snap.data(); editingId=uid;
     G("modal-ch-title").textContent="✏️ Modifier — "+ch.nom;
-    G("ch-nom").value=ch.nom||""; G("ch-id").value=ch.identifiant||""; G("ch-mdp").value="";
+    G("ch-nom").value=ch.nom||""; G("ch-id").value=ch.identifiant||""; G("ch-mdp").value=""; G("ch-mdp").placeholder="Laisser vide = inchangé";
     G("ch-pref-bl").value=ch.prefixe_bl||""; G("ch-immat").value=ch.immat_camion||"";
     // Re-peupler le select au cas où camionsList aurait changé
     const sch=G("ch-camion");
@@ -2872,10 +2872,38 @@ function editerChauffeur(uid){
     G("modal-chauffeur").classList.add("on");
   });
 }
-function sauvegarderChauffeur(){
+async function sauvegarderChauffeur(){
   const nom=G("ch-nom").value.trim(), id=G("ch-id").value.trim().toUpperCase();
   if(!nom||!id){toast("Nom et identifiant obligatoires","err");return;}
-  if(!editingId){toast("Pour ajouter, utilisez init_firebase.html","err");return;}
+  if(!editingId){
+    // Création d'un nouveau chauffeur : compte Firebase Auth + profil Firestore, directement depuis l'appli.
+    const pw=G("ch-mdp").value;
+    if(!pw||pw.length<6){toast("Mot de passe obligatoire (6 caractères minimum)","err");return;}
+    loader(true);
+    const email = "somalan2000+" + id.toLowerCase() + "@gmail.com";
+    let secondaryApp=null;
+    try{
+      secondaryApp = firebase.initializeApp(firebase.app().options, "Secondary-"+Date.now());
+      const secondaryAuth = secondaryApp.auth();
+      const cred = await secondaryAuth.createUserWithEmailAndPassword(email, pw);
+      const uid = cred.user.uid;
+      await secondaryAuth.signOut();
+      await secondaryApp.delete();
+      await db.collection("users").doc(uid).set({
+        nom, identifiant:id, role:"chauffeur", actif:true,
+        prefixe_bl:G("ch-pref-bl").value.trim().toUpperCase(),
+        prefixe_recu:G("ch-pref-bl").value.trim().toUpperCase(),
+        camion:G("ch-camion").value, immat_camion:G("ch-immat").value.trim().toUpperCase()
+      });
+      toast("Chauffeur créé ✅");
+      fermerModal("modal-chauffeur"); chargerChauffeurs(); chargerListeChauffeurs(); loader(false);
+    }catch(e){
+      if(secondaryApp){ try{ await secondaryApp.delete(); }catch(e2){} }
+      toast(e.code==="auth/email-already-in-use" ? "Cet identifiant existe déjà" : "Erreur lors de la création du compte","err");
+      loader(false);
+    }
+    return;
+  }
   loader(true);
   db.collection("users").doc(editingId).update({
     nom,identifiant:id,prefixe_bl:G("ch-pref-bl").value.trim().toUpperCase(),
