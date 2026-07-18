@@ -898,14 +898,6 @@ function seDeconnecter(){
 }
 
 // ════════════════════════════════════
-// DIAGNOSTIC TEMPORAIRE — à retirer une fois le problème de sauvegarde résolu.
-// N'ajoute qu'une alerte visible en cas d'erreur silencieuse ; ne modifie aucun comportement existant.
-// ════════════════════════════════════
-window.addEventListener("error", function(e){
-  try{ alert("⚠️ DIAGNOSTIC — erreur détectée :\n" + e.message + "\nligne " + e.lineno); }catch(_){}
-});
-
-// ════════════════════════════════════
 // INIT APP
 // ════════════════════════════════════
 function initApp(){
@@ -1138,41 +1130,6 @@ function restaurerBrouillon(){
     setTimeout(function(){ afficherAlerte("📋 Saisie précédente restaurée — continue où tu en étais"); },400);
   }catch(e){ console.warn("restaurerBrouillon:", e); }
 }
-
-// ════════════════════════════════════
-// DIAGNOSTIC TEMPORAIRE — enveloppe les fonctions ci-dessus sans toucher à leur contenu,
-// pour voir ce qu'elles trouvent/écrivent réellement (elles ont leur propre try/catch silencieux).
-// À retirer une fois le problème de sauvegarde résolu.
-// ════════════════════════════════════
-(function(){
-  var _saveOrig = sauvegarderBrouillon;
-  var _saveCount = 0;
-  sauvegarderBrouillon = function(){
-    _saveOrig();
-    _saveCount++;
-    try{
-      var check = localStorage.getItem(DRAFT_KEY);
-      if(!check){
-        alert("⚠️ DIAGNOSTIC — sauvegarde #"+_saveCount+" : ÉCHEC, rien trouvé juste après l'écriture.");
-      } else {
-        console.log("[DIAGNOSTIC] sauvegarde #"+_saveCount+" OK ("+check.length+" octets)");
-      }
-    }catch(e){
-      alert("⚠️ DIAGNOSTIC — sauvegarde #"+_saveCount+" : erreur de lecture localStorage : "+e.message);
-    }
-  };
-
-  var _restoreOrig = restaurerBrouillon;
-  restaurerBrouillon = function(){
-    try{
-      var raw = localStorage.getItem(DRAFT_KEY);
-      alert("🔍 DIAGNOSTIC — à l'ouverture, brouillon trouvé : " + (raw ? ("OUI ("+raw.length+" octets)") : "NON, rien en mémoire"));
-    }catch(e){
-      alert("⚠️ DIAGNOSTIC — lecture impossible à l'ouverture : "+e.message);
-    }
-    _restoreOrig();
-  };
-})();
 
 function enregistrerEmbarquement(){
   var emb = G("inp-emb").value.trim();
@@ -2217,6 +2174,7 @@ async function syncOffline(){
     console.log(`✅ ${off.length - restants.length} bon(s) synchronisé(s)`);
   }
 }
+window.syncOffline = syncOffline;
 
 // ════════════════════════════════════
 // INIT FIREBASE AU CHARGEMENT
