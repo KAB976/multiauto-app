@@ -898,6 +898,14 @@ function seDeconnecter(){
 }
 
 // ════════════════════════════════════
+// DIAGNOSTIC TEMPORAIRE — à retirer une fois le problème de sauvegarde résolu.
+// N'ajoute qu'une alerte visible en cas d'erreur silencieuse ; ne modifie aucun comportement existant.
+// ════════════════════════════════════
+window.addEventListener("error", function(e){
+  try{ alert("⚠️ DIAGNOSTIC — erreur détectée :\n" + e.message + "\nligne " + e.lineno); }catch(_){}
+});
+
+// ════════════════════════════════════
 // INIT APP
 // ════════════════════════════════════
 function initApp(){
