@@ -1561,6 +1561,22 @@ tr:hover td{background:var(--gris)}
 </div>
 </div>
 
+<div class="modal-bg" id="modal-modifier-client">
+<div class="modal" style="max-width:360px">
+  <div class="modal-title">✏️ Modifier le client</div>
+  <input type="hidden" id="mc-id">
+  <input type="hidden" id="mc-collection">
+  <div id="mc-info" style="font-size:13px;color:var(--gris3);margin-bottom:12px"></div>
+  <div class="form-group"><span class="fl">Client correct</span>
+    <select class="inp" id="mc-select"></select>
+  </div>
+  <div class="modal-footer">
+    <button class="btn btn-secondary" onclick="fermerModal('modal-modifier-client')">Annuler</button>
+    <button class="btn btn-primary" onclick="confirmerModifierClient()">✅ Enregistrer</button>
+  </div>
+</div>
+</div>
+
 <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-auth-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-firestore-compat.js"></script>
@@ -4797,6 +4813,10 @@ async function chargerSoldes(prefix){
       }
       // Bouton déplacer en PC (pour BL uniquement, clients non-PC)
       const btnPC = item.type==="bl"?`<button class="btn btn-sm" style="background:var(--violet-lt);color:var(--violet);border:1px solid var(--violet);margin-left:2px" onclick="deplacerEnPC('${item.id}','${item.client}','${item.doc}')">📄→PC</button>`:"";
+      const clientEsc = (item.client||"").replace(/'/g,"\\'");
+      const docEsc = (item.doc||"").replace(/'/g,"\\'");
+      const btnModifierClient = `<button class="btn btn-sm" style="background:var(--bleu-lt,#e3f2fd);color:var(--bleu);border:1px solid var(--bleu);margin-left:2px" onclick="ouvrirModifierClient('${item.id}','${item.collection}','${clientEsc}')">✏️ Client</button>`;
+      const btnSupprimerSolde = `<button class="btn btn-danger btn-sm" style="margin-left:2px" onclick="supprimerSolde('${item.id}','${item.collection}','${clientEsc}','${docEsc}')">🗑</button>`;
 
       html+=`<tr style="${trStyle}">
         <td><input type="checkbox" class="soldes-cb" data-idx="${idx}"></td>
@@ -4811,13 +4831,60 @@ async function chargerSoldes(prefix){
         <td style="font-size:12px">${item.mode||"—"}</td>
         <td style="font-size:11px;color:var(--vert)">${item.recu||"—"}</td>
         <td>${stBadge}</td>
-        <td style="display:flex;gap:3px;flex-wrap:wrap">${actionBtn}${btnPC}</td>
+        <td style="display:flex;gap:3px;flex-wrap:wrap">${actionBtn}${btnPC}${btnModifierClient}${btnSupprimerSolde}</td>
       </tr>`;
     });
     const tbody=G(pfx+"soldes-tbody");
     if(tbody) tbody.innerHTML=html||`<tr><td colspan="13" style="text-align:center;color:var(--gris3);padding:24px">Aucune opération</td></tr>`;
     loader(false);
   } catch(e){ loader(false); toast("Erreur chargement","err"); console.error(e); }
+}
+
+// ── SUPPRESSION D'UN DOCUMENT DEPUIS SOLDES CLIENTS ──
+// Supprime le document d'origine (BL, magasinage ou PC) — action irréversible.
+async function supprimerSolde(id, collection, client, doc){
+  if(!confirm(`Supprimer définitivement ce document ?\n\n${doc} — ${client}\n\nCette action supprime aussi le document d'origine (${collection==="bons"?"BL remorquage":collection==="magasinage"?"Magasinage":"Prise en charge"}) partout dans l'application. Irréversible.`)) return;
+  loader(true);
+  try{
+    await db.collection(collection).doc(id).delete();
+    toast("Document supprimé ✅");
+    chargerSoldes("");
+  }catch(e){ toast("Erreur lors de la suppression","err"); console.error(e); loader(false); }
+}
+
+// ── MODIFICATION DU CLIENT DEPUIS SOLDES CLIENTS ──
+// Corrige le nom du client sur le document d'origine (utile quand le chauffeur a mal saisi le client).
+function ouvrirModifierClient(id, collection, currentClient){
+  G("mc-id").value=id;
+  G("mc-collection").value=collection;
+  G("mc-info").textContent="Client actuel : "+(currentClient||"—");
+  const sel=G("mc-select");
+  sel.innerHTML="<option value=''>— Choisir —</option>";
+  clientsList.forEach(cl=>{const o=document.createElement("option");o.value=cl.nom;o.textContent=cl.nom;sel.appendChild(o);});
+  sel.value=currentClient||"";
+  G("modal-modifier-client").classList.add("on");
+}
+async function confirmerModifierClient(){
+  const id=G("mc-id").value;
+  const collection=G("mc-collection").value;
+  const newClient=G("mc-select").value;
+  if(!newClient){toast("Choisissez un client","err");return;}
+  loader(true);
+  try{
+    let updateData={};
+    if(collection==="bons") updateData={nom_client:newClient};
+    else if(collection==="magasinage") updateData={client:newClient};
+    else if(collection==="prises_en_charge"){
+      const snap=await db.collection(collection).doc(id).get();
+      const d=snap.data()||{};
+      updateData = (d.client!==undefined && d.client!=="") ? {client:newClient} : {assureur:newClient};
+    }
+    await db.collection(collection).doc(id).update(updateData);
+    toast("Client mis à jour ✅");
+    fermerModal("modal-modifier-client");
+    chargerSoldes("");
+  }catch(e){ toast("Erreur","err"); console.error(e); }
+  loader(false);
 }
 
 function ouvrirPaiement(id,type,collection,montant,paye,client,doc){
