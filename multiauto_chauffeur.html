@@ -961,7 +961,7 @@ function captureGPS(cb, _essai){
         var lieu=a.quarter||a.neighbourhood||a.village||a.suburb||a.town||a.city||a.county||"";
         cb({lat:lat,lng:lng,lieu:lieu});
       }).catch(function(){ cb({lat:lat,lng:lng,lieu:""}); });
-  },function(){ cb(secoursOuVide()); },{enableHighAccuracy:true,timeout:20000,maximumAge:0});
+  },function(){ cb(secoursOuVide()); },{enableHighAccuracy:true,timeout:20000,maximumAge:10000});
 }
 function secoursOuVide(){
   if(_lastKnownPos.lat && _lastKnownPos.lng) return {lat:_lastKnownPos.lat, lng:_lastKnownPos.lng, lieu:""};
@@ -1047,7 +1047,6 @@ function sauvegarderBrouillon(){
       heureEmb: heureEmb ? heureEmb.toISOString() : null,
       heureArrivee: heureArrivee ? heureArrivee.toISOString() : null,
       photoData: photoData,
-      signature: sigSigned ? (G("sig-preview")&&G("sig-preview").src&&G("sig-preview").src.startsWith("data:") ? G("sig-preview").src : (G("sig-canvas")?G("sig-canvas").toDataURL("image/png"):"")) : "",
       savedAt: new Date().toISOString()
     };
     localStorage.setItem(DRAFT_KEY, JSON.stringify(d));
@@ -1100,12 +1099,6 @@ function restaurerBrouillon(){
       if(G("photo-prev")){ G("photo-prev").src=photoData; G("photo-prev").style.display="block"; }
       if(G("pz-inner")) G("pz-inner").style.display="none";
       if(G("photo-zone")) G("photo-zone").classList.add("ok");
-    }
-    if(d.signature){
-      sigSigned=true;
-      if(G("sig-preview")) G("sig-preview").src=d.signature;
-      if(G("sig-zone-active")) G("sig-zone-active").style.display="none";
-      if(G("sig-zone-validee")) G("sig-zone-validee").style.display="block";
     }
 
     // Restaurer l'état embarquement / arrivée (zones visuelles)
@@ -1362,7 +1355,6 @@ function validerSig(){
   G("sig-zone-active").style.display  = "none";
   G("sig-zone-validee").style.display = "block";
   G("sig-preview").src = sigData;
-  sauvegarderBrouillon();
 }
 
 function supprimerSig(){
@@ -1374,7 +1366,6 @@ function supprimerSig(){
     var cv = G("sig-canvas");
     sigCtx.clearRect(0, 0, cv.width, cv.height);
   }
-  sauvegarderBrouillon();
   // Re-initialiser le canvas après affichage
   setTimeout(function(){
     var dpr = window.devicePixelRatio||1;
@@ -1392,7 +1383,11 @@ function supprimerSig(){
 // ════════════════════════════════════
 function afficherAlerte(msg){
   var al=G("form-alert"); al.textContent=msg; al.style.display="block";
-  setTimeout(function(){ al.style.display="none"; },3500);
+  // Faire défiler l'écran vers le message : sinon, quand le chauffeur est en bas
+  // du formulaire (bouton Valider), l'alerte s'affiche hors écran et il croit
+  // que "rien ne se passe".
+  try{ al.scrollIntoView({behavior:"smooth", block:"center"}); }catch(e){}
+  setTimeout(function(){ al.style.display="none"; },5000);
 }
 
 // ════════════════════════════════════
@@ -1415,29 +1410,23 @@ function soumettre(){
   if(espActif && !G("inp-montant").value){ afficherAlerte("⚠️ Saisis le montant reçu en espèces"); return; }
 
   loader(true,"Enregistrement...");
-  // Attendre la capture GPS pour éviter les coordonnées manquantes,
-  // sans bloquer indéfiniment si le GPS/réseau est mauvais
+  // Attendre (brièvement) la capture GPS pour éviter les coordonnées manquantes,
+  // sans bloquer indéfiniment si le GPS/réseau est mauvais (max 6 secondes)
   (async function(){
     try{
       await Promise.race([
         Promise.all([gpsEmbPromise, gpsDestPromise].filter(Boolean)),
-        new Promise(function(resolve){ setTimeout(resolve, 12000); })
+        new Promise(function(resolve){ setTimeout(resolve, 6000); })
       ]);
     }catch(e){}
 
-    // GPS embarquement ET destination obligatoires pour ce chauffeur (sauf permission "Sans GPS emb.") :
-    // si l'un des deux est absent après l'attente, on bloque plutôt que d'enregistrer un BL incomplet.
+    // GPS NON BLOQUANT : si le téléphone n'a pas pu capturer l'embarquement ou la
+    // destination, on enregistre quand même le BL (coordonnées vides) — le chauffeur
+    // ne doit jamais être bloqué sur le terrain.
     var gpsEmbFinal = gpsEmb.lat || (function(){ try{ return JSON.parse(localStorage.getItem('gps_emb_pending')||'{}').lat||""; }catch(e){ return ""; } })();
     var gpsDestFinal = gpsDest.lat || (function(){ try{ return JSON.parse(localStorage.getItem('gps_dest_pending')||'{}').lat||""; }catch(e){ return ""; } })();
-    if(user && user.gpsEmbOblig !== false && !gpsEmbFinal){
-      loader(false);
-      afficherAlerte("📍 GPS embarquement introuvable — active le GPS et réessaie");
-      return;
-    }
-    if(user && user.gpsEmbOblig !== false && !gpsDestFinal){
-      loader(false);
-      afficherAlerte("📍 GPS destination introuvable — active le GPS et réessaie");
-      return;
+    if(!gpsEmbFinal || !gpsDestFinal){
+      console.warn("⚠️ BL enregistré avec GPS incomplet (emb:", gpsEmbFinal||"—", "/ dest:", gpsDestFinal||"—", ")");
     }
 
     // Appel Firebase (défini dans le module ES)
@@ -1522,7 +1511,7 @@ function nouveauBon(){
   typeIntervention="normal"; setTypeIntervention("normal");
   G("form-alert").style.display="none"; G("form-alert2").classList.remove("on");
   gpsEmb={lat:"",lng:"",lieu:""}; gpsDest={lat:"",lng:"",lieu:""};
-  try{ localStorage.removeItem('gps_dest_pending'); }catch(e){}
+  try{ localStorage.removeItem('gps_emb_pending'); localStorage.removeItem('gps_dest_pending'); }catch(e){}
   resetTrajet();
   majTarif();
   majNums();
@@ -2183,7 +2172,6 @@ async function syncOffline(){
     console.log(`✅ ${off.length - restants.length} bon(s) synchronisé(s)`);
   }
 }
-window.syncOffline = syncOffline;
 
 // ════════════════════════════════════
 // INIT FIREBASE AU CHARGEMENT
