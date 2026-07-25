@@ -713,6 +713,7 @@ tr:hover td{background:var(--gris)}
       <div class="page-header">
         <div><div class="page-title">📋 Bons de livraison</div></div>
         <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center">
+          <button class="btn btn-primary btn-sm" onclick="ouvrirModalBLAdmin()">➕ Nouveau BL</button>
           <span id="selection-bl-lbl" style="font-size:12px;font-weight:700;color:var(--rouge)"></span>
           <button class="btn btn-secondary btn-sm" id="btn-voir-bl-sel" onclick="voirSelectionBL()" disabled>👁 Voir</button>
           <button class="btn btn-secondary btn-sm" id="btn-imprimer-bl-sel" onclick="imprimerSelectionBL()" disabled>🖨 Imprimer</button>
@@ -1452,6 +1453,57 @@ tr:hover td{background:var(--gris)}
 
 
 <!-- Modal Utilisateur -->
+<!-- ══ MODAL NOUVEAU BON DE LIVRAISON (portage du module secrétaire) ══ -->
+<div class="modal-bg" id="modal-bl">
+<div class="modal">
+  <div class="modal-title">📋 Nouveau bon de livraison</div>
+  <div class="form-grid">
+    <div class="form-group"><span class="fl">Immatriculation</span><input class="inp" id="bl-immat" placeholder="FA-196-DV" style="text-transform:uppercase" oninput="this.value=this.value.toUpperCase()"></div>
+    <div class="form-group"><span class="fl">Marque</span>
+      <select class="inp" id="bl-marque" onchange="majModelesModal()">
+        <option value="">— Marque —</option>
+        <option>Alfa Romeo</option><option>Audi</option><option>BMW</option>
+        <option>Citroën</option><option>Dacia</option><option>Fiat</option>
+        <option>Ford</option><option>Honda</option><option>Hyundai</option>
+        <option>Isuzu</option><option>Iveco</option><option>Kia</option>
+        <option>Land Rover</option><option>Mazda</option><option>Mercedes</option>
+        <option>Mitsubishi</option><option>Nissan</option><option>Opel</option>
+        <option>Peugeot</option><option>Renault</option><option>Seat</option>
+        <option>Skoda</option><option>Suzuki</option><option>Toyota</option>
+        <option>Volkswagen</option><option>Volvo</option>
+        <option>BMW Moto</option><option>Honda Moto</option><option>Kawasaki</option>
+        <option>Yamaha</option><option>Piaggio</option>
+      </select>
+    </div>
+    <div class="form-group"><span class="fl">Modèle</span>
+      <select class="inp" id="bl-modele"><option value="">— Modèle —</option></select>
+    </div>
+    <div class="form-group"><span class="fl">Client</span><select class="inp" id="bl-client"><option value="">— Client —</option></select></div>
+    <div class="form-group"><span class="fl">Téléphone</span><input class="inp" id="bl-tel" type="tel" placeholder="0639 00 00 00"></div>
+    <div class="form-group"><span class="fl">Chauffeur</span><select class="inp" id="bl-chauffeur"><option value="">— Chauffeur —</option></select></div>
+    <div class="form-group"><span class="fl">Embarquement</span><input class="inp" id="bl-emb" placeholder="Ex: Kaweni"></div>
+    <div class="form-group"><span class="fl">Destination</span><input class="inp" id="bl-dest" placeholder="Ex: Mamoudzou"></div>
+    <div class="form-group"><span class="fl">Mode paiement</span>
+      <select class="inp" id="bl-mode-paiement" onchange="majModePaiementSec()">
+        <option value="">— Choisir —</option>
+        <option value="especes">💵 Espèces</option>
+        <option value="cb">💳 CB</option>
+        <option value="virement">🏦 Virement</option>
+        <option value="cheque">📄 Chèque</option>
+        <option value="compte">📋 En compte</option>
+      </select>
+    </div>
+    <div class="form-group" id="bl-montant-group"><span class="fl">Montant (€)</span><input class="inp" id="bl-montant" type="number" placeholder="0" min="0"></div>
+    <div class="form-group"><span class="fl">Date</span><input class="inp" id="bl-date" type="date"></div>
+    <div class="form-group"><span class="fl">Heure de la mission</span><input class="inp" id="bl-heure" type="time"></div>
+  </div>
+  <div class="modal-footer">
+    <button class="btn btn-secondary" onclick="fermerModal('modal-bl')">Annuler</button>
+    <button class="btn btn-primary" onclick="sauvegarderBL()">💾 Enregistrer</button>
+  </div>
+</div>
+</div>
+
 <div class="modal-bg" id="modal-utilisateur">
 <div class="modal">
   <div class="modal-title" id="modal-user-title">👤 Nouvel utilisateur</div>
@@ -2857,12 +2909,12 @@ function chargerChauffeurs(){
   });
 }
 
-function ouvrirModalChauffeur(){editingId=null;G("modal-ch-title").textContent="👤 Ajouter un chauffeur";["ch-nom","ch-id","ch-mdp","ch-pref-bl","ch-immat"].forEach(id=>G(id).value="");G("ch-mdp").placeholder="Obligatoire pour un nouveau chauffeur";G("modal-chauffeur").classList.add("on");}
+function ouvrirModalChauffeur(){editingId=null;G("modal-ch-title").textContent="👤 Ajouter un chauffeur";["ch-nom","ch-id","ch-mdp","ch-pref-bl","ch-immat"].forEach(id=>G(id).value="");G("modal-chauffeur").classList.add("on");}
 function editerChauffeur(uid){
   db.collection("users").doc(uid).get().then(snap=>{
     const ch=snap.data(); editingId=uid;
     G("modal-ch-title").textContent="✏️ Modifier — "+ch.nom;
-    G("ch-nom").value=ch.nom||""; G("ch-id").value=ch.identifiant||""; G("ch-mdp").value=""; G("ch-mdp").placeholder="Laisser vide = inchangé";
+    G("ch-nom").value=ch.nom||""; G("ch-id").value=ch.identifiant||""; G("ch-mdp").value="";
     G("ch-pref-bl").value=ch.prefixe_bl||""; G("ch-immat").value=ch.immat_camion||"";
     // Re-peupler le select au cas où camionsList aurait changé
     const sch=G("ch-camion");
@@ -2872,38 +2924,10 @@ function editerChauffeur(uid){
     G("modal-chauffeur").classList.add("on");
   });
 }
-async function sauvegarderChauffeur(){
+function sauvegarderChauffeur(){
   const nom=G("ch-nom").value.trim(), id=G("ch-id").value.trim().toUpperCase();
   if(!nom||!id){toast("Nom et identifiant obligatoires","err");return;}
-  if(!editingId){
-    // Création d'un nouveau chauffeur : compte Firebase Auth + profil Firestore, directement depuis l'appli.
-    const pw=G("ch-mdp").value;
-    if(!pw||pw.length<6){toast("Mot de passe obligatoire (6 caractères minimum)","err");return;}
-    loader(true);
-    const email = "somalan2000+" + id.toLowerCase() + "@gmail.com";
-    let secondaryApp=null;
-    try{
-      secondaryApp = firebase.initializeApp(firebase.app().options, "Secondary-"+Date.now());
-      const secondaryAuth = secondaryApp.auth();
-      const cred = await secondaryAuth.createUserWithEmailAndPassword(email, pw);
-      const uid = cred.user.uid;
-      await secondaryAuth.signOut();
-      await secondaryApp.delete();
-      await db.collection("users").doc(uid).set({
-        nom, identifiant:id, role:"chauffeur", actif:true,
-        prefixe_bl:G("ch-pref-bl").value.trim().toUpperCase(),
-        prefixe_recu:G("ch-pref-bl").value.trim().toUpperCase(),
-        camion:G("ch-camion").value, immat_camion:G("ch-immat").value.trim().toUpperCase()
-      });
-      toast("Chauffeur créé ✅");
-      fermerModal("modal-chauffeur"); chargerChauffeurs(); chargerListeChauffeurs(); loader(false);
-    }catch(e){
-      if(secondaryApp){ try{ await secondaryApp.delete(); }catch(e2){} }
-      toast(e.code==="auth/email-already-in-use" ? "Cet identifiant existe déjà" : "Erreur lors de la création du compte","err");
-      loader(false);
-    }
-    return;
-  }
+  if(!editingId){toast("Pour ajouter, utilisez init_firebase.html","err");return;}
   loader(true);
   db.collection("users").doc(editingId).update({
     nom,identifiant:id,prefixe_bl:G("ch-pref-bl").value.trim().toUpperCase(),
@@ -6716,6 +6740,188 @@ function exporterGPSSelection(){
     alternateRowStyles:{fillColor:[246,246,246]},margin:{left:10,right:10}});
   doc.save('gps'+(cochees.length>0?'-selection':'-tous')+'.pdf');
   toast(cochees.length>0?cochees.length+' trajet(s) exporté(s) ✅':'GPS exporté ✅');
+}
+
+// ══════════════════════════════════════
+// CRÉATION DE BON DE LIVRAISON
+// (portage du module secrétaire — inclut les correctifs :
+//  1. incrément des compteurs BL/Reçu du chauffeur après enregistrement
+//  2. tarif basé sur la date + heure de la mission saisies
+//  3. règle "samedi matin = NORMAL" dans calculerTarif)
+// ══════════════════════════════════════
+function ouvrirModalBLAdmin(){
+  // Peupler les listes Client / Chauffeur depuis les données déjà chargées par l'admin
+  const sc=G("bl-client");
+  if(sc){ sc.innerHTML="<option value=''>— Client —</option>"; clientsList.forEach(cl=>{const o=document.createElement("option");o.value=cl.nom;o.textContent=cl.nom;sc.appendChild(o);}); }
+  const sch=G("bl-chauffeur");
+  if(sch){ sch.innerHTML="<option value=''>— Chauffeur —</option>"; chauffeursList.forEach(ch=>{const o=document.createElement("option");o.value=ch.nom;o.textContent=ch.nom;sch.appendChild(o);}); }
+  // Date + heure par défaut = maintenant (heure locale, modifiable pour un BL antidaté)
+  const now=new Date();
+  if(G("bl-date"))  G("bl-date").value=now.getFullYear()+"-"+("0"+(now.getMonth()+1)).slice(-2)+"-"+("0"+now.getDate()).slice(-2);
+  if(G("bl-heure")) G("bl-heure").value=("0"+now.getHours()).slice(-2)+":"+("0"+now.getMinutes()).slice(-2);
+  G("modal-bl").classList.add("on");
+}
+
+function majModelesModal(){
+  const MODELES_MAP={
+    "Renault":["Clio","Mégane","Kadjar","Captur","Kangoo","Trafic","Master","Express","Zoe","Twingo","Scenic"],
+    "Peugeot":["208","308","508","2008","3008","5008","Partner","Expert","Boxer","Rifter"],
+    "Citroën":["C3","C4","C5","Berlingo","Jumpy","Jumper","C3 Aircross","C5 Aircross"],
+    "Dacia":["Sandero","Logan","Duster","Jogger","Spring","Lodgy","Dokker"],
+    "Ford":["Fiesta","Focus","Kuga","Puma","Mustang","Transit","Ranger","Explorer","EcoSport"],
+    "Toyota":["Yaris","Corolla","C-HR","RAV4","Land Cruiser","HiLux","Prius","Auris","Camry"],
+    "Volkswagen":["Polo","Golf","Passat","Tiguan","T-Roc","Touareg","Transporter","Crafter","Caddy"],
+    "Mercedes":["Classe A","Classe B","Classe C","Classe E","GLA","GLB","GLC","Sprinter","Vito","Atego"],
+    "BMW":["Série 1","Série 3","Série 5","X1","X3","X5","X6","Z4"],
+    "Audi":["A1","A3","A4","A6","Q2","Q3","Q5","Q7","TT"],
+    "Nissan":["Micra","Juke","Qashqai","X-Trail","Navara","Leaf"],
+    "Hyundai":["i10","i20","i30","Tucson","Santa Fe","Ioniq","Kona"],
+    "Kia":["Picanto","Rio","Ceed","Sportage","Sorento","Stonic"],
+    "Fiat":["500","Panda","Tipo","500X","Ducato","Doblo"],
+    "Opel":["Corsa","Astra","Insignia","Crossland","Grandland","Movano","Vivaro"],
+    "Seat":["Ibiza","Leon","Ateca","Arona","Tarraco"],
+    "Skoda":["Fabia","Octavia","Superb","Karoq","Kodiaq"],
+    "Mazda":["Mazda2","Mazda3","Mazda6","CX-3","CX-5","CX-30","MX-5"],
+    "Suzuki":["Alto","Swift","Vitara","SX4","Jimny","Baleno"],
+    "Honda":["Jazz","Civic","HR-V","CR-V","Accord"],
+    "Mitsubishi":["Space Star","ASX","Eclipse Cross","Outlander","L200","Pajero"],
+    "Land Rover":["Defender","Discovery","Range Rover","Freelander","Evoque"],
+    "Iveco":["Daily","Stralis","Trakker","Eurocargo"],
+    "Isuzu":["D-Max","MU-X","NPR","NMR","NQR"],
+    "Alfa Romeo":["Giulia","Stelvio","Giulietta","MiTo","Tonale"],
+    "Volvo":["V40","V60","V90","XC40","XC60","XC90","S60","S90"],
+    "BMW Moto":["R 1250 GS","F 850 GS","S 1000 RR","R nineT","G 310 R"],
+    "Honda Moto":["CB500","CBR600","Africa Twin","Forza","PCX"],
+    "Kawasaki":["Z400","Z650","Z900","Ninja 400","Ninja 650","Versys"],
+    "Yamaha":["MT-07","MT-09","R1","XMAX","TMAX","Tracer","Ténéré"],
+    "Piaggio":["Vespa","Liberty","MP3","Medley","Beverly"]
+  };
+  const m=G("bl-marque").value, sel=G("bl-modele");
+  sel.innerHTML="<option value=''>— Modèle —</option>";
+  (MODELES_MAP[m]||[]).forEach(md=>{const o=document.createElement("option");o.value=md;o.textContent=md;sel.appendChild(o);});
+}
+
+function majModePaiementSec(){
+  const mode=G("bl-mode-paiement").value;
+  const grp=G("bl-montant-group");
+  const lbl=grp?.querySelector(".fl");
+  if(grp){ grp.style.display="block"; }
+  if(lbl){
+    if(mode==="compte") lbl.textContent="Montant à mettre en compte (€)";
+    else if(mode==="cb") lbl.textContent="Montant CB (€)";
+    else if(mode==="virement") lbl.textContent="Montant virement (€)";
+    else if(mode==="cheque") lbl.textContent="Montant chèque (€)";
+    else lbl.textContent="Montant espèces (€)";
+  }
+}
+
+function calculerTarif(now){
+  const j=now.getDay(),h=now.getHours()+now.getMinutes()/60;
+  if(j>=1&&j<=5&&h>=7&&h<17) return "NORMAL";
+  if(j===6&&h<12) return "NORMAL";   // samedi matin = NORMAL (identique à l'appli chauffeur)
+  if(j===6&&h>=12) return "TW";
+  if(j===0) return "TW";
+  if(j===1&&h<7) return "TW";
+  return "TN";
+}
+
+function sauvegarderBL(){
+  const immat=G("bl-immat").value.trim().toUpperCase();
+  const client=G("bl-client").value;
+  if(!immat||!client){ toast("Immatriculation et client obligatoires","err"); return; }
+  loader(true);
+  const ch=chauffeursList.find(c=>c.nom===G("bl-chauffeur").value)||{};
+  const now=new Date();
+  // ── Date + heure DE LA MISSION (champs du formulaire) ; à défaut, le moment de la saisie ──
+  const vDate=G("bl-date").value;                                    // YYYY-MM-DD ou ""
+  const vHeure=(G("bl-heure")&&G("bl-heure").value)||"";             // HH:MM ou ""
+  const dMission=(function(){
+    const base=vDate
+      ?(function(){const p=vDate.split("-");return new Date(parseInt(p[0]),parseInt(p[1])-1,parseInt(p[2]));})()
+      :new Date(now.getFullYear(),now.getMonth(),now.getDate());
+    if(vHeure){ const p=vHeure.split(":"); base.setHours(parseInt(p[0])||0,parseInt(p[1])||0,0,0); }
+    else base.setHours(now.getHours(),now.getMinutes(),0,0);
+    return isNaN(base.getTime())?now:base;
+  })();
+  const tarif=calculerTarif(dMission);   // tarif basé sur la date/heure réelles de la mission
+  const modePaiement=G("bl-mode-paiement")?.value||"";
+  const montant=parseFloat(G("bl-montant").value)||0;
+  const estEspeces=modePaiement==="especes"&&montant>0;
+  const bonNum=(ch.prefixe_bl||"ADM")+"/BL-"+("000000"+(ch.bl_compteur||1)).slice(-6);
+  const recuNum=estEspeces?(ch.prefixe_recu||"ADM")+"/R-"+("000000"+(ch.recu_compteur||1)).slice(-6):"";
+  const payload={
+    bon_num:bonNum, recu_num:recuNum,
+    chauffeur_uid:ch.id||"", chauffeur_nom:ch.nom||G("bl-chauffeur").value||"Admin",
+    camion:ch.camion||"", immat_camion:ch.immat_camion||"",
+    date_bl:(function(){
+      if(vDate){ const p=vDate.split("-"); return p[2]+"/"+p[1]+"/"+p[0]; } // YYYY-MM-DD → DD/MM/YYYY
+      return ("0"+now.getDate()).slice(-2)+"/"+("0"+(now.getMonth()+1)).slice(-2)+"/"+now.getFullYear();
+    })(),
+    heure_bl:("0"+dMission.getHours()).slice(-2)+"h"+("0"+dMission.getMinutes()).slice(-2),
+    tarif, immatriculation:immat,
+    marque:G("bl-marque").value, modele:G("bl-modele").value,
+    nom_client:client, tel_client:G("bl-tel").value.trim(),
+    lieu_embarquement:G("bl-emb").value.trim(),
+    destination:G("bl-dest").value.trim(),
+    mode_paiement:modePaiement,
+    especes:estEspeces, montant_especes:estEspeces?montant:0,
+    en_compte:modePaiement==="compte",
+    montant_cb:modePaiement==="cb"?montant:0,
+    montant_virement:modePaiement==="virement"?montant:0,
+    montant_cheque:modePaiement==="cheque"?montant:0,
+    saisi_par:"admin",
+    timestamp:firebase.firestore.FieldValue.serverTimestamp()
+  };
+  db.collection("bons").add(payload)
+    .then(()=>{
+      // Incrémenter les compteurs du chauffeur (comme le fait l'appli chauffeur)
+      if(ch.id){
+        const maj={bl_compteur:(ch.bl_compteur||1)+1};
+        if(estEspeces) maj.recu_compteur=(ch.recu_compteur||1)+1;
+        ch.bl_compteur=maj.bl_compteur;                      // mise à jour locale (saisies suivantes dans la même session)
+        if(estEspeces) ch.recu_compteur=maj.recu_compteur;
+        db.collection("users").doc(ch.id).update(maj).catch(e=>console.warn("MAJ compteurs chauffeur:",e));
+      }
+      // Reçu seulement si paiement espèces
+      if(estEspeces && montant>0){
+        return db.collection("recus").add({
+          recu_num:recuNum, bon_num:bonNum,
+          chauffeur_nom:payload.chauffeur_nom, nom_client:client,
+          marque:payload.marque, modele:payload.modele, immatriculation:immat,
+          mission:payload.lieu_embarquement+" → "+payload.destination,
+          montant, date:payload.date_bl, heure:payload.heure_bl,
+          tarif:payload.tarif,
+          timestamp:firebase.firestore.FieldValue.serverTimestamp()
+        });
+      }
+      // Si en compte — mettre à jour le solde du client
+      if(modePaiement==="compte"){
+        return db.collection("clients").where("nom","==",client).limit(1).get().then(snap=>{
+          if(!snap.empty){
+            const cl=snap.docs[0];
+            const ancienSolde=cl.data().solde||0;
+            return cl.ref.update({solde:ancienSolde+montant});
+          }
+        });
+      }
+    })
+    .then(()=>{
+      toast("BL enregistré ✅");
+      fermerModal("modal-bl");
+      chargerBons();
+      loader(false);
+      // Vider tous les champs du formulaire
+      ["bl-immat","bl-tel","bl-emb","bl-dest","bl-montant"].forEach(id=>{const el=G(id);if(el)el.value="";});
+      ["bl-marque","bl-modele","bl-client","bl-chauffeur","bl-mode-paiement"].forEach(id=>{
+        const el=G(id);if(el)el.value="";
+      });
+      G("bl-date").value=new Date().toISOString().split("T")[0];
+      if(G("bl-heure")) G("bl-heure").value="";
+      // Remettre le label montant
+      const lbl=G("bl-montant-group")?.querySelector(".fl");
+      if(lbl) lbl.textContent="Montant (€)";
+    })
+    .catch(()=>{ toast("Erreur","err"); loader(false); });
 }
 
 document.querySelectorAll(".modal-bg").forEach(m=>m.addEventListener("click",e=>{if(e.target===m)m.classList.remove("on")}));
