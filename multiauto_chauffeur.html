@@ -909,7 +909,9 @@ function initApp(){
   resetTrajet();
   gpsEmbPromise = captureGPSPromise().then(function(g){ gpsEmb=g; return g; });
   // Sync offline si réseau
-  syncOffline();
+  // syncOffline est définie dans le module Firebase : appel protégé, sinon une
+  // ReferenceError interrompt initApp AVANT la restauration du brouillon
+  if(window.syncOffline) window.syncOffline();
   demarrerAutoSaveBrouillon();
   restaurerBrouillon();
 }
@@ -2211,6 +2213,7 @@ initFirestore().catch(console.warn);
 
 // Exposer enregistrer globalement
 window._enregistrerFirebase = window.enregistrer;
+window.syncOffline = syncOffline; // exposée pour initApp (script classique) — l'oubli de cette ligne cassait la restauration du brouillon
 window._db   = db;
 window._auth = auth;
 // Exposer les fonctions Firestore pour le JS non-module (carburant)
