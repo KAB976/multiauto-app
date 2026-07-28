@@ -1839,6 +1839,15 @@ window.seConnecter = async function(){
       return;
     }
 
+    // ── Compte désactivé par l'admin → connexion refusée ──
+    if(profil.actif === false){
+      await signOut(auth);
+      loader(false);
+      G("login-err").textContent = "⛔ Compte désactivé. Contactez l'administrateur.";
+      G("login-err").classList.add("on");
+      return;
+    }
+
     // Vérifier assignation temporaire de camion
     user = {
       uid: uid,
@@ -1905,6 +1914,7 @@ window.seConnecter = async function(){
     initApp();
     majStatutLive({en_ligne:true, en_mission:false});
     demarrerSuiviGPSContinu();
+    demarrerSurveillanceCompte(uid);   // éjection temps réel si l'admin désactive le compte
     // Recharger les selects avec les données Firestore (CLIENTS est maintenant rempli)
     initClients();
     initMarques();
@@ -1930,6 +1940,7 @@ window.seDeconnecter = async function(){
   // Arrêter les listeners temps réel
   if(window._clientsUnsubscribe){ window._clientsUnsubscribe(); window._clientsUnsubscribe=null; }
   if(window._vehiculesUnsubscribe){ window._vehiculesUnsubscribe(); window._vehiculesUnsubscribe=null; }
+  if(window._compteUnsubscribe){ try{ window._compteUnsubscribe(); }catch(e){} window._compteUnsubscribe=null; }
   user=null; photoData=null; sigSigned=false; espActif=false;
   embarquementFait=false; arriveeFaite=false;
   if(chronoInterval){ clearInterval(chronoInterval); chronoInterval=null; }
@@ -2178,11 +2189,45 @@ async function syncOffline(){
 // ════════════════════════════════════
 // INIT FIREBASE AU CHARGEMENT
 // ════════════════════════════════════
+// ════════════════════════════════════
+// BLOCAGE COMPTE DÉSACTIVÉ (temps réel)
+// ════════════════════════════════════
+// Coupure immédiate : déconnexion propre (GPS/écouteurs arrêtés, statut live remis
+// à zéro) + message sur l'écran de connexion. Le brouillon localStorage n'est PAS
+// effacé : si le compte est réactivé, la mission en cours sera restaurée.
+async function couperAccesCompteDesactive(){
+  if(window._compteUnsubscribe){ try{ window._compteUnsubscribe(); }catch(e){} window._compteUnsubscribe=null; }
+  try{ await window.seDeconnecter(); }catch(e){ console.warn("Coupure compte:", e); }
+  const err=G("login-err");
+  if(err){ err.textContent="⛔ Compte désactivé. Contactez l'administrateur."; err.classList.add("on"); }
+  loader(false);
+}
+
+function demarrerSurveillanceCompte(uid){
+  if(window._compteUnsubscribe){ try{ window._compteUnsubscribe(); }catch(e){} }
+  window._compteUnsubscribe = onSnapshot(doc(db,"users",uid),
+    snap => {
+      // Compte supprimé, désactivé, ou rôle retiré → éjection immédiate
+      if(!snap.exists() || snap.data().actif === false || snap.data().role !== "chauffeur"){
+        couperAccesCompteDesactive();
+      }
+    },
+    e => console.warn("Surveillance compte:", e)
+  );
+}
+
 onAuthStateChanged(auth, async (firebaseUser) => {
   if(firebaseUser && !user){
     // Session déjà active — recharger le profil
     try {
       const userSnap = await getDoc(doc(db,"users",firebaseUser.uid));
+      // ── Compte désactivé par l'admin → session refusée ──
+      if(userSnap.exists() && userSnap.data().actif === false){
+        await signOut(auth);
+        const err=G("login-err");
+        if(err){ err.textContent="⛔ Compte désactivé. Contactez l'administrateur."; err.classList.add("on"); }
+        return;
+      }
       if(userSnap.exists() && userSnap.data().role === "chauffeur"){
         const profil = userSnap.data();
         user = {
@@ -2203,6 +2248,7 @@ onAuthStateChanged(auth, async (firebaseUser) => {
         G("pg-app").classList.add("on");
         initApp();
         demarrerSuiviGPSContinu();
+        demarrerSurveillanceCompte(firebaseUser.uid);   // éjection temps réel si l'admin désactive le compte
       }
     } catch(e){ console.warn("Session restore failed:", e); }
   }
