@@ -2936,7 +2936,7 @@ function sauvegarderChauffeur(){
       nom,identifiant:id,prefixe_bl:G("ch-pref-bl").value.trim().toUpperCase(),
       prefixe_recu:G("ch-pref-bl").value.trim().toUpperCase(),
       camion:G("ch-camion").value,immat_camion:G("ch-immat").value.trim().toUpperCase()
-    }).then(()=>{toast("Chauffeur modifié ✅");fermerModal("modal-chauffeur");chargerChauffeurs();chargerListeChauffeurs();loader(false);})
+    }).then(()=>{toast("Chauffeur modifié ✅");fermerModal("modal-chauffeur");chargerChauffeurs();chargerListeChauffeurs();chargerPermChauffeursFn();loader(false);})
     .catch(()=>{toast("Erreur","err");loader(false);});
     return;
   }
@@ -2968,7 +2968,7 @@ function sauvegarderChauffeur(){
     .then(()=>{
       toast("Chauffeur créé ✅ — identifiant : "+id);
       fermerModal("modal-chauffeur");
-      chargerChauffeurs();chargerListeChauffeurs();
+      chargerChauffeurs();chargerListeChauffeurs();chargerPermChauffeursFn();
       loader(false);
     })
     .catch(e=>{
