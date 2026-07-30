@@ -714,6 +714,7 @@ tr:hover td{background:var(--gris)}
         <div><div class="page-title">📋 Bons de livraison</div></div>
         <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center">
           <button class="btn btn-primary btn-sm" onclick="ouvrirModalBLAdmin()">➕ Nouveau BL</button>
+          <button class="btn btn-secondary btn-sm" onclick="chargerPlusBons()" title="Afficher plus de bons anciens">⬇️ Charger plus</button>
           <span id="selection-bl-lbl" style="font-size:12px;font-weight:700;color:var(--rouge)"></span>
           <button class="btn btn-secondary btn-sm" id="btn-voir-bl-sel" onclick="voirSelectionBL()" disabled>👁 Voir</button>
           <button class="btn btn-secondary btn-sm" id="btn-imprimer-bl-sel" onclick="imprimerSelectionBL()" disabled>🖨 Imprimer</button>
@@ -1729,6 +1730,17 @@ function logAudit(action,details){
 }
 
 // ── PAGES ──
+// ══ CACHE DE SESSION (perf) ══
+// Les données d'un onglet déjà visité restent affichées sans re-téléchargement
+// pendant 3 minutes. Re-cliquer sur l'onglet DÉJÀ ACTIF force l'actualisation.
+var _pageCache={}, _pageCourante=null;
+var PAGE_CACHE_TTL=3*60*1000; // 3 minutes
+function _doitCharger(id){
+  const force=(_pageCourante===id);   // re-clic sur l'onglet actif = actualisation manuelle
+  const frais=_pageCache[id] && (Date.now()-_pageCache[id])<PAGE_CACHE_TTL;
+  if(force || !frais){ _pageCache[id]=Date.now(); return true; }
+  return false;
+}
 function afficherPage(id){
   document.querySelectorAll(".pg").forEach(p=>p.classList.remove("on"));
   document.querySelectorAll(".sb-item").forEach(i=>i.classList.remove("active"));
@@ -1736,29 +1748,33 @@ function afficherPage(id){
   const nav=G("nav-"+id.replace("pg-",""));
   if(nav) nav.classList.add("active");
   G("sidebar")?.classList.remove("open");
-  if(id==="pg-dashboard")  { chargerDashboard(); initDashNotifSound(); chargerAlertesImpayes(); }
-  if(id==="pg-bons")       chargerBons();
-  if(id==="pg-recus")      chargerRecus();
-  if(id==="pg-chauffeurs") {chargerChauffeurs(); chargerPermChauffeursFn();}
-  if(id==="pg-camions")    chargerCamions();
-  if(id==="pg-vehicules")  chargerVehicules();
-  if(id==="pg-clients")    chargerClients();
-  if(id==="pg-magasinage") chargerMagasinage();
-  if(id==="pg-pc")         chargerPC();
-  if(id==="pg-carburant")  chargerCarburant();
+  const doitCharger=_doitCharger(id);
+  _pageCourante=id;
+  // Dashboard : l'écouteur temps réel reste actif en permanence, inutile de le recréer
+  if(id==="pg-dashboard")  { if(!(typeof dashUnsubscribe!=="undefined"&&dashUnsubscribe)) chargerDashboard(); initDashNotifSound(); if(doitCharger) chargerAlertesImpayes(); }
+  if(id==="pg-bons"       && doitCharger) chargerBons();
+  if(id==="pg-recus"      && doitCharger) chargerRecus();
+  if(id==="pg-chauffeurs" && doitCharger) {chargerChauffeurs(); chargerPermChauffeursFn();}
+  if(id==="pg-camions"    && doitCharger) chargerCamions();
+  if(id==="pg-vehicules"  && doitCharger) chargerVehicules();
+  if(id==="pg-clients"    && doitCharger) chargerClients();
+  if(id==="pg-magasinage" && doitCharger) chargerMagasinage();
+  if(id==="pg-pc"         && doitCharger) chargerPC();
+  if(id==="pg-carburant"  && doitCharger) chargerCarburant();
   if(id==="pg-recap")      initRecapFiltres();
+  // Pages temps réel / recherches : toujours rechargées (pas de cache)
   if(id==="pg-soldes")      { chargerSoldes(""); activerSyncSoldes(); }
   else { desactiverSyncSoldes(); }
   if(id==="pg-gps")        chargerGPS();
   if(id==="pg-carte-live") chargerCarteLive();
-  if(id==="pg-ca-remorq")  chargerCARemorquages();
-  if(id==="pg-historique")  rechercherHistorique();
-  if(id==="pg-stats")      chargerStats();
+  if(id==="pg-ca-remorq"  && doitCharger)  chargerCARemorquages();
+  if(id==="pg-historique" && doitCharger)  rechercherHistorique();
+  if(id==="pg-stats"      && doitCharger)  chargerStats();
   if(id==="pg-commissions") {}
-  if(id==="pg-droits")     {chargerDroits(); chargerPermChauffeursFn();}
-  if(id==="pg-utilisateurs") chargerUtilisateurs();
-  if(id==="pg-parametres") chargerParametres();
-  if(id==="pg-audit-log")  chargerAuditLog();
+  if(id==="pg-droits"     && doitCharger)  {chargerDroits(); chargerPermChauffeursFn();}
+  if(id==="pg-utilisateurs" && doitCharger) chargerUtilisateurs();
+  if(id==="pg-parametres" && doitCharger) chargerParametres();
+  if(id==="pg-audit-log"  && doitCharger)  chargerAuditLog();
 }
 function fermerModal(id){ G(id)?.classList.remove("on"); }
 
@@ -2713,9 +2729,15 @@ function exporterHistoriqueExcel(){
   }).catch(e=>{loader(false);toast("Erreur","err");console.error(e);});
 }
 
+var _bonsLimite=100;   // Perf : 100 bons par défaut au lieu de 300 (bouton "Charger plus" pour étendre)
+function chargerPlusBons(){
+  _bonsLimite+=200;
+  toast("Chargement de "+_bonsLimite+" bons...");
+  chargerBons();
+}
 function chargerBons(){
   loader(true,"Chargement BL...");
-  db.collection("bons").orderBy("timestamp","desc").limit(300).get().then(snap=>{
+  db.collection("bons").orderBy("timestamp","desc").limit(_bonsLimite).get().then(snap=>{
     let bons=[]; snap.forEach(d=>bons.push({id:d.id,...d.data()}));
     const type=G("bl-filtre-type")?.value||"";
     const ch=G("bl-filtre-chauffeur")?.value||"";

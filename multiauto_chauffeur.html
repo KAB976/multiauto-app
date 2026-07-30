@@ -847,7 +847,8 @@ function initClients(){
 // ── Clients "assurance" : bascule automatique en Prise en charge ──
 // Quand le chauffeur choisit un de ces clients, le bon passe automatiquement en
 // type PC (dossier créé dans prises_en_charge), sans action de sa part.
-var CLIENTS_PC_AUTO = ["GAA", "MONDIAL ASSISTANCE"];
+// "MONDIAL" couvre les deux orthographes présentes dans la base : "Mondial Assistance" et "Mondiale Assistance".
+var CLIENTS_PC_AUTO = ["GAA", "MONDIAL"];
 var _pcAutoForce = false;
 
 function estClientPC(nom){
