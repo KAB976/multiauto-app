@@ -739,9 +739,9 @@ tr:hover td{background:var(--gris)}
             <thead><tr>
               <th><input type="checkbox" id="bl-check-all" onclick="toutCocher('bl')"></th>
               <th>N° BL</th><th>Date</th><th>Heure</th><th>Tarif</th><th>Chauffeur</th>
-              <th>Client</th><th>Véhicule</th><th>Trajet</th><th>Espèces</th><th>Actions</th>
+              <th>Client</th><th>Véhicule</th><th>Trajet</th><th>Espèces</th><th title="Imprimé ?">🖨</th><th>Actions</th>
             </tr></thead>
-            <tbody id="bons-tbody"><tr><td colspan="11" style="text-align:center;color:var(--gris3);padding:24px">Chargement...</td></tr></tbody>
+            <tbody id="bons-tbody"><tr><td colspan="12" style="text-align:center;color:var(--gris3);padding:24px">Chargement...</td></tr></tbody>
           </table>
         </div>
       </div>
@@ -775,9 +775,9 @@ tr:hover td{background:var(--gris)}
             <thead><tr>
               <th><input type="checkbox" id="rc-check-all" onclick="toutCocher('rc')"></th>
               <th>N° Reçu</th><th>Date</th><th>Type</th><th>Chauffeur</th><th>Client</th>
-              <th>Véhicule</th><th>Mission</th><th>Montant</th><th>N° BL</th><th>Actions</th>
+              <th>Véhicule</th><th>Mission</th><th>Montant</th><th>N° BL</th><th title="Imprimé ?">🖨</th><th>Actions</th>
             </tr></thead>
-            <tbody id="recus-tbody"><tr><td colspan="11" style="text-align:center;color:var(--gris3);padding:24px">Chargement...</td></tr></tbody>
+            <tbody id="recus-tbody"><tr><td colspan="12" style="text-align:center;color:var(--gris3);padding:24px">Chargement...</td></tr></tbody>
           </table>
         </div>
       </div>
@@ -2785,6 +2785,7 @@ function chargerBons(){
           b.montant_cheque?`<span class="badge badge-gris">📄 Chq ${fmtMontant(b.montant_cheque)}</span>`:
           '<span class="badge badge-gris">—</span>'
         }</td>
+        <td id="imp-bl-${b.id}" data-n="${b.nb_impressions||0}" style="text-align:center">${badgeImprime(b.imprime,b.nb_impressions||1,b.date_impression)}</td>
         <td><div style="display:flex;gap:3px">
           <button class="btn btn-secondary btn-sm btn-icon" onclick="voirBL('${b.id}')">👁</button>
           <button class="btn btn-secondary btn-sm btn-icon" onclick="imprimerBL('${b.id}')">🖨</button>
@@ -2792,7 +2793,7 @@ function chargerBons(){
           <button class="btn btn-danger btn-sm btn-icon" onclick="supprimerBon('${b.id}')">🗑</button>
         </div></td></tr>`;
     });
-    G("bons-tbody").innerHTML=html||`<tr><td colspan="11" style="text-align:center;color:var(--gris3);padding:24px">Aucun bon</td></tr>`;
+    G("bons-tbody").innerHTML=html||`<tr><td colspan="12" style="text-align:center;color:var(--gris3);padding:24px">Aucun bon</td></tr>`;
     loader(false);
   }).catch(()=>{loader(false);toast("Erreur","err");});
 }
@@ -2879,6 +2880,7 @@ function chargerRecus(){
         <td style="font-size:11px">${r.mission||r.designation||r.num_doc||"—"}</td>
         <td style="font-weight:900;color:var(--vert)">${fmtMontant(r.montant)}</td>
         <td style="color:var(--bleu);font-size:11px">${r.bon_num||r.num_doc||"—"}</td>
+        <td id="imp-rc-${r.id}" data-n="${r.nb_impressions||0}" style="text-align:center">${badgeImprime(r.imprime,r.nb_impressions||1,r.date_impression)}</td>
         <td><div style="display:flex;gap:3px">
           <button class="btn btn-secondary btn-sm btn-icon" onclick="voirRecu('${r.id}')">👁</button>
           <button class="btn btn-secondary btn-sm btn-icon" onclick="imprimerRecu('${r.id}')">🖨</button>
@@ -2887,7 +2889,7 @@ function chargerRecus(){
           <button class="btn btn-danger btn-sm btn-icon" onclick="supprimerRecu('${r.id}')">🗑</button>
         </div></td></tr>`;
     });
-    G("recus-tbody").innerHTML=html||`<tr><td colspan="11" style="text-align:center;color:var(--gris3);padding:24px">Aucun reçu</td></tr>`;
+    G("recus-tbody").innerHTML=html||`<tr><td colspan="12" style="text-align:center;color:var(--gris3);padding:24px">Aucun reçu</td></tr>`;
     loader(false);
   }).catch(e=>{loader(false);console.error(e);});
 }
@@ -6172,6 +6174,30 @@ function voirBL(id){
     });
   }).catch(()=>{loader(false);toast("Erreur","err");});
 }
+// ── Marquage "imprimé" : mémorise qu'un BL / reçu a été imprimé ou téléchargé ──
+function marquerImprime(col, id){
+  if(!id) return;
+  const m=new Date();
+  const horodatage=("0"+m.getDate()).slice(-2)+"/"+("0"+(m.getMonth()+1)).slice(-2)+"/"+m.getFullYear()+" "+("0"+m.getHours()).slice(-2)+"h"+("0"+m.getMinutes()).slice(-2);
+  db.collection(col).doc(id).update({
+    imprime:true,
+    nb_impressions:firebase.firestore.FieldValue.increment(1),
+    date_impression:horodatage
+  }).then(()=>{
+    const cell=document.getElementById((col==="bons"?"imp-bl-":"imp-rc-")+id);
+    if(cell){
+      const n=parseInt(cell.dataset.n||"0")+1;
+      cell.dataset.n=n;
+      cell.innerHTML=badgeImprime(true,n,horodatage);
+    }
+  }).catch(()=>{});
+}
+function badgeImprime(imprime,n,date){
+  if(!imprime) return `<span class="badge badge-gris">—</span>`;
+  const style=n>=2?` style="background:#f59e0b;color:white"`:"";
+  return `<span class="badge badge-vert"${style}>🖨 ×${n}</span><br><span style="font-size:10px;color:var(--gris3)">${date||""}</span>`;
+}
+
 function imprimerBL(id){
   loader(true);
   db.collection("bons").doc(id).get().then(snap=>{
@@ -6181,6 +6207,7 @@ function imprimerBL(id){
       doc.autoPrint();
       const w=window.open(URL.createObjectURL(doc.output('blob')),'_blank');
       if(w)w.print();
+      marquerImprime("bons", id);
       loader(false);
     });
   }).catch(()=>loader(false));
@@ -6192,7 +6219,7 @@ function telechargerBL(id){
     const b=snap.data();
     _avecDimPhoto({id,...b},function(bon){
       const doc=genererBL(bon);
-      doc.save((b.bon_num||'BL')+'.pdf');loader(false);toast("PDF téléchargé ✅");
+      doc.save((b.bon_num||'BL')+'.pdf');marquerImprime("bons", id);loader(false);toast("PDF téléchargé ✅");
     });
   }).catch(()=>loader(false));
 }
@@ -6209,7 +6236,7 @@ function imprimerRecu(id){
   db.collection("recus").doc(id).get().then(snap=>{
     if(!snap.exists){loader(false);return;}
     const doc=genererRecu({id,...snap.data()});doc.autoPrint();
-    const w=window.open(URL.createObjectURL(doc.output('blob')),'_blank');if(w)w.print();loader(false);
+    const w=window.open(URL.createObjectURL(doc.output('blob')),'_blank');if(w)w.print();marquerImprime("recus", id);loader(false);
   }).catch(()=>loader(false));
 }
 function telechargerRecu(id){
@@ -6217,7 +6244,7 @@ function telechargerRecu(id){
   db.collection("recus").doc(id).get().then(snap=>{
     if(!snap.exists){loader(false);return;}
     const r=snap.data();const doc=genererRecu({id,...r});
-    doc.save((r.recu_num||'RECU')+'.pdf');loader(false);toast("PDF téléchargé ✅");
+    doc.save((r.recu_num||'RECU')+'.pdf');marquerImprime("recus", id);loader(false);toast("PDF téléchargé ✅");
   }).catch(()=>loader(false));
 }
 
