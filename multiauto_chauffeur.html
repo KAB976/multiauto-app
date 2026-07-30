@@ -844,8 +844,43 @@ function initClients(){
   if(cur) sel.value=cur;
 }
 
+// ── Clients "assurance" : bascule automatique en Prise en charge ──
+// Quand le chauffeur choisit un de ces clients, le bon passe automatiquement en
+// type PC (dossier créé dans prises_en_charge), sans action de sa part.
+var CLIENTS_PC_AUTO = ["GAA", "MONDIAL ASSISTANCE"];
+var _pcAutoForce = false;
+
+function estClientPC(nom){
+  if(!nom) return false;
+  var n = nom.toUpperCase();
+  for(var i=0;i<CLIENTS_PC_AUTO.length;i++){
+    var c = CLIENTS_PC_AUTO[i];
+    if(c === "GAA"){
+      // "GAA" en mot isolé (évite les faux positifs sur d'autres noms)
+      if(/(^|[^A-Z])GAA([^A-Z]|$)/.test(n)) return true;
+    } else if(n.indexOf(c) !== -1){
+      return true;
+    }
+  }
+  return false;
+}
+
+function appliquerTypePCAuto(){
+  var nom = G("sel-client") ? G("sel-client").value : "";
+  if(estClientPC(nom)){
+    if(typeIntervention !== "pc") setTypeIntervention("pc");
+    _pcAutoForce = true;
+  } else if(_pcAutoForce){
+    // On ne rétablit "normal" que si c'est l'automatisme qui avait forcé "pc"
+    // (un choix PC manuel du chauffeur pour un autre client n'est pas touché)
+    setTypeIntervention("normal");
+    _pcAutoForce = false;
+  }
+}
+
 function onClientChange(){
   // Auto-remplir tel si client connu
+  appliquerTypePCAuto();
 }
 
 function ouvrirModalClient(){
@@ -1091,6 +1126,8 @@ function restaurerBrouillon(){
     if(d.typeIntervention && d.typeIntervention!=="normal" && typeof setTypeIntervention==="function"){
       typeIntervention=d.typeIntervention; setTypeIntervention(d.typeIntervention);
     }
+    // Client assurance restauré depuis le brouillon → bascule PC automatique
+    appliquerTypePCAuto();
     if(d.espActif){
       espActif=true;
       if(G("esp-switch")) G("esp-switch").classList.add("on");
@@ -1403,6 +1440,9 @@ function soumettre(){
   if(!G("sel-marque").value){ afficherAlerte("⚠️ Choisis la marque du véhicule"); return; }
   if(!G("sel-modele").value){ afficherAlerte("⚠️ Choisis le modèle du véhicule"); return; }
   if(!G("sel-client").value){ afficherAlerte("⚠️ Sélectionne ou ajoute le client"); return; }
+  // Filet de sécurité : client assurance (GAA / Mondial Assistance) → toujours en Prise en charge,
+  // même si le chauffeur a re-cliqué "Normal" ou si le client vient d'un brouillon restauré
+  appliquerTypePCAuto();
   if(!G("inp-emb").value.trim()){ afficherAlerte("⚠️ Saisis le lieu d'embarquement"); return; }
   if(!embarquementFait){ afficherAlerte("⚠️ Appuie sur le bouton rouge pour enregistrer l'embarquement"); return; }
   if(!G("inp-dest").value.trim()){ afficherAlerte("⚠️ Saisis la destination (bouton bleu d'abord)"); return; }
