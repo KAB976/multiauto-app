@@ -1214,6 +1214,34 @@ tr:hover td{background:var(--gris)}
         <div class="card"><div class="card-title">💰 Répartition tarifs</div><div class="chart-bar-wrap" id="chart-tarifs"></div></div>
         <div class="card"><div class="card-title">👥 Top clients</div><div class="chart-bar-wrap" id="chart-clients"></div></div>
       </div>
+
+        <!-- ══ IMMOBILISATIONS CAMIONS ══ -->
+        <div class="card" style="margin-top:18px">
+          <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px;margin-bottom:10px">
+            <div style="font-weight:800;font-size:15px">🚧 Immobilisations des camions</div>
+            <button class="btn btn-primary btn-sm" onclick="ouvrirModalImmo()">➕ Ajouter une immobilisation</button>
+          </div>
+          <div class="filtres" style="margin-bottom:10px">
+            <select class="filtre-inp" id="immo-f-camion" onchange="chargerImmobilisations()"><option value="">Tous les camions</option></select>
+            <input class="filtre-inp" type="date" id="immo-f-debut" onchange="chargerImmobilisations()" title="Période : début">
+            <input class="filtre-inp" type="date" id="immo-f-fin" onchange="chargerImmobilisations()" title="Période : fin">
+            <select class="filtre-inp" id="immo-f-tri" onchange="chargerImmobilisations()">
+              <option value="date">Tri : Date (récent d'abord)</option>
+              <option value="camion">Tri : Camion</option>
+            </select>
+          </div>
+          <div id="immo-badges" style="display:flex;gap:10px;flex-wrap:wrap;margin-bottom:12px"></div>
+          <div style="font-weight:700;font-size:12px;color:var(--gris4);margin:4px 0">Récapitulatif par camion</div>
+          <div class="table-wrap" style="margin-bottom:14px"><table>
+            <thead><tr><th>Camion</th><th>Nb immobilisations</th><th>Total jours</th><th>Jours par motif</th></tr></thead>
+            <tbody id="immo-recap"></tbody>
+          </table></div>
+          <div style="font-weight:700;font-size:12px;color:var(--gris4);margin:4px 0">Détail</div>
+          <div class="table-wrap"><table>
+            <thead><tr><th>Camion</th><th>Début</th><th>Fin</th><th>Durée</th><th>Motif</th><th>Actions</th></tr></thead>
+            <tbody id="immo-tbody"></tbody>
+          </table></div>
+        </div>
     </div>
 
     <!-- COMMISSIONS -->
@@ -1455,6 +1483,35 @@ tr:hover td{background:var(--gris)}
 
 <!-- Modal Utilisateur -->
 <!-- ══ MODAL NOUVEAU BON DE LIVRAISON (portage du module secrétaire) ══ -->
+<!-- ══ MODAL IMMOBILISATION CAMION ══ -->
+<div class="modal-bg" id="modal-immo">
+<div class="modal">
+  <div class="modal-title" id="modal-immo-title">🚧 Immobilisation d'un camion</div>
+  <div class="form-grid">
+    <div class="form-group"><span class="fl">Camion</span><select class="inp" id="immo-camion"><option value="">— Camion —</option></select></div>
+    <div class="form-group"><span class="fl">Motif</span>
+      <select class="inp" id="immo-motif">
+        <option value="">— Motif —</option>
+        <option>Panne mécanique</option>
+        <option>Entretien / Révision</option>
+        <option>Réparation carrosserie</option>
+        <option>Pneumatiques</option>
+        <option>Contrôle technique</option>
+        <option>Accident</option>
+        <option>Autre</option>
+      </select>
+    </div>
+    <div class="form-group"><span class="fl">Date début</span><input class="inp" type="date" id="immo-debut"></div>
+    <div class="form-group"><span class="fl">Date fin (vide = en cours)</span><input class="inp" type="date" id="immo-fin"></div>
+  </div>
+  <div class="form-group"><span class="fl">Détails (facultatif)</span><input class="inp" id="immo-details" placeholder="Ex : attente pièce embrayage"></div>
+  <div class="modal-footer">
+    <button class="btn btn-secondary" onclick="fermerModal('modal-immo')">Annuler</button>
+    <button class="btn btn-primary" onclick="sauvegarderImmo()">💾 Enregistrer</button>
+  </div>
+</div>
+</div>
+
 <div class="modal-bg" id="modal-bl">
 <div class="modal">
   <div class="modal-title">📋 Nouveau bon de livraison</div>
@@ -5333,7 +5390,133 @@ async function chargerRemorquagesSection(){
   }catch(e){ if(G("remorq-stats")) G("remorq-stats").innerHTML=`<div style="color:var(--rouge)">Erreur de calcul</div>`; console.error(e); }
 }
 
+// ══════════════════════════════════════
+// IMMOBILISATIONS CAMIONS (suivi des arrêts + motifs, stats par camion et date)
+// ══════════════════════════════════════
+function fmtDateImmo(d){ if(!d) return "—"; const p=d.split("-"); return p.length===3?p[2]+"/"+p[1]+"/"+p[0]:d; }
+function joursImmo(i){
+  if(!i.date_debut) return 0;
+  const deb=new Date(i.date_debut+"T00:00:00");
+  const fin=i.date_fin?new Date(i.date_fin+"T00:00:00"):new Date();
+  return Math.max(1, Math.floor((fin-deb)/86400000)+1);   // durée inclusive ; en cours = jusqu'à aujourd'hui
+}
+var _immoEditId=null;
+function ouvrirModalImmo(){
+  _immoEditId=null;
+  if(G("modal-immo-title")) G("modal-immo-title").textContent="🚧 Immobilisation d'un camion";
+  const sel=G("immo-camion");
+  sel.innerHTML="<option value=''>— Camion —</option>";
+  camionsList.forEach(c=>{const o=document.createElement("option");o.value=c.nom;o.textContent=c.nom+(c.immat?" — "+c.immat:"");sel.appendChild(o);});
+  G("immo-motif").value=""; G("immo-details").value=""; G("immo-fin").value="";
+  const n=new Date();
+  G("immo-debut").value=n.getFullYear()+"-"+("0"+(n.getMonth()+1)).slice(-2)+"-"+("0"+n.getDate()).slice(-2);
+  G("modal-immo").classList.add("on");
+}
+function editerImmo(id){
+  db.collection("immobilisations").doc(id).get().then(snap=>{
+    if(!snap.exists){ toast("Introuvable","err"); return; }
+    const i=snap.data();
+    _immoEditId=id;
+    if(G("modal-immo-title")) G("modal-immo-title").textContent="✏️ Modifier l'immobilisation";
+    // Peupler la liste des camions puis sélectionner celui de la fiche
+    const sel=G("immo-camion");
+    sel.innerHTML="<option value=''>— Camion —</option>";
+    camionsList.forEach(c=>{const o=document.createElement("option");o.value=c.nom;o.textContent=c.nom+(c.immat?" — "+c.immat:"");sel.appendChild(o);});
+    sel.value=i.camion||"";
+    G("immo-motif").value=i.motif||"";
+    G("immo-debut").value=i.date_debut||"";
+    G("immo-fin").value=i.date_fin||"";
+    G("immo-details").value=i.details||"";
+    G("modal-immo").classList.add("on");
+  }).catch(()=>toast("Erreur","err"));
+}
+function sauvegarderImmo(){
+  const camion=G("immo-camion").value, motif=G("immo-motif").value, debut=G("immo-debut").value, fin=G("immo-fin").value||"";
+  if(!camion||!motif||!debut){ toast("Camion, motif et date de début obligatoires","err"); return; }
+  if(fin && fin<debut){ toast("La date de fin doit être postérieure au début","err"); return; }
+  const cam=camionsList.find(c=>c.nom===camion)||{};
+  loader(true);
+  const data={
+    camion, immat_camion:cam.immat||"", motif,
+    details:G("immo-details").value.trim(),
+    date_debut:debut, date_fin:fin
+  };
+  const p=_immoEditId
+    ? db.collection("immobilisations").doc(_immoEditId).update(data)                                    // modification (dates corrigées a posteriori)
+    : db.collection("immobilisations").add({...data, timestamp:firebase.firestore.FieldValue.serverTimestamp()});  // création
+  p.then(()=>{ toast(_immoEditId?"Immobilisation modifiée ✅":"Immobilisation enregistrée ✅"); _immoEditId=null; fermerModal("modal-immo"); chargerImmobilisations(); loader(false); })
+   .catch(()=>{ toast("Erreur","err"); loader(false); });
+}
+function cloturerImmo(id){
+  const n=new Date();
+  const auj=n.getFullYear()+"-"+("0"+(n.getMonth()+1)).slice(-2)+"-"+("0"+n.getDate()).slice(-2);
+  db.collection("immobilisations").doc(id).update({date_fin:auj})
+    .then(()=>{ toast("Camion remis en service ✅"); chargerImmobilisations(); })
+    .catch(()=>toast("Erreur","err"));
+}
+function supprimerImmo(id){
+  if(!confirm("Supprimer cette immobilisation ?")) return;
+  db.collection("immobilisations").doc(id).delete().then(()=>{ toast("Supprimé"); chargerImmobilisations(); });
+}
+function chargerImmobilisations(){
+  db.collection("immobilisations").orderBy("date_debut","desc").limit(500).get().then(snap=>{
+    let list=[]; snap.forEach(d=>list.push({id:d.id,...d.data()}));
+    // Peupler le filtre camion (une seule fois)
+    const selF=G("immo-f-camion");
+    if(selF && selF.options.length<=1){
+      camionsList.forEach(c=>{const o=document.createElement("option");o.value=c.nom;o.textContent=c.nom;selF.appendChild(o);});
+    }
+    // Filtres camion + période (chevauchement)
+    const fc=G("immo-f-camion")?.value||"", fd=G("immo-f-debut")?.value||"", ff=G("immo-f-fin")?.value||"";
+    const tri=G("immo-f-tri")?.value||"date";
+    if(fc) list=list.filter(i=>i.camion===fc);
+    if(fd) list=list.filter(i=>(i.date_fin||"9999-12-31")>=fd);
+    if(ff) list=list.filter(i=>(i.date_debut||"")<=ff);
+    // Tri
+    if(tri==="camion") list.sort((a,b)=>(a.camion||"").localeCompare(b.camion||"")||(b.date_debut||"").localeCompare(a.date_debut||""));
+    else list.sort((a,b)=>(b.date_debut||"").localeCompare(a.date_debut||""));
+    // Badges + récap par camion
+    const par={};
+    list.forEach(i=>{
+      const k=i.camion||"?";
+      par[k]=par[k]||{nb:0,jours:0,motifs:{}};
+      const j=joursImmo(i);
+      par[k].nb++; par[k].jours+=j;
+      const m=i.motif||"Autre";
+      par[k].motifs[m]=(par[k].motifs[m]||0)+j;
+    });
+    const totalJours=Object.values(par).reduce((s,v)=>s+v.jours,0);
+    const enCours=list.filter(i=>!i.date_fin).length;
+    if(G("immo-badges")) G("immo-badges").innerHTML=`
+      <div class="total-badge"><div class="tb-num">${list.length}</div><div class="tb-lbl">Immobilisations</div></div>
+      <div class="total-badge rouge"><div class="tb-num">${enCours}</div><div class="tb-lbl">En cours</div></div>
+      <div class="total-badge violet"><div class="tb-num">${totalJours} j</div><div class="tb-lbl">Jours immobilisés</div></div>`;
+    if(G("immo-recap")) G("immo-recap").innerHTML=Object.keys(par).sort().map(k=>{
+      const detailMotifs=Object.keys(par[k].motifs).sort((a,b)=>par[k].motifs[b]-par[k].motifs[a])
+        .map(m=>`<span style="display:inline-block;background:var(--gris);border-radius:8px;padding:1px 7px;margin:1px 2px;font-size:11px">${m} : <b>${par[k].motifs[m]} j</b></span>`).join(" ");
+      return `<tr><td style="font-weight:700">${k}</td><td>${par[k].nb}</td><td style="font-weight:900;color:var(--rouge)">${par[k].jours} j</td><td>${detailMotifs||"—"}</td></tr>`;
+    }).join("")||`<tr><td colspan="4" style="text-align:center;color:var(--gris3);padding:12px">Aucune donnée sur la période</td></tr>`;
+    // Détail
+    let html="";
+    list.forEach(i=>{
+      html+=`<tr>
+        <td style="font-weight:700">${i.camion||"—"}${i.immat_camion?`<br><span style="font-size:10px;color:var(--gris3)">${i.immat_camion}</span>`:""}</td>
+        <td>${fmtDateImmo(i.date_debut)}</td>
+        <td>${i.date_fin?fmtDateImmo(i.date_fin):`<span class="badge" style="background:#fee2e2;color:#b91c1c">🔴 En cours</span>`}</td>
+        <td style="font-weight:900">${joursImmo(i)} j</td>
+        <td>${i.motif||"—"}${i.details?`<br><span style="font-size:10px;color:var(--gris3)">${i.details}</span>`:""}</td>
+        <td><div style="display:flex;gap:4px">
+          ${!i.date_fin?`<button class="btn btn-secondary btn-sm btn-icon" title="Remettre en service (fin = aujourd'hui)" onclick="cloturerImmo('${i.id}')">✔</button>`:""}
+          <button class="btn btn-secondary btn-sm btn-icon" title="Modifier (dates, motif, détails)" onclick="editerImmo('${i.id}')">✏️</button>
+          <button class="btn btn-danger btn-sm btn-icon" onclick="supprimerImmo('${i.id}')">🗑</button>
+        </div></td></tr>`;
+    });
+    if(G("immo-tbody")) G("immo-tbody").innerHTML=html||`<tr><td colspan="6" style="text-align:center;color:var(--gris3);padding:20px">Aucune immobilisation enregistrée</td></tr>`;
+  }).catch(e=>console.warn("immobilisations:",e));
+}
+
 function chargerStats(){
+  chargerImmobilisations();   // section immobilisations camions
   loader(true,"Calcul statistiques...");
   const stType=G("stats-type")?.value||"";
   const ch=G("stats-chauffeur")?.value||"";
