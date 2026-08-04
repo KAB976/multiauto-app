@@ -569,6 +569,7 @@ tr:hover td{background:var(--gris)}
       <div class="sb-item" onclick="afficherPage('pg-historique')" id="nav-historique"><span class="ico">🔍</span> Historique immat.</div>
       <div class="sb-section">Analyses</div>
       <div class="sb-item" onclick="afficherPage('pg-stats')" id="nav-stats"><span class="ico">📈</span> Statistiques</div>
+      <div class="sb-item" onclick="afficherPage('pg-immo')" id="nav-immo"><span class="ico">🚧</span> Immobilisations</div>
       <div class="sb-item" onclick="afficherPage('pg-commissions')" id="nav-commissions"><span class="ico">💰</span> Commissions</div>
       <div class="sb-section">Configuration</div>
       <div class="sb-item" onclick="afficherPage('pg-audit-log')" id="nav-audit-log"><span class="ico">🕵️</span> Journal d'audit</div>
@@ -1215,8 +1216,15 @@ tr:hover td{background:var(--gris)}
         <div class="card"><div class="card-title">👥 Top clients</div><div class="chart-bar-wrap" id="chart-clients"></div></div>
       </div>
 
+    </div>
+
+    <!-- IMMOBILISATIONS CAMIONS -->
+    <div class="pg" id="pg-immo">
+      <div class="page-header">
+        <div><div class="page-title">🚧 Immobilisations des camions</div></div>
+      </div>
         <!-- ══ IMMOBILISATIONS CAMIONS ══ -->
-        <div class="card" style="margin-top:18px">
+        <div class="card" >
           <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px;margin-bottom:10px">
             <div style="font-weight:800;font-size:15px">🚧 Immobilisations des camions</div>
             <button class="btn btn-primary btn-sm" onclick="ouvrirModalImmo()">➕ Ajouter une immobilisation</button>
@@ -1827,6 +1835,7 @@ function afficherPage(id){
   if(id==="pg-ca-remorq"  && doitCharger)  chargerCARemorquages();
   if(id==="pg-historique" && doitCharger)  rechercherHistorique();
   if(id==="pg-stats"      && doitCharger)  chargerStats();
+  if(id==="pg-immo")       chargerImmobilisations();
   if(id==="pg-commissions") {}
   if(id==="pg-droits"     && doitCharger)  {chargerDroits(); chargerPermChauffeursFn();}
   if(id==="pg-utilisateurs" && doitCharger) chargerUtilisateurs();
@@ -5516,7 +5525,6 @@ function chargerImmobilisations(){
 }
 
 function chargerStats(){
-  chargerImmobilisations();   // section immobilisations camions
   loader(true,"Calcul statistiques...");
   const stType=G("stats-type")?.value||"";
   const ch=G("stats-chauffeur")?.value||"";
