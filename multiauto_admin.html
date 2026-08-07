@@ -5025,7 +5025,7 @@ async function chargerSoldes(prefix){
       const btnModifierClient = `<button class="btn btn-sm" style="background:var(--bleu-lt,#e3f2fd);color:var(--bleu);border:1px solid var(--bleu);margin-left:2px" onclick="ouvrirModifierClient('${item.id}','${item.collection}','${clientEsc}')">✏️ Client</button>`;
       const btnSupprimerSolde = `<button class="btn btn-danger btn-sm" style="margin-left:2px" onclick="supprimerSolde('${item.id}','${item.collection}','${clientEsc}','${docEsc}')">🗑</button>`;
       // Correction immat / montant — disponible sur TOUTES les lignes (immat souvent mal saisie par les chauffeurs)
-      const btnCorriger = `<button class="btn btn-sm" style="background:#ede7f6;color:#5e35b1;border:1px solid #9575cd;margin-left:2px" onclick="ouvrirCorriger('${item.id}','${item.collection}','${docEsc}','${clientEsc}')">✏️ Immat/Montant</button>`;
+      const btnCorriger = `<button class="btn btn-sm" style="background:#ede7f6;color:#5e35b1;border:1px solid #9575cd;margin-left:2px" title="Corriger l'immatriculation ou le montant" onclick="ouvrirCorriger('${item.id}','${item.collection}','${docEsc}','${clientEsc}')">✏️ Corriger</button>`;
 
       html+=`<tr style="${trStyle}">
         <td><input type="checkbox" class="soldes-cb" data-idx="${idx}"></td>
