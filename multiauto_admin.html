@@ -953,7 +953,7 @@ tr:hover td{background:var(--gris)}
             <thead><tr>
               <th><input type="checkbox" id="pc-check-all" onclick="selToutPC()"></th>
               <th>N° Dossier</th><th>Date</th><th>Assureur</th><th>Client</th>
-              <th>Véhicule/Immat</th><th>Montant Réel</th><th>Part Assur.</th>
+              <th>Véhicule/Immat</th><th>Tarif</th><th>Montant Réel</th><th>Part Assur.</th>
               <th>St. Assureur</th><th>Part Client</th><th>St. Client</th>
               <th>N° BL</th><th>N° Reçu</th><th>Observation</th><th>Actions</th>
             </tr></thead>
@@ -1153,7 +1153,7 @@ tr:hover td{background:var(--gris)}
             <thead><tr>
               <th><input type="checkbox" id="soldes-check-all" onclick="selToutSoldes()"></th>
               <th>Date</th><th>Client</th><th>Type</th><th>N° Document</th>
-              <th>Désignation</th><th>Montant</th><th>Payé</th><th>Solde</th>
+              <th>Désignation</th><th>Tarif</th><th>Montant</th><th>Payé</th><th>Solde</th>
               <th>Mode paiement</th><th>N° Reçu</th><th>Statut</th><th>Actions</th>
             </tr></thead>
             <tbody id="soldes-tbody"></tbody>
@@ -3977,12 +3977,28 @@ function exporterMagasinagePDF(){
   toast(nb+' ligne(s) exportée(s) ✅');
 }
 
+// ── Tarif d'un dossier PC : hérité du BL lié (champ bon_num). Un PC saisi à la main
+// sans N° BL est considéré comme NORMAL. Table remplie par _chargerTarifsBL().
+var _tarifsBL={};
+function _chargerTarifsBL(){
+  return db.collection("bons").limit(1000).get().then(snap=>{
+    _tarifsBL={};
+    snap.forEach(d=>{ const b=d.data(); if(b.bon_num) _tarifsBL[b.bon_num]=b.tarif||"NORMAL"; });
+  }).catch(()=>{});
+}
+function tarifPC(p){ return (p&&p.bon_num&&_tarifsBL[p.bon_num]) || "NORMAL"; }
+function badgeTarif(t){
+  const c=t==="NORMAL"?"#e8f5e9;color:#2e7d32":t==="TN"?"#e3f2fd;color:#1565c0":"#f3e5f5;color:#6a1b9a";
+  return `<span class="badge" style="background:${c};font-weight:700">${t}</span>`;
+}
+
 // ── PRISES EN CHARGE ──
 function chargerPC(){
   const statut=G("pc-filtre-statut")?.value||"";
   const global=G("pc-filtre-global")?.value||"";
   const debut=G("pc-date-debut")?.value||"";
   const fin=G("pc-date-fin")?.value||"";
+  _chargerTarifsBL().then(()=>
   db.collection("prises_en_charge").orderBy("date","desc").limit(200).get().then(snap=>{
     let list=[]; snap.forEach(d=>list.push({id:d.id,...d.data()}));
     // Compléter le select client avec les noms réels des dossiers PC (ex: assureur utilisé comme client)
@@ -4064,6 +4080,7 @@ function chargerPC(){
         <td style="font-size:11px;font-weight:700">${p.assureur||"—"}</td>
         <td><strong>${p.client||"—"}</strong></td>
         <td style="font-size:11px">${p.marque||""} ${p.modele||""}<br><span style="font-family:monospace;font-size:10px;font-weight:700">${p.immat||""}</span></td>
+        <td>${badgeTarif(tarifPC(p))}</td>
         <td style="color:var(--vert);font-weight:700;font-size:13px">${fmtMontant(p.montant_reel||((p.montant_assurance||0)+montantClient))}</td>
         <td style="color:var(--bleu);font-weight:700">${fmtMontant(p.montant_assurance)}</td>
         <td>${stAss}<br>${btnAssurance}</td>
@@ -4078,8 +4095,8 @@ function chargerPC(){
           <button class="btn btn-danger btn-sm btn-icon" onclick="supprimerPC('${p.id}')">🗑</button>
         </div></td></tr>`;
     });
-    G("pc-tbody").innerHTML=html||`<tr><td colspan="15" style="text-align:center;color:var(--gris3);padding:24px">Aucune prise en charge</td></tr>`;
-  }).catch(console.error);
+    G("pc-tbody").innerHTML=html||`<tr><td colspan="16" style="text-align:center;color:var(--gris3);padding:24px">Aucune prise en charge</td></tr>`;
+  }).catch(console.error));
 }
 
 function calcStatutAssurance(p){
@@ -4433,6 +4450,7 @@ function exporterPCPDF(){
       rows.push([
         p.dossier||"—", p.date||"—", p.assureur||"—", p.client||"—",
         (p.marque||"")+' '+(p.modele||"")+" "+(p.immat||""),
+        tarifPC(p),
         (p.montant_reel||(parseFloat(p.montant_assurance||0)+montantClient)).toFixed(2)+" €",
         (p.montant_assurance||0).toFixed(2)+" €", stAss,
         montantClient.toFixed(2)+" €", stClient,
@@ -4440,7 +4458,7 @@ function exporterPCPDF(){
       ]);
     });
     doc.autoTable({startY:26,
-      head:[['N° Dossier','Date','Assureur','Client','Véhicule/Immat','Mt. Réel','Part Ass.','St. Ass.','Part Cl.','St. Cl.','N° BL','N° Reçu']],
+      head:[['N° Dossier','Date','Assureur','Client','Véhicule/Immat','Tarif','Mt. Réel','Part Ass.','St. Ass.','Part Cl.','St. Cl.','N° BL','N° Reçu']],
       body:rows,
       headStyles:{fillColor:[26,37,64],textColor:255,fontSize:6,fontStyle:'bold'},
       bodyStyles:{fontSize:6},alternateRowStyles:{fillColor:[246,246,246]},margin:{left:8,right:8}});
@@ -4898,6 +4916,9 @@ async function chargerSoldes(prefix){
     // 1. BL remorquage — inclure ceux sans montant (jaune), exclure clients PC auto
     const blSnap = await db.collection("bons").limit(1000).get();
     const items = [];
+    // Correspondance N° BL -> tarif, pour afficher le tarif des dossiers PC issus d'un BL
+    const _tarifParBonNum={};
+    blSnap.forEach(d=>{ const b=d.data(); if(b.bon_num) _tarifParBonNum[b.bon_num]=b.tarif||""; });
     blSnap.forEach(d=>{
       const b=d.data();
       if(b.deplace_en_pc) return; // Déplacé manuellement en PC uniquement
@@ -4915,7 +4936,7 @@ async function chargerSoldes(prefix){
         designation:`Remorquage — ${b.immatriculation||""} ${b.lieu_embarquement||""} → ${b.destination||""}`,
         montant, paye:payeTotal, mode:parChauffeur?"💵 Espèces (chauffeur)":(b.mode_paiement_solde||""),
         date_paiement:b.date_paiement_solde||"",
-        statut, parChauffeur, collection:"bons", recu:b.recu_num||""
+        statut, parChauffeur, collection:"bons", recu:b.recu_num||"", tarif:b.tarif||""
       });
     });
 
@@ -4935,7 +4956,7 @@ async function chargerSoldes(prefix){
         designation:`Magasinage — ${m.immat||""} ${m.date_entree||""} → ${m.date_sortie||""}`,
         montant, paye, mode:m.mode_paiement||"",
         date_paiement:m.date_paiement||"",
-        statut, parChauffeur:false, collection:"magasinage", recu:m.recu_num||""
+        statut, parChauffeur:false, collection:"magasinage", recu:m.recu_num||"", tarif:""
       });
     });
 
@@ -4956,7 +4977,7 @@ async function chargerSoldes(prefix){
         designation:`PC ${p.assureur||""} — ${p.marque||""} ${p.modele||""} ${p.immat||""}`,
         montant, paye, mode:p.mode_paiement_client||"",
         date_paiement:p.date_paiement_client||"",
-        statut, parChauffeur:false, collection:"prises_en_charge", recu:p.recu_num||""
+        statut, parChauffeur:false, collection:"prises_en_charge", recu:p.recu_num||"", tarif:p.tarif||_tarifParBonNum[p.bon_num]||""
       });
     });
 
@@ -5034,6 +5055,7 @@ async function chargerSoldes(prefix){
         <td>${typeLabel}</td>
         <td style="font-size:11px;color:var(--bleu);font-weight:700">${item.doc}</td>
         <td style="font-size:11px;color:var(--gris3)">${item.designation.substring(0,45)}</td>
+        <td>${item.tarif?`<span class="badge" style="background:${item.tarif==="NORMAL"?"#e8f5e9;color:#2e7d32":item.tarif==="TN"?"#e3f2fd;color:#1565c0":"#f3e5f5;color:#6a1b9a"};font-weight:700">${item.tarif}</span>`:"—"}</td>
         <td style="font-weight:700;color:${item.montant?'var(--rouge)':'var(--jaune)'}">${item.montant?fmtMontant(item.montant):"⚠️ —"}</td>
         <td style="font-weight:700;color:var(--vert)">${fmtMontant(item.paye)}${item.date_paiement?`<br><span style="font-size:10px;color:var(--gris3)">${item.date_paiement}</span>`:""}</td>
         <td style="font-weight:700;color:${solde>0?"var(--rouge)":"var(--vert)"}">${fmtMontant(solde)}</td>
@@ -5044,7 +5066,7 @@ async function chargerSoldes(prefix){
       </tr>`;
     });
     const tbody=G(pfx+"soldes-tbody");
-    if(tbody) tbody.innerHTML=html||`<tr><td colspan="13" style="text-align:center;color:var(--gris3);padding:24px">Aucune opération</td></tr>`;
+    if(tbody) tbody.innerHTML=html||`<tr><td colspan="14" style="text-align:center;color:var(--gris3);padding:24px">Aucune opération</td></tr>`;
     loader(false);
   } catch(e){ loader(false); toast("Erreur chargement","err"); console.error(e); }
 }
@@ -5355,8 +5377,8 @@ function exporterSoldesPDF(prefix){
   doc.text('Soldes Clients',148,14,{align:'center'});
   doc.setFontSize(8);doc.setFont('helvetica','normal');
   doc.text('Édité le '+new Date().toLocaleDateString('fr-FR'),148,20,{align:'center'});
-  const cols=['Date','Client','Type','N° Doc','Désignation','Montant','Payé','Solde','Mode','Statut'];
-  const widths=[18,30,15,25,55,20,20,20,15,14];
+  const cols=['Date','Client','Type','N° Doc','Désignation','Tarif','Montant','Payé','Solde','Mode','Statut'];
+  const widths=[18,28,13,24,48,14,19,19,19,14,14];
   let y=28;
   doc.setFillColor(200,52,26);doc.rect(10,y,277,6,'F');
   doc.setTextColor(255,255,255);doc.setFont('helvetica','bold');doc.setFontSize(7);
@@ -5370,7 +5392,7 @@ function exporterSoldesPDF(prefix){
     const typeL=item.type==="bl"?"BL":item.type==="magasinage"?"Mag":"PC";
     let xi=10;
     const stPDF={incomplet:'Sans montant',solde:'Payé',partiel:'Partiel'}[item.statut]||'Impayé';
-    [item.date||'—',item.client,typeL,item.doc,item.designation,
+    [item.date||'—',item.client,typeL,item.doc,item.designation,item.tarif||'—',
      item.montant.toFixed(2)+' €',item.paye.toFixed(2)+' €',solde.toFixed(2)+' €',
      item.mode||'—',stPDF
     ].forEach((v,i)=>{doc.text(pdfCol(v,widths[i]),xi+1,y+3.8);xi+=widths[i];});
@@ -5383,10 +5405,10 @@ function exporterSoldesPDFSec(){ exporterSoldesPDF("soldes-sec-"); }
 function exporterSoldesExcel(prefix){
   const cbs=document.querySelectorAll(".soldes-cb:checked");
   const selected = cbs.length>0 ? [...cbs].map(cb=>soldesData[parseInt(cb.dataset.idx)]) : soldesData;
-  const headers=['Date','Client','Type','N° Document','Désignation','Montant','Payé','Solde','Mode paiement','Statut'];
+  const headers=['Date','Client','Type','N° Document','Désignation','Tarif','Montant','Payé','Solde','Mode paiement','Statut'];
   const rows=selected.map(item=>{
     const typeL=item.type==="bl"?"BL":item.type==="magasinage"?"Magasinage":"PC";
-    return [item.date||'—',item.client,typeL,item.doc,item.designation,
+    return [item.date||'—',item.client,typeL,item.doc,item.designation,item.tarif||'—',
       item.montant,item.paye,item.montant-item.paye,item.mode||'—',
       item.statut==='solde'?'Soldé':item.statut==='partiel'?'Partiel':item.statut==='incomplet'?'Sans montant':'Impayé'];
   });
@@ -5844,6 +5866,20 @@ function chargerCommissions(){
       return db.collection("prises_en_charge").get().then(snapPC=>{
         let pcs=[]; snapPC.forEach(d=>pcs.push({id:d.id,...d.data()}));
         pcs=pcs.filter(p=>p.statut!=="annule");
+        // ── ANTI-DOUBLON ──
+        // Un dossier PC est créé À PARTIR d'un BL : la mission existe donc dans les deux
+        // collections. On ne compte QUE le dossier PC (il porte le montant réel) et on
+        // retire le BL correspondant, sinon la même mission est comptée deux fois.
+        const bonsAvecPC=new Set(pcs.map(p=>p.bon_num).filter(Boolean));
+        Object.keys(parCh).forEach(k=>{
+          ["blN","blTW"].forEach((bk,i)=>{
+            const mk=i===0?"montN":"montTW";
+            const gardes=parCh[k][bk].filter(b=>!(b.bon_num&&bonsAvecPC.has(b.bon_num)));
+            const retires=parCh[k][bk].filter(b=>b.bon_num&&bonsAvecPC.has(b.bon_num));
+            retires.forEach(b=>{ parCh[k][mk]-=(parseFloat(b.montant)||0); });
+            parCh[k][bk]=gardes;
+          });
+        });
         if(ch){
           const chauffeurNomFiltre = chauffeursList.find(c=>c.id===ch)?.nom || "";
           pcs=pcs.filter(p=>(p.chauffeur||chauffeurParBonNum[p.bon_num]||"")===chauffeurNomFiltre);
