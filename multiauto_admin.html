@@ -2225,9 +2225,14 @@ function fermerRechercheGlobale(){
   G("recherche-globale-resultats").innerHTML="";
   G("recherche-globale-count").textContent="";
 }
+// Normalise pour la recherche : supprime tirets, espaces, points et met en majuscules.
+// Permet de trouver "EK-209-VD" en tapant "EK209VD" (et inversement).
+function normImmat(t){ return String(t==null?"":t).toUpperCase().replace(/[^A-Z0-9]/g,""); }
+
 async function executerRechercheGlobale(q){
   const qLower=q.toLowerCase();
   const qUpper=q.toUpperCase();
+  const qNorm=normImmat(q);   // recherche d'immatriculation insensible aux tirets/espaces
   G("recherche-globale-count").textContent="Recherche...";
   try{
     const [blSnap,recuSnap,pcSnap,magSnap] = await Promise.all([
@@ -2241,8 +2246,8 @@ async function executerRechercheGlobale(q){
     blSnap.forEach(d=>{
       const b=d.data();
       if((b.nom_client||"").toLowerCase().includes(qLower) ||
-         (b.immatriculation||"").toUpperCase().includes(qUpper) ||
-         (b.bon_num||"").toUpperCase().includes(qUpper)){
+         (qNorm.length>1 && normImmat(b.immatriculation).includes(qNorm)) ||
+         (qNorm.length>1 && normImmat(b.bon_num).includes(qNorm))){
         resultats.push({type:"BL",icon:"📋",label:`${b.bon_num||"—"} — ${b.nom_client||"—"} (${b.immatriculation||"—"})`,
           sub:`${b.date_bl||""} · ${fmtMontant(b.montant)}`, page:"pg-bons", id:d.id});
       }
@@ -2250,8 +2255,8 @@ async function executerRechercheGlobale(q){
     recuSnap.forEach(d=>{
       const r=d.data();
       if((r.nom_client||"").toLowerCase().includes(qLower) ||
-         (r.recu_num||"").toUpperCase().includes(qUpper) ||
-         (r.immatriculation||"").toUpperCase().includes(qUpper)){
+         (qNorm.length>1 && normImmat(r.recu_num).includes(qNorm)) ||
+         (qNorm.length>1 && normImmat(r.immatriculation).includes(qNorm))){
         resultats.push({type:"Reçu",icon:"🧾",label:`${r.recu_num||"—"} — ${r.nom_client||"—"}`,
           sub:`${r.date||""} · ${fmtMontant(r.montant)}`, page:"pg-recus", id:d.id});
       }
@@ -2259,8 +2264,8 @@ async function executerRechercheGlobale(q){
     pcSnap.forEach(d=>{
       const p=d.data();
       if((p.client||"").toLowerCase().includes(qLower) ||
-         (p.dossier||"").toUpperCase().includes(qUpper) ||
-         (p.immat||"").toUpperCase().includes(qUpper)){
+         (qNorm.length>1 && normImmat(p.dossier).includes(qNorm)) ||
+         (qNorm.length>1 && normImmat(p.immat).includes(qNorm))){
         resultats.push({type:"PC",icon:"📁",label:`${p.dossier||"—"} — ${p.client||"—"} (${p.immat||"—"})`,
           sub:`${p.date||""} · ${p.assureur||""}`, page:"pg-pc", id:d.id});
       }
@@ -2268,7 +2273,7 @@ async function executerRechercheGlobale(q){
     magSnap.forEach(d=>{
       const m=d.data();
       if((m.client||"").toLowerCase().includes(qLower) ||
-         (m.immat||"").toUpperCase().includes(qUpper)){
+         (qNorm.length>1 && normImmat(m.immat).includes(qNorm))){
         resultats.push({type:"Magasinage",icon:"🏠",label:`${m.client||"—"} — ${m.immat||"—"}`,
           sub:`Entrée: ${m.date_entree||""}`, page:"pg-magasinage", id:d.id});
       }
@@ -2296,6 +2301,9 @@ async function executerRechercheGlobale(q){
   }
 }
 function allerVersResultat(page,id){
+  // Vider le champ et refermer le panneau : sinon la recherche suivante ne part pas
+  const _inp=G("recherche-globale"); if(_inp) _inp.value="";
+  if(typeof fermerRechercheGlobale==="function") fermerRechercheGlobale();
   fermerRechercheGlobale();
   G("recherche-globale").value="";
   afficherPage(page);
@@ -3323,6 +3331,8 @@ async function importerListeReference(){
         count++;
       });
       await batch.commit();
+    // Journal d'audit : échec silencieux, le paiement est déjà validé
+    if(typeof _auditPaiement!=="undefined") db.collection("audit_log").add(_auditPaiement).catch(err=>console.warn("Audit non enregistré:",err));
     }
     toast(count+" marque(s) importée(s) ✅");
     chargerVehicules();
@@ -3864,6 +3874,8 @@ async function confirmerLivraison(){
       });
     }
     await batch.commit();
+    // Journal d'audit : échec silencieux, le paiement est déjà validé
+    if(typeof _auditPaiement!=="undefined") db.collection("audit_log").add(_auditPaiement).catch(err=>console.warn("Audit non enregistré:",err));
     toast(montantPaye>0?`Restitué ✅ — Reçu ${recuNum} généré`:"Restitué ✅ (sans paiement)");
     fermerModal("modal-livraison-mag");
     chargerMagasinage();
@@ -3926,6 +3938,8 @@ async function confirmerPaiementMag(){
       createdAt:firebase.firestore.FieldValue.serverTimestamp()
     });
     await batch.commit();
+    // Journal d'audit : échec silencieux, le paiement est déjà validé
+    if(typeof _auditPaiement!=="undefined") db.collection("audit_log").add(_auditPaiement).catch(err=>console.warn("Audit non enregistré:",err));
     toast(`Paiement enregistré ✅ — Reçu ${recuNum}`);
     fermerModal("modal-paiement-mag");
     chargerMagasinage();
@@ -4380,6 +4394,8 @@ async function confirmerPaiementPC(){
       createdAt:firebase.firestore.FieldValue.serverTimestamp()
     });
     await batch.commit();
+    // Journal d'audit : échec silencieux, le paiement est déjà validé
+    if(typeof _auditPaiement!=="undefined") db.collection("audit_log").add(_auditPaiement).catch(err=>console.warn("Audit non enregistré:",err));
 
     toast("Paiement enregistré ✅ — Reçu "+recuNum);
     fermerModal("modal-paiement-pc");
@@ -5282,16 +5298,19 @@ async function confirmerPaiement(){
       collection:col, doc_id:id,
       createdAt:firebase.firestore.FieldValue.serverTimestamp()
     });
-    // Audit trail — traçabilité de qui confirme quel paiement
-    batch.set(db.collection("audit_log").doc(),{
+    // Audit trail — écrit APRÈS le paiement et sans bloquer :
+    // si les règles Firestore refusent ce journal, le paiement reste enregistré.
+    const _auditPaiement={
       action:"confirmation_paiement",
       utilisateur:userAdmin?.nom||"Admin", utilisateur_role:userAdmin?.role||"admin",
       collection_cible:col, doc_id:id, numero:numDoc,
       client:nomClient, montant, mode_paiement:mode,
       recu_num:recuNum, solde_complet:solde,
       timestamp:firebase.firestore.FieldValue.serverTimestamp()
-    });
+    };
     await batch.commit();
+    // Journal d'audit : échec silencieux, le paiement est déjà validé
+    if(typeof _auditPaiement!=="undefined") db.collection("audit_log").add(_auditPaiement).catch(err=>console.warn("Audit non enregistré:",err));
     toast(`Paiement enregistré ✅ — Reçu ${recuNum}`);
     fermerModal("modal-paiement-solde");
     if(G("soldes-tbody")) chargerSoldes("");
@@ -5358,6 +5377,8 @@ async function deplacerEnPC(bonId, client, bonNum){
     // Marquer le BL comme déplacé (il sera ignoré dans chargerSoldes)
     batch.update(db.collection("bons").doc(bonId),{deplace_en_pc:true, pc_dossier:"BL→PC "+bonNum});
     await batch.commit();
+    // Journal d'audit : échec silencieux, le paiement est déjà validé
+    if(typeof _auditPaiement!=="undefined") db.collection("audit_log").add(_auditPaiement).catch(err=>console.warn("Audit non enregistré:",err));
     toast(`BL ${bonNum} déplacé en PC ✅`);
     chargerSoldes("");
     loader(false);
