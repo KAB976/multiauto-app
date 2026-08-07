@@ -1389,6 +1389,14 @@ tr:hover td{background:var(--gris)}
         <div><div class="page-title">⚙️ Paramètres société</div></div>
         <button class="btn btn-primary" onclick="sauvegarderParametres()">💾 Enregistrer</button>
       </div>
+      <div class="card" style="max-width:600px;margin-bottom:14px;border-left:4px solid var(--bleu)">
+        <div style="font-weight:800;font-size:14px;margin-bottom:6px">🔄 Mise à jour des applis chauffeur</div>
+        <div style="font-size:12px;color:var(--gris3);margin-bottom:10px">
+          Après avoir mis en ligne une nouvelle version, cliquez ici : tous les téléphones des chauffeurs
+          se rechargeront automatiquement, sans qu'ils aient à vider leur cache.
+        </div>
+        <button class="btn btn-primary" onclick="publierNouvelleVersion()">📲 Forcer la mise à jour sur tous les téléphones</button>
+      </div>
       <div class="card" style="max-width:600px">
         <div class="form-group" style="margin-bottom:14px"><span class="fl">Nom de la société</span><input class="inp" id="soc-nom" placeholder="Multi Auto Depannage"></div>
         <div class="form-group" style="margin-bottom:14px"><span class="fl">Adresse</span><input class="inp" id="soc-adresse" placeholder="ZI Kaweni derrière Groupama — 96700 Mamoudzou"></div>
@@ -6254,6 +6262,18 @@ function sauvegarderDroits(){
 
 
 // ── PARAMÈTRES ──
+// ── Forcer la mise à jour des applis chauffeur (elles se rechargent toutes seules) ──
+function publierNouvelleVersion(){
+  if(!confirm("Forcer la mise à jour sur tous les téléphones des chauffeurs ?\n\nLes applis ouvertes se rechargeront automatiquement dans les secondes qui suivent.\nUn chauffeur en train de valider un bon ne sera pas interrompu.")) return;
+  const n=new Date();
+  const v = n.getFullYear()+"-"+("0"+(n.getMonth()+1)).slice(-2)+"-"+("0"+n.getDate()).slice(-2)+"-"+("0"+n.getHours()).slice(-2)+("0"+n.getMinutes()).slice(-2);
+  loader(true,"Publication...");
+  db.collection("parametres").doc("app_version").set({
+    version:v, publie_le:new Date().toLocaleString('fr-FR'), publie_par:(userAdmin&&userAdmin.nom)||"Admin"
+  }).then(()=>{ toast("Mise à jour envoyée ✅ (version "+v+")"); loader(false); })
+   .catch(e=>{ toast("Erreur : "+(e.code||e.message||e),"err"); loader(false); });
+}
+
 function chargerParametres(){
   db.collection("parametres").doc("societe").get().then(snap=>{
     const p=snap.data()||{};
@@ -6603,7 +6623,7 @@ function genererRecu(recu){
   if(recu.email_client) y=pdfL(y,'Email :',recu.email_client);
   const vehiculeTxt=(recu.marque||recu.modele)?(recu.marque||'')+' '+(recu.modele||''):(recu.vehicule||'');
   y=pdfL(y,'Véhicule :',vehiculeTxt+' — '+(recu.immatriculation||'—'));
-  y=pdfL(y,'Mission :',recu.mission||recu.designation||(( recu.lieu_embarquement||'—')+' → '+(recu.destination||'—')));
+  y=pdfL(y,'Mission :',recu.mission||recu.designation||(( recu.lieu_embarquement||'—')+' -> '+(recu.destination||'—')));
   // N° BL
   doc.setFillColor(246,246,246);doc.rect(10,y,190,7.5,'F');doc.setTextColor(122,90,58);doc.setFont('helvetica','bold');doc.setFontSize(7);doc.text('N° BON DE LIVRAISON :',13,y+4.8);doc.setTextColor(21,101,192);doc.setFont('helvetica','bold');doc.setFontSize(8.5);doc.text(recu.bon_num||'—',65,y+4.8);doc.setDrawColor(224,224,224);doc.setLineWidth(0.3);doc.line(10,y+7.5,200,y+7.5);y+=7.5;
   y=pdfL(y,'Chauffeur :',recu.chauffeur_nom||'—');y+=5;

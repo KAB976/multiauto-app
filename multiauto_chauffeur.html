@@ -1422,6 +1422,7 @@ function supprimerSig(){
 // ALERTE
 // ════════════════════════════════════
 function afficherAlerte(msg){
+  deverrouillerValidation();   // blocage : le chauffeur doit pouvoir corriger et re-valider
   var al=G("form-alert"); al.textContent=msg; al.style.display="block";
   // Faire défiler l'écran vers le message : sinon, quand le chauffeur est en bas
   // du formulaire (bouton Valider), l'alerte s'affiche hors écran et il croit
@@ -1433,7 +1434,14 @@ function afficherAlerte(msg){
 // ════════════════════════════════════
 // VALIDATION & SOUMISSION
 // ════════════════════════════════════
+var _enregistrementEnCours = false;   // verrou anti double-appui sur "Valider"
+function deverrouillerValidation(){
+  _enregistrementEnCours = false;
+  var b = G("btn-valider");
+  if(b){ b.disabled = false; b.style.opacity = ""; }
+}
 function soumettre(){
+  if(_enregistrementEnCours) return;   // un enregistrement est déjà en route : on ignore
   G("form-alert").style.display="none";
   G("form-alert2").classList.remove("on");
 
@@ -1452,6 +1460,9 @@ function soumettre(){
   }
   if(espActif && !G("inp-montant").value){ afficherAlerte("⚠️ Saisis le montant reçu en espèces"); return; }
 
+  _enregistrementEnCours = true;
+  var _btnV = G("btn-valider");
+  if(_btnV){ _btnV.disabled = true; _btnV.style.opacity = "0.5"; }
   loader(true,"Enregistrement...");
   // Attendre (brièvement) la capture GPS pour éviter les coordonnées manquantes,
   // sans bloquer indéfiniment si le GPS/réseau est mauvais (max 6 secondes)
@@ -1514,6 +1525,7 @@ function sauvegarderOffline(payload,bon,recu){
 
 function terminer(bon,recu,p){
   effacerBrouillon();
+  deverrouillerValidation();   // le BL est enregistré : on peut re-valider un nouveau bon
   loader(false);
   G("pg-app").classList.remove("on");
   G("pg-success").classList.add("on");
@@ -1956,6 +1968,7 @@ window.seConnecter = async function(){
     majStatutLive({en_ligne:true, en_mission:false});
     demarrerSuiviGPSContinu();
     demarrerSurveillanceCompte(uid);   // éjection temps réel si l'admin désactive le compte
+    surveillerVersionApp();            // mise à jour automatique de l'appli
     // Recharger les selects avec les données Firestore (CLIENTS est maintenant rempli)
     initClients();
     initMarques();
@@ -2137,11 +2150,23 @@ window.enregistrer = async function(){
       }
     }
 
-    // Sauvegarder le BL dans Firestore
-    await addDoc(collection(db,"bons"), payload);
+    // ANTI-DOUBLON : si un BL portant ce numéro existe déjà (double envoi, réseau
+    // instable, double appui), on ne le recrée pas — on passe simplement à la suite.
+    let dejaEnregistre = false;
+    try{
+      const dejaSnap = await getDocs(query(collection(db,"bons"), where("bon_num","==",bonNum)));
+      dejaEnregistre = !dejaSnap.empty;
+    }catch(e){ console.warn("Vérification doublon impossible:", e); }
 
-    // Si type PC → créer aussi un doc dans prises_en_charge
-    if(payload.type_bl === "pc"){
+    // Sauvegarder le BL dans Firestore
+    if(dejaEnregistre){
+      console.warn("BL " + bonNum + " déjà enregistré — doublon évité");
+    } else {
+      await addDoc(collection(db,"bons"), payload);
+    }
+
+    // Si type PC → créer aussi un doc dans prises_en_charge (jamais deux fois)
+    if(payload.type_bl === "pc" && !dejaEnregistre){
       const pcData = {
         dossier: "BL→PC " + bonNum,
         date: payload.date_bl,
@@ -2205,6 +2230,33 @@ window.enregistrer = async function(){
     if(espActif) await incrementerRC();
   }
 };
+
+
+// ════════════════════════════════════
+// MISE À JOUR AUTOMATIQUE DE L'APPLI
+// L'admin publie un numéro de version ; dès qu'il change, le téléphone recharge
+// l'appli tout seul (le chauffeur n'a rien à faire).
+// ════════════════════════════════════
+const APP_VERSION = "2026-08-07-a";
+function surveillerVersionApp(){
+  try{
+    onSnapshot(doc(db,"parametres","app_version"), snap=>{
+      if(!snap.exists()) return;
+      const v = (snap.data()||{}).version || "";
+      if(!v || v === APP_VERSION) return;
+      // Ne jamais interrompre une saisie en cours : on attend la fin du bon
+      if(typeof _enregistrementEnCours !== "undefined" && _enregistrementEnCours) return;
+      const b = document.createElement("div");
+      b.style.cssText = "position:fixed;left:0;right:0;bottom:0;z-index:99999;background:#1a2540;color:#fff;padding:14px;text-align:center;font-weight:700;font-size:15px";
+      b.textContent = "🔄 Nouvelle version — mise à jour en cours...";
+      document.body.appendChild(b);
+      setTimeout(()=>{
+        // Le paramètre ?v= force le téléchargement du fichier neuf (contourne le cache)
+        location.replace(location.pathname + "?v=" + encodeURIComponent(v));
+      }, 1500);
+    }, e=>console.warn("Surveillance version:", e));
+  }catch(e){ console.warn("Surveillance version:", e); }
+}
 
 // ════════════════════════════════════
 // SYNC HORS-LIGNE → FIRESTORE
@@ -2292,6 +2344,7 @@ onAuthStateChanged(auth, async (firebaseUser) => {
         initApp();
         demarrerSuiviGPSContinu();
         demarrerSurveillanceCompte(firebaseUser.uid);   // éjection temps réel si l'admin désactive le compte
+        surveillerVersionApp();                         // mise à jour automatique de l'appli
       }
     } catch(e){ console.warn("Session restore failed:", e); }
   }
