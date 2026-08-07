@@ -2153,6 +2153,8 @@ window.enregistrer = async function(){
         modele: payload.modele || "",
         immat: payload.immatriculation || "",
         bon_num: bonNum,
+        chauffeur: payload.chauffeur_nom || "",           // CORRECTIF : rattache le dossier PC au chauffeur (commissions)
+        chauffeur_uid: payload.chauffeur_uid || "",
         montant_assurance: 0,
         montant_client: 0,
         montant_reel: 0,
