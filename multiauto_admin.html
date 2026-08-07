@@ -1679,6 +1679,29 @@ tr:hover td{background:var(--gris)}
 </div>
 </div>
 
+<!-- ══ MODAL CORRECTION IMMAT / MONTANT (admin) ══ -->
+<div class="modal-bg" id="modal-corriger">
+<div class="modal" style="max-width:420px">
+  <div class="modal-title">✏️ Corriger immatriculation / montant</div>
+  <input type="hidden" id="cor-id">
+  <input type="hidden" id="cor-collection">
+  <div id="cor-info" style="font-size:13px;color:var(--gris3);margin-bottom:12px"></div>
+  <div class="form-grid">
+    <div class="form-group"><span class="fl">Immatriculation</span>
+      <input class="inp" id="cor-immat" placeholder="FW-524-VN" style="text-transform:uppercase" oninput="this.value=this.value.toUpperCase()">
+    </div>
+    <div class="form-group"><span class="fl">Montant (€)</span>
+      <input class="inp" id="cor-montant" type="number" step="0.01" min="0" placeholder="0">
+    </div>
+  </div>
+  <div id="cor-note" style="font-size:11px;color:var(--gris3);margin-top:-6px;margin-bottom:8px"></div>
+  <div class="modal-footer">
+    <button class="btn btn-secondary" onclick="fermerModal('modal-corriger')">Annuler</button>
+    <button class="btn btn-primary" onclick="confirmerCorriger()">✅ Enregistrer</button>
+  </div>
+</div>
+</div>
+
 <div class="modal-bg" id="modal-modifier-client">
 <div class="modal" style="max-width:360px">
   <div class="modal-title">✏️ Modifier le client</div>
@@ -5001,6 +5024,8 @@ async function chargerSoldes(prefix){
       const docEsc = (item.doc||"").replace(/'/g,"\\'");
       const btnModifierClient = `<button class="btn btn-sm" style="background:var(--bleu-lt,#e3f2fd);color:var(--bleu);border:1px solid var(--bleu);margin-left:2px" onclick="ouvrirModifierClient('${item.id}','${item.collection}','${clientEsc}')">✏️ Client</button>`;
       const btnSupprimerSolde = `<button class="btn btn-danger btn-sm" style="margin-left:2px" onclick="supprimerSolde('${item.id}','${item.collection}','${clientEsc}','${docEsc}')">🗑</button>`;
+      // Correction immat / montant — disponible sur TOUTES les lignes (immat souvent mal saisie par les chauffeurs)
+      const btnCorriger = `<button class="btn btn-sm" style="background:#ede7f6;color:#5e35b1;border:1px solid #9575cd;margin-left:2px" onclick="ouvrirCorriger('${item.id}','${item.collection}','${docEsc}','${clientEsc}')">✏️ Immat/Montant</button>`;
 
       html+=`<tr style="${trStyle}">
         <td><input type="checkbox" class="soldes-cb" data-idx="${idx}"></td>
@@ -5015,7 +5040,7 @@ async function chargerSoldes(prefix){
         <td style="font-size:12px">${item.mode||"—"}</td>
         <td style="font-size:11px;color:var(--vert)">${item.recu||"—"}</td>
         <td>${stBadge}</td>
-        <td style="display:flex;gap:3px;flex-wrap:wrap">${actionBtn}${btnPC}${btnModifierClient}${btnSupprimerSolde}</td>
+        <td style="display:flex;gap:3px;flex-wrap:wrap">${actionBtn}${btnPC}${btnModifierClient}${btnCorriger}${btnSupprimerSolde}</td>
       </tr>`;
     });
     const tbody=G(pfx+"soldes-tbody");
@@ -5038,6 +5063,72 @@ async function supprimerSolde(id, collection, client, doc){
 
 // ── MODIFICATION DU CLIENT DEPUIS SOLDES CLIENTS ──
 // Corrige le nom du client sur le document d'origine (utile quand le chauffeur a mal saisi le client).
+// ══ CORRECTION IMMATRICULATION / MONTANT (admin uniquement) ══
+// Les chauffeurs saisissent souvent mal l'immatriculation, or c'est la clé de recherche
+// principale. Ce bouton corrige le document d'origine (BL, magasinage ou PC), quel que
+// soit son statut de paiement.
+function ouvrirCorriger(id, collection, docNum, client){
+  loader(true);
+  db.collection(collection).doc(id).get().then(snap=>{
+    if(!snap.exists){ toast("Document introuvable","err"); loader(false); return; }
+    const d=snap.data();
+    G("cor-id").value=id;
+    G("cor-collection").value=collection;
+    G("cor-info").innerHTML=`<strong>${docNum||"—"}</strong> — ${client||"—"}`;
+    // L'immatriculation et le montant ne portent pas le même nom selon la collection
+    if(collection==="bons"){
+      G("cor-immat").value=d.immatriculation||"";
+      G("cor-montant").value=d.montant||0;
+      G("cor-note").textContent="Le montant du BL sert de base aux soldes clients et aux commissions.";
+    } else if(collection==="magasinage"){
+      G("cor-immat").value=d.immat||"";
+      G("cor-montant").value=parseFloat(d.montant_net||d.montant_total)||0;
+      G("cor-note").textContent="Montant net du magasinage.";
+    } else {
+      G("cor-immat").value=d.immat||"";
+      G("cor-montant").value=parseFloat(d.montant_client)||0;
+      G("cor-note").textContent="Part client du dossier PC. La part assurance se modifie dans la page Prises en charge.";
+    }
+    G("modal-corriger").classList.add("on");
+    loader(false);
+  }).catch(()=>{ toast("Erreur","err"); loader(false); });
+}
+
+async function confirmerCorriger(){
+  const id=G("cor-id").value, collection=G("cor-collection").value;
+  const immat=G("cor-immat").value.trim().toUpperCase();
+  const montant=parseFloat(G("cor-montant").value)||0;
+  if(montant<0){ toast("Montant invalide","err"); return; }
+  loader(true);
+  try{
+    let maj={};
+    if(collection==="bons"){
+      maj={immatriculation:immat, montant};
+    } else if(collection==="magasinage"){
+      maj={immat, montant_net:montant};
+    } else {
+      // PC : la part client change → recalculer le montant réel (assurance + client)
+      const snap=await db.collection(collection).doc(id).get();
+      const d=snap.data()||{};
+      maj={immat, montant_client:montant, montant_reel:(parseFloat(d.montant_assurance)||0)+montant};
+    }
+    await db.collection(collection).doc(id).update(maj);
+    // Si on corrige un BL, répercuter l'immatriculation sur le dossier PC créé depuis ce BL
+    if(collection==="bons" && immat){
+      const snapBL=await db.collection("bons").doc(id).get();
+      const bonNum=(snapBL.data()||{}).bon_num;
+      if(bonNum){
+        const pcs=await db.collection("prises_en_charge").where("bon_num","==",bonNum).get();
+        for(const doc of pcs.docs){ await doc.ref.update({immat}); }
+      }
+    }
+    toast("Correction enregistrée ✅");
+    fermerModal("modal-corriger");
+    chargerSoldes("");
+  }catch(e){ toast("Erreur","err"); console.error(e); }
+  loader(false);
+}
+
 function ouvrirModifierClient(id, collection, currentClient){
   G("mc-id").value=id;
   G("mc-collection").value=collection;
