@@ -5297,7 +5297,7 @@ async function confirmerPaiement(){
     if(G("soldes-tbody")) chargerSoldes("");
     if(G("soldes-sec-tbody")) chargerSoldes("soldes-sec-");
     loader(false);
-  } catch(e){toast("Erreur","err");loader(false);console.error(e);}
+  } catch(e){toast("Erreur paiement : "+(e.code||e.message||e),"err");loader(false);console.error("Paiement:",e);}
 }
 
 function annulerPaiement(id,col){
@@ -5361,7 +5361,7 @@ async function deplacerEnPC(bonId, client, bonNum){
     toast(`BL ${bonNum} déplacé en PC ✅`);
     chargerSoldes("");
     loader(false);
-  } catch(e){toast("Erreur","err");loader(false);console.error(e);}
+  } catch(e){toast("Erreur paiement : "+(e.code||e.message||e),"err");loader(false);console.error("Paiement:",e);}
 }
 function selToutSoldes(){
   const all=G("soldes-check-all");
@@ -5804,8 +5804,10 @@ function exporterStatsDetailPDF(){
         b.especes&&b.montant_especes>0?b.montant_especes.toFixed(2)+' €':'—']);
     });
     doc.autoTable({startY:26,head:[['N° BL','Date','Heure','Tarif','Chauffeur','Client','Véhicule','Trajet','Montant','Espèces']],body:rows,
-      headStyles:{fillColor:[26,37,64],textColor:255,fontSize:6,fontStyle:'bold'},bodyStyles:{fontSize:6},
-      alternateRowStyles:{fillColor:[246,246,246]},margin:{left:8,right:8}});
+      headStyles:{fillColor:[26,37,64],textColor:255,fontSize:5.5,fontStyle:'bold'},bodyStyles:{fontSize:5.5},
+      styles:{overflow:'linebreak',cellPadding:1,minCellWidth:8},
+      tableWidth:'auto',horizontalPageBreak:false,
+      alternateRowStyles:{fillColor:[246,246,246]},margin:{left:5,right:5}});
     doc.save('stats-detail'+(cbs.length>0?'-selection':'-tous')+'.pdf');
     loader(false);toast("PDF exporté ✅ ("+ids.length+" BL)");
   }).catch(e=>{loader(false);toast("Erreur","err");console.error(e);});
