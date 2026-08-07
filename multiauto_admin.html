@@ -1724,9 +1724,9 @@ tr:hover td{background:var(--gris)}
 </div>
 </div>
 
-<script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-app-compat.js"></script>
-<script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-auth-compat.js"></script>
-<script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-firestore-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-auth-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore-compat.js"></script>
 <script>
 firebase.initializeApp({
   apiKey:"AIzaSyB0pp8ZysKVomkmmx3uYWJZHtiFpvSPJi4",
@@ -1738,6 +1738,8 @@ firebase.initializeApp({
 });
 const auth=firebase.auth();
 const db=firebase.firestore();
+// Réseaux filtrants / instables : bascule auto en long-polling si le canal temps réel est bloqué
+try{ db.settings({experimentalAutoDetectLongPolling:true, merge:true}); }catch(e){ console.warn("settings:",e); }
 
 let userAdmin=null, chauffeursList=[], camionsList=[], clientsList=[], editingId=null;
 let leafletMapAdmin=null;
