@@ -5597,7 +5597,21 @@ function exporterSoldesPDF(prefix){
   doc.setFontSize(12);doc.setFont('helvetica','bold');
   doc.text('Soldes Clients',148,14,{align:'center'});
   doc.setFontSize(8);doc.setFont('helvetica','normal');
-  doc.text('Édité le '+new Date().toLocaleDateString('fr-FR'),148,20,{align:'center'});
+  // Récapitulatif : évite d'avoir à additionner soi-même
+  const _totM=selected.reduce((s,i)=>s+(parseFloat(i.montant)||0),0);
+  const _totP=selected.reduce((s,i)=>s+Math.min(parseFloat(i.paye)||0,parseFloat(i.montant)||0),0);
+  const _totR=Math.max(0,_totM-_totP);
+  const _clients=[...new Set(selected.map(i=>i.client))];
+  const _titreCl=_clients.length===1 ? _clients[0] : _clients.length+" clients";
+  doc.text('Édité le '+new Date().toLocaleDateString('fr-FR')+'  |  '+_titreCl+'  |  '+selected.length+' document(s)',148,20,{align:'center'});
+  doc.setFillColor(240,240,245);doc.rect(8,23,281,9,'F');
+  doc.setFontSize(10);doc.setFont('helvetica','bold');doc.setTextColor(26,37,64);
+  doc.text('TOTAL FACTURÉ : '+_totM.toFixed(2)+' EUR',12,29);
+  doc.setTextColor(30,130,60);
+  doc.text('TOTAL PAYÉ : '+_totP.toFixed(2)+' EUR',110,29);
+  doc.setTextColor(200,52,26);
+  doc.text('RESTE À PAYER : '+_totR.toFixed(2)+' EUR',196,29);
+  doc.setTextColor(26,26,26);doc.setFont('helvetica','normal');doc.setFontSize(8);
   const cols=['Date','Client','Type','N° Doc','Désignation','Tarif','Montant','Payé','Solde','Mode','Statut'];
   const widths=[18,28,13,24,48,14,19,19,19,14,14];
   let y=28;
@@ -5619,6 +5633,14 @@ function exporterSoldesPDF(prefix){
     ].forEach((v,i)=>{doc.text(pdfCol(v,widths[i]),xi+1,y+3.8);xi+=widths[i];});
     y+=5.5;
   });
+  // Ligne TOTAL en bas du tableau
+  if(y>185){ doc.addPage(); y=20; }
+  doc.setFillColor(26,37,64);doc.rect(8,y,281,7,'F');
+  doc.setTextColor(255,255,255);doc.setFont('helvetica','bold');doc.setFontSize(9);
+  let xt=8;
+  ['','','','','TOTAL ('+selected.length+' doc.)','',_totM.toFixed(2)+' EUR',_totP.toFixed(2)+' EUR',_totR.toFixed(2)+' EUR','',''
+  ].forEach((v,i)=>{ if(v) doc.text(v,xt+1,y+4.8); xt+=widths[i]; });
+  doc.setTextColor(26,26,26);doc.setFont('helvetica','normal');
   doc.save('soldes-clients.pdf');
   toast("PDF exporté ✅");
 }
@@ -6187,7 +6209,12 @@ function exporterStatsPDF(){
       doc.text('DÉTAIL DES BONS DE LIVRAISON',148,15,{align:'center'});
       const _hd = pdfEnteteDetail() || ['N° BL','Date','Heure','Tarif','Chauffeur','Client','Véhicule','Trajet','Montant','Espèces'];
       const _bd = rows.map(r => r.length > _hd.length ? r.slice(r.length-_hd.length) : r);
-      doc.autoTable({startY:20, head:[_hd], body:_bd,
+      // Ligne de totaux : plus besoin d'additionner à la main
+      const _iM=_hd.findIndex(h=>/montant/i.test(h)), _iE=_hd.findIndex(h=>/esp/i.test(h));
+      const _som=i=>i<0?0:_bd.reduce((s,r)=>s+(parseFloat(String(r[i]||"").replace(/[^0-9,.-]/g,"").replace(",","."))||0),0);
+      const _foot=_hd.map((h,i)=> i===0 ? "TOTAL ("+_bd.length+")" : i===_iM ? _som(_iM).toFixed(2)+" EUR" : i===_iE ? _som(_iE).toFixed(2)+" EUR" : "");
+      doc.autoTable({startY:20, head:[_hd], body:_bd, foot:[_foot],
+        footStyles:{fillColor:[26,37,64],textColor:255,fontSize:8.5,fontStyle:'bold'},
         headStyles:{fillColor:[26,37,64],textColor:255,fontSize:8.5,fontStyle:'bold'},
         bodyStyles:{fontSize:8.5},
         styles:{overflow:'linebreak',cellPadding:0.9,valign:'middle'},
