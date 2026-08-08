@@ -5898,12 +5898,13 @@ function exporterStatsPDF(){
       doc.addPage();
       doc.setFont('helvetica','bold');doc.setFontSize(12);doc.setTextColor(200,52,26);
       doc.text('DÉTAIL DES BONS DE LIVRAISON',148,15,{align:'center'});
-      const _hd = pdfEnteteDetail("stats-detail-tbody") || ['N° BL','Date','Heure','Tarif','Chauffeur','Client','Véhicule','Trajet','Montant','Espèces'];
+      const _hd = pdfEnteteDetail() || ['N° BL','Date','Heure','Tarif','Chauffeur','Client','Véhicule','Trajet','Montant','Espèces'];
       const _bd = rows.map(r => r.length > _hd.length ? r.slice(r.length-_hd.length) : r);
       doc.autoTable({startY:20, head:[_hd], body:_bd,
         headStyles:{fillColor:[26,37,64],textColor:255,fontSize:8.5,fontStyle:'bold'},
         bodyStyles:{fontSize:8.5},
-        styles:{overflow:'linebreak',cellPadding:1.2},
+        styles:{overflow:'linebreak',cellPadding:0.9,valign:'middle'},
+        rowPageBreak:'avoid',
         columnStyles:pdfLargeursDetail(_hd),
         margin:{left:6,right:6}});
     }
@@ -5922,9 +5923,10 @@ function pdfLargeursDetail(entetes){
   entetes.forEach((h,i)=>{ const w=L[String(h).trim()]; if(w) st[i]={cellWidth:w}; });
   return st;
 }
-function pdfEnteteDetail(tbodyId){
-  const tb=document.getElementById(tbodyId);
-  const tbl=tb?tb.closest("table"):null;
+function pdfEnteteDetail(){
+  // Le tableau réellement exporté est celui du détail affiché à l'écran
+  const cont=document.getElementById("detail-stats-table");
+  const tbl=cont?cont.querySelector("table"):null;
   if(!tbl) return null;
   const ths=[...tbl.querySelectorAll("thead th")].map(t=>pdfTexteSain(t.textContent));
   return ths.length?ths.slice(1):null;   // on retire la colonne des cases à cocher
