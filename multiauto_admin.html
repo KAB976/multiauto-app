@@ -2100,11 +2100,16 @@ async function chargerAlertesImpayes(){
   const aujourdHui=new Date();
 
   try{
+    const _pcExistants=new Set();
+    try{
+      const _pcS=await db.collection("prises_en_charge").get();
+      _pcS.forEach(d=>{ const p=d.data(); if(p.bon_num && p.statut!=="annule") _pcExistants.add(p.bon_num); });
+    }catch(e){ console.warn("Vérif dossiers PC:", e); }
     const blSnap=await db.collection("bons").orderBy("timestamp","desc").limit(500).get();
     const impayes=[];
     blSnap.forEach(d=>{
       const b=d.data();
-      if(b.deplace_en_pc) return;
+      if(b.deplace_en_pc && b.bon_num && (typeof _pcExistants!=="undefined") && _pcExistants.has(b.bon_num)) return;
       if(!b.nom_client||b.nom_client==="—") return;
       const montant=parseFloat(b.montant)||0;
       if(montant<=0) return;
@@ -3623,11 +3628,17 @@ async function calculerSoldesClients(debut, fin){
     if(doc) acc[k].docs.push({...doc, montant, paye:Math.min(paye,montant), reste:Math.max(0,montant-paye)});
   };
   try{
+    // Dossiers PC réellement existants (un BL dont la PC a été supprimée doit revenir)
+    const _pcExistants=new Set();
+    try{
+      const _pcS=await db.collection("prises_en_charge").get();
+      _pcS.forEach(d=>{ const p=d.data(); if(p.bon_num && p.statut!=="annule") _pcExistants.add(p.bon_num); });
+    }catch(e){ console.warn("Vérif dossiers PC:", e); }
     // 1. Bons de livraison
     const blSnap = await db.collection("bons").limit(1000).get();
     blSnap.forEach(d=>{
       const b=d.data();
-      if(b.deplace_en_pc) return;
+      if(b.deplace_en_pc && b.bon_num && (typeof _pcExistants!=="undefined") && _pcExistants.has(b.bon_num)) return;
       if(!b.nom_client || b.nom_client==="—") return;
       const montant = parseFloat(b.montant)||0;
       if(montant<=0) return;                                  // montant pas encore saisi
@@ -5204,12 +5215,19 @@ async function chargerSoldes(prefix){
     // 1. BL remorquage — inclure ceux sans montant (jaune), exclure clients PC auto
     const blSnap = await db.collection("bons").limit(1000).get();
     const items = [];
+    // Un BL peut porter le drapeau "déplacé en PC" alors que son dossier PC a été
+    // supprimé (transfert vers solde client) : il doit alors réapparaître ici.
+    const _pcExistants=new Set();
+    try{
+      const _pcSnap=await db.collection("prises_en_charge").get();
+      _pcSnap.forEach(d=>{ const p=d.data(); if(p.bon_num && p.statut!=="annule") _pcExistants.add(p.bon_num); });
+    }catch(e){ console.warn("Vérif dossiers PC:", e); }
     // Correspondance N° BL -> tarif, pour afficher le tarif des dossiers PC issus d'un BL
     const _tarifParBonNum={};
     blSnap.forEach(d=>{ const b=d.data(); if(b.bon_num) _tarifParBonNum[b.bon_num]=b.tarif||""; });
     blSnap.forEach(d=>{
       const b=d.data();
-      if(b.deplace_en_pc) return; // Déplacé manuellement en PC uniquement
+      if(b.deplace_en_pc && b.bon_num && (typeof _pcExistants==="undefined" || _pcExistants.has(b.bon_num))) return; // exclu seulement si le dossier PC existe encore
       if(!b.nom_client||b.nom_client==="—") return;
       const montant = parseFloat(b.montant)||0;
       // Espèces chauffeur = payé automatiquement
@@ -5752,7 +5770,7 @@ async function chargerCASection(){
     const blSnap=await db.collection("bons").limit(2000).get();
     blSnap.forEach(d=>{
       const b=d.data();
-      if(b.deplace_en_pc) return;
+      if(b.deplace_en_pc && b.bon_num && (typeof _pcExistants!=="undefined") && _pcExistants.has(b.bon_num)) return;
       if(!b.nom_client||b.nom_client==="—") return;
       const montant=parseFloat(b.montant)||0;
       const especes=b.especes===true?parseFloat(b.montant_especes)||0:0;
