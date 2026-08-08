@@ -5835,7 +5835,7 @@ function exporterStatsDetailPDF(){
         b.especes&&b.montant_especes>0?b.montant_especes.toFixed(2)+' €':'—']);
     });
     doc.autoTable({startY:26,head:[['N° BL','Date','Heure','Tarif','Chauffeur','Client','Véhicule','Trajet','Montant','Espèces']],body:rows,
-      headStyles:{fillColor:[26,37,64],textColor:255,fontSize:5.5,fontStyle:'bold'},bodyStyles:{fontSize:5.5},
+      headStyles:{fillColor:[26,37,64],textColor:255,fontSize:8,fontStyle:'bold'},bodyStyles:{fontSize:8},
       styles:{overflow:'linebreak',cellPadding:1,minCellWidth:8},
       tableWidth:'auto',horizontalPageBreak:false,
       alternateRowStyles:{fillColor:[246,246,246]},margin:{left:5,right:5}});
@@ -5898,7 +5898,14 @@ function exporterStatsPDF(){
       doc.addPage();
       doc.setFont('helvetica','bold');doc.setFontSize(12);doc.setTextColor(200,52,26);
       doc.text('DÉTAIL DES BONS DE LIVRAISON',148,15,{align:'center'});
-      doc.autoTable({startY:20,head:[['N° BL','Date','Heure','Tarif','Chauffeur','Client','Véhicule','Trajet','Espèces']],body:rows,headStyles:{fillColor:[26,37,64],textColor:255,fontSize:6},bodyStyles:{fontSize:6},margin:{left:10,right:10}});
+      const _hd = pdfEnteteDetail("stats-detail-tbody") || ['N° BL','Date','Heure','Tarif','Chauffeur','Client','Véhicule','Trajet','Montant','Espèces'];
+      const _bd = rows.map(r => r.length > _hd.length ? r.slice(r.length-_hd.length) : r);
+      doc.autoTable({startY:20, head:[_hd], body:_bd,
+        headStyles:{fillColor:[26,37,64],textColor:255,fontSize:8.5,fontStyle:'bold'},
+        bodyStyles:{fontSize:8.5},
+        styles:{overflow:'linebreak',cellPadding:1.2},
+        columnStyles:pdfLargeursDetail(_hd),
+        margin:{left:6,right:6}});
     }
   }
   doc.save('statistiques.pdf');
@@ -5906,6 +5913,23 @@ function exporterStatsPDF(){
 }
 
 // ── COMMISSIONS ──
+// ── Colonnes du détail BL pour les PDF : entête lue à l'écran (jamais de décalage)
+// et largeurs calibrées pour tenir sur une page A4 paysage en restant lisible.
+function pdfLargeursDetail(entetes){
+  const L={"N° BL":26,"Date":18,"Heure":13,"Tarif":15,"Chauffeur":21,"Client":34,
+           "Véhicule":32,"Trajet":60,"Montant":21,"Espèces":17,"Immat":22,"Km":12,"Durée":14};
+  const st={};
+  entetes.forEach((h,i)=>{ const w=L[String(h).trim()]; if(w) st[i]={cellWidth:w}; });
+  return st;
+}
+function pdfEnteteDetail(tbodyId){
+  const tb=document.getElementById(tbodyId);
+  const tbl=tb?tb.closest("table"):null;
+  if(!tbl) return null;
+  const ths=[...tbl.querySelectorAll("thead th")].map(t=>pdfTexteSain(t.textContent));
+  return ths.length?ths.slice(1):null;   // on retire la colonne des cases à cocher
+}
+
 function chargerCommissions(){
   loader(true,"Calcul commissions...");
   const mode=G("comm-mode")?.value||"montant";
