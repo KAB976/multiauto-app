@@ -4205,6 +4205,9 @@ function chargerPC(){
   _chargerTarifsBL().then(()=>
   db.collection("prises_en_charge").orderBy("date","desc").limit(200).get().then(snap=>{
     let list=[]; snap.forEach(d=>list.push({id:d.id,...d.data()}));
+    // Les dates existent en 2 formats (2026-08-08 et 08/08/2026) : on trie sur une
+    // date normalisée, sinon le classement est faux. Plus récent en haut.
+    list.sort((a,b)=>String(toComp(datePC(b))).localeCompare(String(toComp(datePC(a)))));
     // Compléter le select client avec les noms réels des dossiers PC (ex: assureur utilisé comme client)
     const selClNom=G("pc-filtre-client-nom");
     if(selClNom){
