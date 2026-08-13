@@ -2259,15 +2259,43 @@ window.enregistrer = async function(){
 // L'admin publie un numéro de version ; dès qu'il change, le téléphone recharge
 // l'appli tout seul (le chauffeur n'a rien à faire).
 // ════════════════════════════════════
-const APP_VERSION = "2026-08-07-a";
+// La version DÉJÀ APPLIQUÉE est mémorisée sur le téléphone (et non écrite en dur dans
+// le fichier) : après un rechargement, l'appli sait qu'elle est à jour et ne recharge
+// plus en boucle. Un rechargement par version au maximum, jamais deux.
 function surveillerVersionApp(){
   try{
     onSnapshot(doc(db,"parametres","app_version"), snap=>{
       if(!snap.exists()) return;
       const v = (snap.data()||{}).version || "";
-      if(!v || v === APP_VERSION) return;
+      if(!v) return;
+
+      let appliquee = "";
+      try{ appliquee = localStorage.getItem("app_version_appliquee") || ""; }catch(e){}
+
+      // Premier lancement après installation de ce mécanisme : on enregistre la version
+      // courante sans recharger (sinon rechargement inutile au démarrage).
+      if(!appliquee){
+        try{ localStorage.setItem("app_version_appliquee", v); }catch(e){}
+        return;
+      }
+      if(v === appliquee) return;                    // déjà à jour → ne rien faire
+
+      // Sécurité anti-boucle : jamais plus d'un rechargement toutes les 60 secondes
+      let dernier = 0;
+      try{ dernier = parseInt(localStorage.getItem("app_version_dernier_reload")||"0",10)||0; }catch(e){}
+      if(Date.now() - dernier < 60000){
+        try{ localStorage.setItem("app_version_appliquee", v); }catch(e){}
+        return;
+      }
       // Ne jamais interrompre une saisie en cours : on attend la fin du bon
       if(typeof _enregistrementEnCours !== "undefined" && _enregistrementEnCours) return;
+
+      // On marque AVANT de recharger : au redémarrage, l'appli se sait à jour
+      try{
+        localStorage.setItem("app_version_appliquee", v);
+        localStorage.setItem("app_version_dernier_reload", String(Date.now()));
+      }catch(e){}
+
       const b = document.createElement("div");
       b.style.cssText = "position:fixed;left:0;right:0;bottom:0;z-index:99999;background:#1a2540;color:#fff;padding:14px;text-align:center;font-weight:700;font-size:15px";
       b.textContent = "🔄 Nouvelle version — mise à jour en cours...";
