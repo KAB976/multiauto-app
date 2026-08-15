@@ -432,6 +432,37 @@ tr:hover td{background:var(--gris)}
 </div>
 
 <!-- Modal PC -->
+<!-- ══ MODAL MOTIF D'ANNULATION DE MISSION ══ -->
+<div class="modal-bg" id="modal-annul-pc">
+<div class="modal" style="max-width:430px">
+  <div class="modal-title">✕ Annuler la mission</div>
+  <input type="hidden" id="annul-pc-id">
+  <div id="annul-pc-info" style="font-size:13px;color:var(--gris3);margin-bottom:12px"></div>
+  <div class="form-group"><span class="fl">Motif de l'annulation *</span>
+    <select class="inp" id="annul-pc-motif">
+      <option value="">— Choisir le motif —</option>
+      <option>Client désiste</option>
+      <option>Véhicule déjà dépanné</option>
+      <option>Client injoignable</option>
+      <option>Adresse introuvable</option>
+      <option>Véhicule redémarré sur place</option>
+      <option>Hors zone</option>
+      <option>Doublon</option>
+      <option>Refus de l'assureur</option>
+      <option>Autre</option>
+    </select>
+  </div>
+  <div class="form-group"><span class="fl">Précision (facultatif)</span>
+    <input class="inp" id="annul-pc-precision" placeholder="Ex : client a trouvé un autre dépanneur">
+  </div>
+  <div style="font-size:11px;color:var(--gris3);margin-bottom:6px">Une mission annulée est enregistrée à 0 € et n'est plus facturée.</div>
+  <div class="modal-footer">
+    <button class="btn btn-secondary" onclick="fermerModal('modal-annul-pc')">Retour</button>
+    <button class="btn btn-danger" onclick="confirmerAnnulationPC()">✕ Confirmer l'annulation</button>
+  </div>
+</div>
+</div>
+
 <div class="modal-bg" id="modal-pc">
 <div class="modal" style="max-width:520px">
   <div class="modal-title" id="modal-pc-title">📄 Nouvelle prise en charge</div>
@@ -1130,7 +1161,7 @@ tr:hover td{background:var(--gris)}
         <div><div class="page-title">💳 Soldes clients</div></div>
         <div style="display:flex;gap:8px">
           <button class="btn btn-secondary" onclick="selToutSoldes()">☑ Tout sélectionner</button>
-          <button class="btn btn-secondary" onclick="exporterSoldesPDF()">⬇ Export PDF</button>
+          <button class="btn btn-secondary" onclick="exporterPageCommeImpression('Soldes clients - Multi Auto')">⬇ Export PDF</button>
           <button class="btn btn-secondary" onclick="exporterSoldesExcel()">📊 Export Excel</button>
         </div>
       </div>
@@ -1200,7 +1231,7 @@ tr:hover td{background:var(--gris)}
           <span id="stats-sel-lbl" style="font-size:12px;font-weight:700;color:var(--rouge)"></span>
           <button class="btn btn-secondary btn-sm" id="btn-stats-sel-tout" onclick="selToutStats()" style="display:none">☑ Tout</button>
           <button class="btn btn-secondary" onclick="window.print()">🖨 Imprimer</button>
-          <button class="btn btn-secondary" onclick="exporterStatsPDF()">⬇ Export PDF</button>
+          <button class="btn btn-secondary" onclick="exporterPageCommeImpression('Statistiques - Multi Auto')">⬇ Export PDF</button>
         </div>
       </div>
       <div class="filtres">
@@ -1224,6 +1255,25 @@ tr:hover td{background:var(--gris)}
       </div>
 
         <!-- ══ SOLDES CLIENTS ══ -->
+
+        <!-- ══ MISSIONS ASSURANCE : RÉALISÉES / ANNULÉES ══ -->
+        <div class="card" style="margin-top:18px">
+          <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px;margin-bottom:10px">
+            <div style="font-weight:800;font-size:15px">🏥 Missions assurance — réalisées et annulées</div>
+            <button class="btn btn-secondary btn-sm" onclick="chargerBlocMissionsPC()">🔄 Actualiser</button>
+          </div>
+          <div id="mpc-badges" style="display:flex;gap:10px;flex-wrap:wrap;margin-bottom:12px"></div>
+          <div style="font-weight:700;font-size:12px;color:var(--gris4);margin:4px 0">Par assureur</div>
+          <div class="table-wrap" style="margin-bottom:14px"><table>
+            <thead><tr><th>Assureur</th><th>Réalisées</th><th>Annulées</th><th>Taux d'annulation</th></tr></thead>
+            <tbody id="mpc-assureurs"></tbody>
+          </table></div>
+          <div style="font-weight:700;font-size:12px;color:var(--gris4);margin:4px 0">Motifs d'annulation</div>
+          <div class="table-wrap"><table>
+            <thead><tr><th>Motif</th><th>Nombre</th><th>Assureurs concernés</th></tr></thead>
+            <tbody id="mpc-motifs"></tbody>
+          </table></div>
+        </div>
         <div class="card" style="margin-top:18px">
           <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px;margin-bottom:10px">
             <div style="font-weight:800;font-size:15px">💳 Soldes clients</div>
@@ -3655,7 +3705,7 @@ async function calculerSoldesClients(debut, fin){
       if(b.deplace_en_pc && b.bon_num && (typeof _pcExistants!=="undefined") && _pcExistants.has(b.bon_num)) return;
       if(!b.nom_client || b.nom_client==="—") return;
       const montant = parseFloat(b.montant)||0;
-      if(montant<=0) return;                                  // montant pas encore saisi
+      // Montant à 0 = prix pas encore saisi : on l'affiche quand même (liste de travail)
       if(!dansPeriode(b.date_bl)) return;
       const especes = b.especes===true ? parseFloat(b.montant_especes)||0 : 0;
       const payeAuto = parseFloat(b.paye_montant)||0;
@@ -3681,19 +3731,30 @@ async function calculerSoldesClients(debut, fin){
         mode:m.mode_paiement||""
       });
     });
-    // 3. Prises en charge — seulement la part qui reste à la charge du client
+    // 3. Prises en charge — la part CLIENT est due par le client,
+    //    la part ASSURANCE est due par l'assureur (GAA, Mondial...).
+    //    Quand client et assureur sont la même entité, les deux s'additionnent.
     const pcSnap = await db.collection("prises_en_charge").get();
     pcSnap.forEach(d=>{
       const p=d.data();
-      if(p.statut==="annule") return;
-      const montant = parseFloat(p.montant_client)||0;
-      if(montant<=0) return;
+      if(p.statut==="annule") return;                       // mission annulée : jamais facturée
       if(!dansPeriode(p.date)) return;
-      ajouter(p.client||p.assureur, montant, parseFloat(p.montant_client_paye||p.paye_client)||0, {
-        type:"PC", date:p.date||"", doc:p.dossier||"—", tarif:"",
-        designation:(p.assureur||"")+" "+(p.marque||"")+" "+(p.modele||"")+" "+(p.immat||""),
-        mode:p.mode_paiement_client||""
-      });
+      const mClient = parseFloat(p.montant_client)||0;
+      const mAss    = parseFloat(p.montant_assurance)||0;
+      const infos = {
+        date:p.date||"", doc:p.dossier||"—", tarif:"",
+        designation:(p.marque||"")+" "+(p.modele||"")+" "+(p.immat||"")
+      };
+      // Part client (affichée même à 0 € : dossier dont le montant reste à saisir)
+      if(mClient>0 || (mClient<=0 && mAss<=0)){
+        ajouter(p.client||p.assureur, mClient, parseFloat(p.montant_client_paye||p.paye_client)||0,
+          {...infos, type:"PC client", mode:p.mode_paiement_client||""});
+      }
+      // Part assurance : due par l'assureur
+      if(mAss>0){
+        ajouter(p.assureur||p.client, mAss, parseFloat(p.montant_assurance_recu)||0,
+          {...infos, type:"PC assurance", mode:p.mode_paiement_assurance||""});
+      }
     });
   }catch(e){ console.warn("Calcul soldes clients:", e); }
   Object.keys(acc).forEach(k=>{ acc[k].reste = Math.max(0, acc[k].du - acc[k].paye); });
@@ -4573,7 +4634,35 @@ function changerStatutPC(id,statut){
   db.collection("prises_en_charge").doc(id).update({statut,date_modification:firebase.firestore.FieldValue.serverTimestamp()})
     .then(()=>{toast(statut==="annule"?"Mission annulée":"Livraison confirmée ✅");chargerPC();}).catch(()=>toast("Erreur","err"));
 }
-function annulerPC(){if(editingId)changerStatutPC(editingId,"annule");fermerModal("modal-pc");}
+// ── Annulation d'une mission avec motif (statistiques de refus par assureur) ──
+function annulerPC(){
+  if(!editingId) return;
+  G("annul-pc-id").value=editingId;
+  const dos=G("pc-dossier")?G("pc-dossier").value:"", ass=G("pc-assureur")?G("pc-assureur").value:"";
+  G("annul-pc-info").innerHTML="<strong>"+(dos||"—")+"</strong>"+(ass?" — "+ass:"");
+  G("annul-pc-motif").value=""; G("annul-pc-precision").value="";
+  fermerModal("modal-pc");
+  G("modal-annul-pc").classList.add("on");
+}
+function confirmerAnnulationPC(){
+  const id=G("annul-pc-id").value, motif=G("annul-pc-motif").value;
+  if(!motif){ toast("Choisissez un motif","err"); return; }
+  loader(true);
+  db.collection("prises_en_charge").doc(id).update({
+    statut:"annule",
+    motif_annulation:motif,
+    precision_annulation:G("annul-pc-precision").value.trim(),
+    date_annulation:new Date().toLocaleDateString("fr-FR"),
+    // Mission annulée = jamais facturée
+    montant_reel:0, montant_assurance:0, montant_client:0
+  }).then(()=>{
+    toast("Mission annulée ✅");
+    fermerModal("modal-annul-pc");
+    chargerPC();
+    loader(false);
+  }).catch(e=>{ toast("Erreur : "+((e&&(e.code||e.message))||e),"err"); loader(false); });
+}
+
 function ouvrirPaiementPC(id,montantTotal,dejaPaye,client,dossier,assureur){
   G("paiement-pc-id").value=id;
   G("paiement-pc-montant").value=Math.max(0,montantTotal-dejaPaye).toFixed(2);
@@ -6092,6 +6181,63 @@ async function exporterSoldesClientsPDF(imprimer){
   toast(imprimer?"Impression lancée 🖨":"PDF exporté ✅ ("+lignes.length+" clients)");
 }
 
+// ── Missions assurance : réalisées / annulées avec motifs (statistiques) ──
+async function chargerBlocMissionsPC(){
+  if(!document.getElementById("mpc-assureurs")) return;
+  try{
+    const snap=await db.collection("prises_en_charge").get();
+    const parAss={}, parMotif={};
+    let faites=0, annulees=0;
+    snap.forEach(d=>{
+      const p=d.data();
+      const ass=(p.assureur||p.client||"—").trim();
+      if(!parAss[ass]) parAss[ass]={faites:0, annulees:0};
+      if(p.statut==="annule"){
+        annulees++; parAss[ass].annulees++;
+        const m=(p.motif_annulation||"Non précisé").trim();
+        if(!parMotif[m]) parMotif[m]={nb:0, assureurs:new Set()};
+        parMotif[m].nb++; parMotif[m].assureurs.add(ass);
+      } else {
+        faites++; parAss[ass].faites++;
+      }
+    });
+    const total=faites+annulees;
+    const taux=total>0?Math.round(annulees/total*1000)/10:0;
+    const bd=document.getElementById("mpc-badges");
+    if(bd) bd.innerHTML=`
+      <div class="total-badge"><div class="tb-num">${total}</div><div class="tb-lbl">Missions reçues</div></div>
+      <div class="total-badge vert"><div class="tb-num">${faites}</div><div class="tb-lbl">Réalisées</div></div>
+      <div class="total-badge rouge"><div class="tb-num">${annulees}</div><div class="tb-lbl">Annulées</div></div>
+      <div class="total-badge violet"><div class="tb-num">${taux}%</div><div class="tb-lbl">Taux d'annulation</div></div>`;
+    document.getElementById("mpc-assureurs").innerHTML =
+      Object.keys(parAss).sort((a,b)=>(parAss[b].faites+parAss[b].annulees)-(parAss[a].faites+parAss[a].annulees)).map(k=>{
+        const t=parAss[k].faites+parAss[k].annulees;
+        const tx=t>0?Math.round(parAss[k].annulees/t*1000)/10:0;
+        return `<tr><td style="font-weight:700">${k}</td><td style="color:var(--vert);font-weight:700">${parAss[k].faites}</td>
+          <td style="color:var(--rouge);font-weight:700">${parAss[k].annulees}</td>
+          <td style="font-weight:900">${tx}%</td></tr>`;
+      }).join("") || `<tr><td colspan="4" style="text-align:center;color:var(--gris3);padding:16px">Aucune mission</td></tr>`;
+    document.getElementById("mpc-motifs").innerHTML =
+      Object.keys(parMotif).sort((a,b)=>parMotif[b].nb-parMotif[a].nb).map(m=>
+        `<tr><td style="font-weight:700">${m}</td><td>${parMotif[m].nb}</td>
+          <td style="font-size:11px;color:var(--gris3)">${[...parMotif[m].assureurs].join(", ")}</td></tr>`
+      ).join("") || `<tr><td colspan="3" style="text-align:center;color:var(--gris3);padding:16px">Aucune annulation enregistrée</td></tr>`;
+  }catch(e){ console.warn("Missions PC:", e); }
+}
+
+// ── Export PDF au rendu IDENTIQUE à l'impression ──
+// Reprend exactement la mise en page écran + les styles d'impression, puis ouvre la
+// boîte "Enregistrer en PDF" du navigateur. Le bouton Imprimer reste inchangé.
+function exporterPageCommeImpression(titre){
+  const ancien=document.title;
+  document.title = titre || ancien;   // devient le nom du fichier PDF proposé
+  toast("Choisissez « Enregistrer au format PDF » comme destination");
+  setTimeout(()=>{
+    window.print();
+    setTimeout(()=>{ document.title=ancien; }, 1500);
+  }, 400);
+}
+
 async function chargerBlocSoldesClients(){
   if(!document.getElementById("sc-tbody")) return;
   document.getElementById("sc-tbody").innerHTML='<tr><td colspan="5" style="text-align:center;color:var(--gris3);padding:14px">Calcul en cours...</td></tr>';
@@ -6115,6 +6261,7 @@ async function chargerBlocSoldesClients(){
 
 function chargerStats(){
   chargerBlocSoldesClients();   // bloc soldes clients
+  chargerBlocMissionsPC();      // missions assurance réalisées/annulées
   loader(true,"Calcul statistiques...");
   const stType=G("stats-type")?.value||"";
   const ch=G("stats-chauffeur")?.value||"";
