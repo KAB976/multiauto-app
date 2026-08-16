@@ -1472,6 +1472,15 @@ tr:hover td{background:var(--gris)}
         </div>
         <button class="btn btn-primary" onclick="publierNouvelleVersion()">📲 Forcer la mise à jour sur tous les téléphones</button>
       </div>
+      <div class="card" style="max-width:600px;margin-bottom:14px;border-left:4px solid var(--vert)">
+        <div style="font-weight:800;font-size:14px;margin-bottom:6px">⚡ Accélérer l'application</div>
+        <div style="font-size:12px;color:var(--gris3);margin-bottom:10px">
+          Déplace les photos et signatures des bons vers un stockage séparé. Les listes
+          (soldes clients, prises en charge, historique) se chargent alors beaucoup plus vite.
+          Les photos restent disponibles à l'impression des bons. À lancer une seule fois.
+        </div>
+        <button class="btn btn-success" onclick="migrerPhotosBL()">⚡ Alléger la base (déplacer les photos)</button>
+      </div>
       <div class="card" style="max-width:600px">
         <div class="form-group" style="margin-bottom:14px"><span class="fl">Nom de la société</span><input class="inp" id="soc-nom" placeholder="Multi Auto Depannage"></div>
         <div class="form-group" style="margin-bottom:14px"><span class="fl">Adresse</span><input class="inp" id="soc-adresse" placeholder="ZI Kaweni derrière Groupama — 96700 Mamoudzou"></div>
@@ -7013,6 +7022,47 @@ function publierNouvelleVersion(){
    .catch(e=>{ toast("Erreur : "+(e.code||e.message||e),"err"); loader(false); });
 }
 
+// ── Migration : déplacer les photos des bons vers la collection dédiée ──
+// À lancer une fois. Les bons deviennent légers (~2 Ko au lieu de ~150 Ko), donc toutes
+// les listes se chargent beaucoup plus vite. Les photos restent accessibles au PDF.
+async function migrerPhotosBL(){
+  if(!confirm("Alléger la base : déplacer les photos des bons vers un stockage séparé ?\n\n"
+    +"• Les photos restent disponibles à l'impression des bons\n"
+    +"• Les listes (soldes, prises en charge, historique) deviendront beaucoup plus rapides\n\n"
+    +"L'opération peut prendre 1 à 2 minutes. Ne fermez pas la page.")) return;
+  loader(true,"Migration des photos...");
+  let traites=0, deplaces=0, erreurs=0;
+  try{
+    const snap=await db.collection("bons").limit(1000).get();
+    const docs=snap.docs;
+    for(let i=0;i<docs.length;i+=20){
+      const lot=docs.slice(i,i+20);
+      await Promise.all(lot.map(async d=>{
+        traites++;
+        const b=d.data();
+        const photo=b.photo_vehicule||"", sig=b.signature||"";
+        if(!photo && !sig) return;                       // rien à déplacer
+        try{
+          await db.collection("bons_photos").doc(d.id).set({
+            photo_vehicule:photo, signature:sig, bon_num:b.bon_num||"",
+            migre_le:new Date().toLocaleString("fr-FR")
+          });
+          await d.ref.update({photo_vehicule:"", signature:"", a_photos:true});
+          deplaces++;
+        }catch(e){ erreurs++; console.warn("Migration",d.id,e); }
+      }));
+      loader(true,"Migration... "+traites+"/"+docs.length);
+    }
+    loader(false);
+    alert("Migration terminée ✅\n\n"+deplaces+" bon(s) allégé(s) sur "+traites+" examinés."
+      +(erreurs?"\n"+erreurs+" erreur(s) — relancez pour réessayer.":"")
+      +"\n\nLes listes devraient maintenant se charger beaucoup plus vite.");
+  }catch(e){
+    loader(false);
+    toast("Erreur : "+((e&&(e.code||e.message))||e),"err");
+  }
+}
+
 function chargerParametres(){
   db.collection("parametres").doc("societe").get().then(snap=>{
     const p=snap.data()||{};
@@ -7231,6 +7281,13 @@ function genererQRDataURL(text){
 }
 
 function _avecDimPhoto(bon, cb){
+  // Photos stockées à part : on les récupère ici, juste avant de fabriquer le PDF
+  if(bon && bon.id && !bon.photo_vehicule && !bon.signature){
+    return chargerPhotosBL(bon.id, bon).then(function(b){ _avecDimPhoto2(b, cb); });
+  }
+  return _avecDimPhoto2(bon, cb);
+}
+function _avecDimPhoto2(bon, cb){
   if(!bon.photo_vehicule || !bon.photo_vehicule.startsWith('data:')){
     cb(bon); return;
   }
@@ -7414,6 +7471,24 @@ function badgeImprime(imprime,n,date){
   if(!imprime) return `<span class="badge badge-gris">—</span>`;
   const style=n>=2?` style="background:#f59e0b;color:white"`:"";
   return `<span class="badge badge-vert"${style}>🖨 ×${n}</span><br><span style="font-size:10px;color:var(--gris3)">${date||""}</span>`;
+}
+
+// ── Photos et signatures stockées à part ──
+// Elles pesaient plusieurs centaines de Ko par bon et ralentissaient TOUTES les listes
+// (soldes, PC, historique...) alors qu'elles ne servent qu'au PDF. Elles vivent
+// maintenant dans la collection "bons_photos" et ne sont lues qu'au moment d'imprimer.
+async function chargerPhotosBL(bonId, bon){
+  if(!bon) return bon;
+  if(bon.photo_vehicule || bon.signature) return bon;      // ancien format : déjà dedans
+  try{
+    const ph=await db.collection("bons_photos").doc(bonId).get();
+    if(ph.exists){
+      const d=ph.data()||{};
+      bon.photo_vehicule=d.photo_vehicule||"";
+      bon.signature=d.signature||"";
+    }
+  }catch(e){ console.warn("Photos BL:", e); }
+  return bon;
 }
 
 function imprimerBL(id){

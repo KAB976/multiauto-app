@@ -2151,10 +2151,11 @@ window.enregistrer = async function(){
     // Paiement
     especes:         espActif,
     montant_especes: espActif ? (parseFloat(G("inp-montant").value)||0) : 0,
-    // Signature (base64)
-    signature:       sigSigned ? (G("sig-preview")&&G("sig-preview").src&&G("sig-preview").src.startsWith("data:") ? G("sig-preview").src : G("sig-canvas").toDataURL("image/png")) : "",
-    // Photo (base64 — sera migré vers Google Drive)
-    photo_vehicule:  photoData || "",
+    // Signature et photo : stockées à part (collection bons_photos) pour que le bon
+    // reste léger — sinon toutes les listes des applis bureau deviennent très lentes.
+    signature:       "",
+    photo_vehicule:  "",
+    a_photos:        !!(photoData || sigSigned),
     // Statut
     statut: "valide",
     synced: true
@@ -2180,11 +2181,24 @@ window.enregistrer = async function(){
       dejaEnregistre = !dejaSnap.empty;
     }catch(e){ console.warn("Vérification doublon impossible:", e); }
 
+    // Images à stocker séparément
+    const _sig = sigSigned ? (G("sig-preview")&&G("sig-preview").src&&G("sig-preview").src.startsWith("data:") ? G("sig-preview").src : G("sig-canvas").toDataURL("image/png")) : "";
+    const _photo = photoData || "";
+
     // Sauvegarder le BL dans Firestore
     if(dejaEnregistre){
       console.warn("BL " + bonNum + " déjà enregistré — doublon évité");
     } else {
-      await addDoc(collection(db,"bons"), payload);
+      const _ref = await addDoc(collection(db,"bons"), payload);
+      // Photo et signature dans une collection dédiée, même identifiant que le bon
+      if(_photo || _sig){
+        try{
+          await setDoc(doc(db,"bons_photos",_ref.id), {
+            photo_vehicule:_photo, signature:_sig,
+            bon_num:bonNum, createdAt:serverTimestamp()
+          });
+        }catch(e){ console.warn("Photos non enregistrées:", e); }
+      }
     }
 
     // Si type PC → créer aussi un doc dans prises_en_charge (jamais deux fois)
