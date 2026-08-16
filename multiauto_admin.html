@@ -5,11 +5,8 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Multi Auto — Administration</title>
 <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
-<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.8.2/jspdf.plugin.autotable.min.js"></script>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/qrious/4.0.2/qrious.min.js"></script>
 <style>
 :root{
   --rouge:#C8341A;--rouge-dk:#9E2510;--rouge-lt:#FFF0EB;
@@ -1809,6 +1806,38 @@ tr:hover td{background:var(--gris)}
 </div>
 </div>
 
+
+<script>
+// ── Chargement à la demande des bibliothèques lourdes ──
+// XLSX (900 Ko), Leaflet (150 Ko) et QRious ne servent qu'aux exports Excel, à la carte
+// et aux QR codes. Les télécharger au démarrage retardait l'ouverture de l'appli de
+// plusieurs secondes. Elles sont désormais chargées quand on en a besoin, et
+// pré-chargées en tâche de fond une fois l'écran affiché.
+var _libs={
+  xlsx:{url:"https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js", test:function(){return !!window.XLSX;}},
+  leaflet:{url:"https://unpkg.com/leaflet@1.9.4/dist/leaflet.js", test:function(){return !!window.L;}},
+  qrious:{url:"https://cdnjs.cloudflare.com/ajax/libs/qrious/4.0.2/qrious.min.js", test:function(){return !!window.QRious;}}
+};
+var _libsPromesses={};
+function assurerLib(nom){
+  var cfg=_libs[nom];
+  if(!cfg) return Promise.resolve();
+  if(cfg.test()) return Promise.resolve();
+  if(_libsPromesses[nom]) return _libsPromesses[nom];
+  _libsPromesses[nom]=new Promise(function(res,rej){
+    var sc=document.createElement("script");
+    sc.src=cfg.url; sc.async=true;
+    sc.onload=function(){ res(); };
+    sc.onerror=function(){ _libsPromesses[nom]=null; rej(new Error("Chargement "+nom+" impossible")); };
+    document.head.appendChild(sc);
+  });
+  return _libsPromesses[nom];
+}
+function prechargerLibs(){
+  // Après l'affichage : l'utilisateur n'attend pas, les outils arrivent en fond
+  setTimeout(function(){ ["xlsx","leaflet","qrious"].forEach(function(n){ assurerLib(n).catch(function(){}); }); }, 1200);
+}
+</script>
 <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-auth-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore-compat.js"></script>
@@ -1840,7 +1869,8 @@ db.collection("parametres").doc("societe").get().then(snap=>{
 }).catch(()=>{});
 
 const G=id=>document.getElementById(id);
-function exporterExcel(headers,rows,filename,sheetName){
+async function exporterExcel(headers,rows,filename,sheetName){
+  try{ await assurerLib("xlsx"); }catch(e){ toast("Outil Excel indisponible","err"); return; }
   if(!rows||!rows.length){toast("Aucune donnée à exporter","err");return;}
   const ws=XLSX.utils.aoa_to_sheet([headers,...rows]);
   const wb=XLSX.utils.book_new();
@@ -2000,10 +2030,13 @@ function seConnecter(){
       appliquerLogoPartout();
       appliquerCachetPartout();
       initDashNotifSound();
+      prechargerLibs();   // outils Excel/carte chargés en fond, après l'affichage
+      // Seul le tableau de bord est nécessaire à l'ouverture. Les pages Bons et Reçus
+      // (600 documents) se chargeront quand on cliquera dessus — avant, elles étaient
+      // téléchargées au démarrage alors qu'elles n'étaient même pas affichées.
       chargerDashboard();
-      chargerAlertesImpayes();
-      chargerBons();
-      chargerRecus();
+      // Alertes impayés (500 BL) : après l'affichage, pour ne pas retarder l'ouverture
+      setTimeout(()=>{ chargerAlertesImpayes(); }, 2500);
     })
     .catch(e=>{
       loader(false);
@@ -2278,6 +2311,7 @@ async function chargerAlertesMagasinage(){
 
 // ── CARTE EN DIRECT DES CHAUFFEURS ──
 async function chargerCarteLive(){
+  try{ await assurerLib("leaflet"); }catch(e){ toast("Carte indisponible","err"); return; }
   const el=G("carte-live-content");
   if(!el) return;
   el.innerHTML=`<div style="color:var(--gris3);padding:24px;text-align:center">Chargement...</div>`;
@@ -2951,7 +2985,8 @@ function exporterHistoriquePDF(){
     loader(false);toast("PDF exporté ✅ ("+ids.length+" BL)");
   }).catch(e=>{loader(false);toast("Erreur","err");console.error(e);});
 }
-function exporterHistoriqueExcel(){
+async function exporterHistoriqueExcel(){
+  try{ await assurerLib("xlsx"); }catch(e){ toast("Outil Excel indisponible","err"); return; }
   const cbs=document.querySelectorAll(".hist-cb:checked");
   const allCbs=document.querySelectorAll(".hist-cb");
   if(!allCbs.length){ toast("Aucun historique à exporter","err"); return; }
@@ -5135,7 +5170,8 @@ function exporterRecapPDF(){
   doc.save('recapitulation-profitabilite.pdf');
   loader(false); toast('PDF exporté ✅');
 }
-function exporterRecapExcel(){
+async function exporterRecapExcel(){
+  try{ await assurerLib("xlsx"); }catch(e){ toast("Outil Excel indisponible","err"); return; }
   if(!recapData.length){ toast("Calculez d'abord la récapitulation","err"); return; }
   const cbs=document.querySelectorAll(".recap-cb:checked");
   const indices=cbs.length>0 ? Array.from(cbs).map(cb=>parseInt(cb.dataset.idx)) : recapData.map((_,i)=>i);
@@ -5167,7 +5203,8 @@ function exporterHistCarburantPDF(){
 }
 
 // ── GPS ──
-function chargerGPS(){
+async function chargerGPS(){
+  try{ await assurerLib("leaflet"); }catch(e){ toast("Carte indisponible","err"); return; }
   loader(true);
   const selCh=G("gps-chauffeur");
   if(selCh&&selCh.options.length<=1){chauffeursList.forEach(ch=>{const o=document.createElement("option");o.value=ch.id;o.textContent=ch.nom;selCh.appendChild(o);});}
@@ -5847,7 +5884,8 @@ function exporterSoldesPDF(prefix){
   toast("PDF exporté ✅");
 }
 function exporterSoldesPDFSec(){ exporterSoldesPDF("soldes-sec-"); }
-function exporterSoldesExcel(prefix){
+async function exporterSoldesExcel(prefix){
+  try{ await assurerLib("xlsx"); }catch(e){ toast("Outil Excel indisponible","err"); return; }
   const cbs=document.querySelectorAll(".soldes-cb:checked");
   const selected = cbs.length>0 ? [...cbs].map(cb=>soldesData[parseInt(cb.dataset.idx)]) : soldesData;
   const headers=['Date','Client','Type','N° Document','Désignation','Tarif','Montant','Payé','Solde','Mode paiement','Statut'];
@@ -5859,7 +5897,8 @@ function exporterSoldesExcel(prefix){
   });
   exporterExcel(headers,rows,'soldes-clients.xlsx','Soldes');
 }
-function exporterSoldesExcelSec(){ exporterSoldesExcel("soldes-sec-"); }
+async function exporterSoldesExcelSec(){
+  try{ await assurerLib("xlsx"); }catch(e){ toast("Outil Excel indisponible","err"); return; } exporterSoldesExcel("soldes-sec-"); }
 
 // Wrappers pour les 2 contextes
 function chargerSoldesSec(){ chargerSoldes("soldes-sec-"); }
