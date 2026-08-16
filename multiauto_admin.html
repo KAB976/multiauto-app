@@ -573,6 +573,7 @@ tr:hover td{background:var(--gris)}
     <div class="sb-user">
       <div class="sb-user-name" id="sb-nom">—</div>
       <div class="sb-user-role" id="sb-role">—</div>
+      <div id="app-version" style="font-size:10px;color:#9aa3b5;margin-top:6px;letter-spacing:.3px" title="Version du fichier en ligne">Version 16/08/2026 06h42</div>
     </div>
     <nav class="sb-nav">
       <div class="sb-section">Tableau de bord</div>
@@ -4473,17 +4474,105 @@ function calcMontantReelPC(){
   const a=parseFloat(G("pc-montant-ass").value)||0, c=parseFloat(G("pc-montant-client").value)||0;
   if(G("pc-montant-reel")) G("pc-montant-reel").value=(a+c).toFixed(2);
 }
+// ══════════════════════════════════════
+// CATALOGUE VÉHICULES — SOURCE UNIQUE
+// Utilisé par TOUS les formulaires (BL, prise en charge, magasinage) des applis.
+// Combine : catalogue de référence + marques/modèles réellement enregistrés dans
+// vehicules_clients. Avant, chaque formulaire avait sa propre liste, d'où des menus
+// vides ou incomplets selon l'écran.
+// ══════════════════════════════════════
+var CATALOGUE_BASE={
+  "Alfa Romeo":["Giulia","Stelvio","Giulietta","MiTo","Tonale"],
+  "Audi":["A1","A3","A4","A6","Q2","Q3","Q5","Q7","TT"],
+  "BMW":["Serie 1","Serie 3","Serie 5","X1","X3","X5","X6","Z4"],
+  "Citroën":["C3","C4","C5","DS4","Berlingo","Jumpy","Jumper","C3 Aircross","C5 Aircross"],
+  "Dacia":["Sandero","Logan","Duster","Jogger","Spring","Lodgy","Dokker"],
+  "Fiat":["500","Panda","Tipo","500X","Doblo","Qubo","Ducato"],
+  "Ford":["Fiesta","Focus","Kuga","Puma","Transit","Ranger","EcoSport"],
+  "Honda":["Jazz","Civic","HR-V","CR-V","Accord"],
+  "Hyundai":["i10","i20","i30","Tucson","Santa Fe","Kona","Ioniq"],
+  "Isuzu":["D-Max","MU-X","NPR","NMR","NQR"],
+  "Iveco":["Daily","Stralis","Trakker","Eurocargo"],
+  "Kia":["Picanto","Rio","Ceed","Sportage","Sorento","Stonic","Xceed"],
+  "Land Rover":["Defender","Discovery","Range Rover","Freelander","Evoque"],
+  "Mazda":["Mazda2","Mazda3","Mazda6","CX-3","CX-5","CX-30","MX-5"],
+  "Mercedes":["Classe A","Classe B","Classe C","Classe E","GLA","GLB","GLC","Sprinter","Vito","Atego"],
+  "Mini":["Hatch","Countryman","Clubman"],
+  "Mitsubishi":["Space Star","ASX","Eclipse Cross","Outlander","L200","Pajero"],
+  "Nissan":["Micra","Juke","Qashqai","X-Trail","Navara","Leaf","Cabstar","NT400"],
+  "Opel":["Corsa","Astra","Insignia","Crossland","Grandland","Movano","Vivaro"],
+  "Peugeot":["108","208","308","508","2008","3008","5008","Partner","Expert","Boxer","Rifter"],
+  "Renault":["Clio","Megane","Kadjar","Captur","Kangoo","Trafic","Master","Express","Zoe","Twingo","Scenic","Espace"],
+  "Seat":["Ibiza","Leon","Ateca","Arona","Tarraco"],
+  "Skoda":["Fabia","Octavia","Superb","Karoq","Kodiaq"],
+  "Suzuki":["Alto","Swift","Vitara","SX4","Jimny","Baleno"],
+  "Toyota":["Yaris","Corolla","C-HR","RAV4","Land Cruiser","HiLux","Prius","Auris"],
+  "Volkswagen":["Polo","Golf","Passat","Tiguan","T-Roc","Touareg","Transporter","Crafter","Caddy"],
+  "Volvo":["V40","V60","XC40","XC60","XC90","S60","S90"],
+  "MAN":["TGL","TGM","TGS","TGX","TGE","L2000"],
+  "DAF":["LF","CF","XF"],
+  "Scania":["P","G","R","S"],
+  "Hino":["300","500","700"],
+  "Mitsubishi Fuso":["Canter","Fighter"],
+  "Renault Trucks":["Master","D","C","K","T"],
+  "Volvo Trucks":["FL","FE","FM","FH"],
+  "Bobcat":["S70","S450","S530","E20","E35"],
+  "Manitou":["MT","MLT","MRT"],
+  "Caterpillar":["416","428","432"],
+  "JCB":["3CX","4CX","JS130"],
+  "Kubota":["KX","U","M"],
+  "BMW Moto":["R 1250 GS","F 850 GS","F 650 GS","S 1000 RR","R nineT","G 310 R"],
+  "Honda Moto":["CB500","CBR 125R","CBR600","Africa Twin","Forza","PCX"],
+  "Kawasaki":["Z400","Z650","Z900","Ninja 400","Ninja 650","Versys"],
+  "Yamaha":["MT-07","MT-09","R1","XMAX","TMAX","Tracer","Tenere"],
+  "Piaggio":["Vespa","Liberty","MP3","Medley","Beverly"],
+  "Moto":["Autre moto"],
+  "Autre":["Autre"]
+};
+// Charge le catalogue des véhicules enregistrés (une seule fois) — utile quand on ouvre
+// un formulaire sans être passé par la page Véhicules.
+var _catalogueCharge=false;
+function assurerCatalogueVehicules(){
+  if(_catalogueCharge && typeof vehiculesList!=="undefined" && vehiculesList.length) return Promise.resolve();
+  return db.collection("vehicules_clients").orderBy("marque","asc").get().then(snap=>{
+    vehiculesList=[]; snap.forEach(d=>vehiculesList.push({id:d.id,...d.data()}));
+    _catalogueCharge=true;
+  }).catch(e=>{ console.warn("Catalogue véhicules:", e); });
+}
+function listeMarques(){
+  const set=new Set(Object.keys(CATALOGUE_BASE));
+  if(typeof vehiculesList!=="undefined") vehiculesList.forEach(v=>{ if(v&&v.marque) set.add(String(v.marque).trim()); });
+  return [...set].filter(Boolean).sort((a,b)=>a.localeCompare(b,"fr"));
+}
+function listeModeles(marque){
+  const set=new Set(CATALOGUE_BASE[marque]||[]);
+  if(typeof vehiculesList!=="undefined"){
+    vehiculesList.forEach(v=>{
+      if(!v||v.marque!==marque) return;
+      if(Array.isArray(v.modeles)) v.modeles.forEach(m=>{ if(m) set.add(String(m).trim()); });
+      if(v.modele) set.add(String(v.modele).trim());
+    });
+  }
+  set.add("Autre");
+  return [...set].filter(Boolean).sort((a,b)=>a.localeCompare(b,"fr"));
+}
+function remplirSelect(id, valeurs, label, valeurCourante){
+  const sel=document.getElementById(id); if(!sel) return;
+  sel.innerHTML="<option value=''>— "+label+" —</option>";
+  valeurs.forEach(v=>{ const o=document.createElement("option"); o.value=v; o.textContent=v; sel.appendChild(o); });
+  if(valeurCourante) sel.value=valeurCourante;
+}
+
 function majModelesPC(){
-  const marque=G("pc-marque").value, sel=G("pc-modele");
-  sel.innerHTML="<option value=''>— Modèle —</option>";
-  const found=vehiculesList.find(v=>v.marque===marque);
-  if(found&&found.modeles) found.modeles.forEach(m=>{const o=document.createElement("option");o.value=m;o.textContent=m;sel.appendChild(o);});
+  remplirSelect("pc-modele", listeModeles(G("pc-marque").value), "Modèle");
 }
 function peuplerMarquesPC(){
-  const sel=G("pc-marque"); if(!sel) return;
-  sel.innerHTML="<option value=''>— Marque —</option>";
-  vehiculesList.slice().sort((a,b)=>a.marque.localeCompare(b.marque,"fr")).forEach(v=>{
-    const o=document.createElement("option");o.value=v.marque;o.textContent=v.marque;sel.appendChild(o);
+  // Charge le catalogue si besoin : le menu était vide quand on n'était pas passé
+  // par la page Véhicules.
+  assurerCatalogueVehicules().then(()=>{
+    const courante=G("pc-marque")?G("pc-marque").value:"";
+    remplirSelect("pc-marque", listeMarques(), "Marque", courante);
+    if(courante) majModelesPC();
   });
 }
 function chercherRecuPC(){
@@ -7975,6 +8064,7 @@ function ouvrirModalBLAdmin(){
   if(sc){ sc.innerHTML="<option value=''>— Client —</option>"; clientsList.forEach(cl=>{const o=document.createElement("option");o.value=cl.nom;o.textContent=cl.nom;sc.appendChild(o);}); }
   const sch=G("bl-chauffeur");
   if(sch){ sch.innerHTML="<option value=''>— Chauffeur —</option>"; chauffeursList.forEach(ch=>{const o=document.createElement("option");o.value=ch.nom;o.textContent=ch.nom;sch.appendChild(o);}); }
+  assurerCatalogueVehicules().then(function(){ remplirSelect("bl-marque", listeMarques(), "Marque"); });
   // Date + heure par défaut = maintenant (heure locale, modifiable pour un BL antidaté)
   const now=new Date();
   if(G("bl-date"))  G("bl-date").value=now.getFullYear()+"-"+("0"+(now.getMonth()+1)).slice(-2)+"-"+("0"+now.getDate()).slice(-2);
@@ -7983,42 +8073,7 @@ function ouvrirModalBLAdmin(){
 }
 
 function majModelesModal(){
-  const MODELES_MAP={
-    "Renault":["Clio","Mégane","Kadjar","Captur","Kangoo","Trafic","Master","Express","Zoe","Twingo","Scenic"],
-    "Peugeot":["208","308","508","2008","3008","5008","Partner","Expert","Boxer","Rifter"],
-    "Citroën":["C3","C4","C5","Berlingo","Jumpy","Jumper","C3 Aircross","C5 Aircross"],
-    "Dacia":["Sandero","Logan","Duster","Jogger","Spring","Lodgy","Dokker"],
-    "Ford":["Fiesta","Focus","Kuga","Puma","Mustang","Transit","Ranger","Explorer","EcoSport"],
-    "Toyota":["Yaris","Corolla","C-HR","RAV4","Land Cruiser","HiLux","Prius","Auris","Camry"],
-    "Volkswagen":["Polo","Golf","Passat","Tiguan","T-Roc","Touareg","Transporter","Crafter","Caddy"],
-    "Mercedes":["Classe A","Classe B","Classe C","Classe E","GLA","GLB","GLC","Sprinter","Vito","Atego"],
-    "BMW":["Série 1","Série 3","Série 5","X1","X3","X5","X6","Z4"],
-    "Audi":["A1","A3","A4","A6","Q2","Q3","Q5","Q7","TT"],
-    "Nissan":["Micra","Juke","Qashqai","X-Trail","Navara","Leaf"],
-    "Hyundai":["i10","i20","i30","Tucson","Santa Fe","Ioniq","Kona"],
-    "Kia":["Picanto","Rio","Ceed","Sportage","Sorento","Stonic"],
-    "Fiat":["500","Panda","Tipo","500X","Ducato","Doblo"],
-    "Opel":["Corsa","Astra","Insignia","Crossland","Grandland","Movano","Vivaro"],
-    "Seat":["Ibiza","Leon","Ateca","Arona","Tarraco"],
-    "Skoda":["Fabia","Octavia","Superb","Karoq","Kodiaq"],
-    "Mazda":["Mazda2","Mazda3","Mazda6","CX-3","CX-5","CX-30","MX-5"],
-    "Suzuki":["Alto","Swift","Vitara","SX4","Jimny","Baleno"],
-    "Honda":["Jazz","Civic","HR-V","CR-V","Accord"],
-    "Mitsubishi":["Space Star","ASX","Eclipse Cross","Outlander","L200","Pajero"],
-    "Land Rover":["Defender","Discovery","Range Rover","Freelander","Evoque"],
-    "Iveco":["Daily","Stralis","Trakker","Eurocargo"],
-    "Isuzu":["D-Max","MU-X","NPR","NMR","NQR"],
-    "Alfa Romeo":["Giulia","Stelvio","Giulietta","MiTo","Tonale"],
-    "Volvo":["V40","V60","V90","XC40","XC60","XC90","S60","S90"],
-    "BMW Moto":["R 1250 GS","F 850 GS","S 1000 RR","R nineT","G 310 R"],
-    "Honda Moto":["CB500","CBR600","Africa Twin","Forza","PCX"],
-    "Kawasaki":["Z400","Z650","Z900","Ninja 400","Ninja 650","Versys"],
-    "Yamaha":["MT-07","MT-09","R1","XMAX","TMAX","Tracer","Ténéré"],
-    "Piaggio":["Vespa","Liberty","MP3","Medley","Beverly"]
-  };
-  const m=G("bl-marque").value, sel=G("bl-modele");
-  sel.innerHTML="<option value=''>— Modèle —</option>";
-  (MODELES_MAP[m]||[]).forEach(md=>{const o=document.createElement("option");o.value=md;o.textContent=md;sel.appendChild(o);});
+  remplirSelect("bl-modele", listeModeles(G("bl-marque").value), "Modèle");
 }
 
 function majModePaiementSec(){
