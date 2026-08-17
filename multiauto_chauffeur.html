@@ -831,6 +831,34 @@ function initMarques(){
 }
 
 // ════════════════════════════════════
+function _appliquerCatalogue(brut){
+  const merged = JSON.parse(JSON.stringify(brut));
+  // Même règle que l'admin et la secrétaire : dès que la base contient des marques,
+  // elle fait autorité. Aucune dépendance à un document de paramètres.
+  if(Object.keys(merged).length>0){
+    window.MARQUES_MODELES = merged;
+    if(typeof initMarques==="function") initMarques();
+    if(typeof majModeles==="function") majModeles();
+    var _n=document.getElementById("nb-marques");
+    if(_n) _n.textContent=Object.keys(merged).length+" (base)";   // synchronisées depuis l'admin
+    return;
+  }
+  // Catalogue pas encore publié : le référentiel complète la base (filet de secours)
+  Object.keys(MARQUES_MODELES_BASE).forEach(function(k){
+    if(!merged[k]) merged[k]=MARQUES_MODELES_BASE[k].slice();
+    else {
+      var set={};
+      merged[k].concat(MARQUES_MODELES_BASE[k]).forEach(function(m){ if(m) set[m]=1; });
+      merged[k]=Object.keys(set).sort();
+    }
+  });
+  window.MARQUES_MODELES = merged;
+  if(typeof initMarques==="function") initMarques();
+  if(typeof majModeles==="function") majModeles();
+  var _nb=document.getElementById("nb-marques");
+  if(_nb) _nb.textContent=Object.keys(merged).length+" (local)";   // base vide : liste de secours
+}
+
 // SYNC MARQUES/MODÈLES DEPUIS vehicules_clients
 // Appelé depuis le module Firebase après login
 // ════════════════════════════════════
@@ -1983,36 +2011,6 @@ window.seConnecter = async function(){
         }
       }
     );
-  }
-}
-function _appliquerCatalogue(brut){
-  const merged = JSON.parse(JSON.stringify(brut));
-  // Même règle que l'admin et la secrétaire : dès que la base contient des marques,
-  // elle fait autorité. Aucune dépendance à un document de paramètres.
-  if(Object.keys(merged).length>0){
-    window.MARQUES_MODELES = merged;
-    if(typeof initMarques==="function") initMarques();
-    if(typeof majModeles==="function") majModeles();
-    var _n=document.getElementById("nb-marques");
-    if(_n) _n.textContent=Object.keys(merged).length+" (base)";   // synchronisées depuis l'admin
-    return;
-  }
-  // Catalogue pas encore publié : le référentiel complète la base (filet de secours)
-  Object.keys(MARQUES_MODELES_BASE).forEach(function(k){
-    if(!merged[k]) merged[k]=MARQUES_MODELES_BASE[k].slice();
-    else {
-      var set={};
-      merged[k].concat(MARQUES_MODELES_BASE[k]).forEach(function(m){ if(m) set[m]=1; });
-      merged[k]=Object.keys(set).sort();
-    }
-  });
-  window.MARQUES_MODELES = merged;
-  if(typeof initMarques==="function") initMarques();
-  if(typeof majModeles==="function") majModeles();
-  var _nb=document.getElementById("nb-marques");
-  if(_nb) _nb.textContent=Object.keys(merged).length+" (local)";   // base vide : liste de secours
-}
-
     loader(false);
     G("login-err").classList.remove("on");
     G("pg-login").classList.remove("on");
