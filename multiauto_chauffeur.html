@@ -932,7 +932,20 @@ function onClientChange(){
   appliquerTypePCAuto();
 }
 
+// Bouton "nouveau client" : masqué si l'administrateur a retiré la permission
+function appliquerPermAjoutClient(){
+  var btn=document.querySelector(".btn-add-client");
+  if(!btn) return;
+  var autorise = !(user && user.perm_ajout_client === false);
+  btn.style.display = autorise ? "" : "none";
+}
+
 function ouvrirModalClient(){
+  // Sécurité : même en forçant, l'ajout reste bloqué sans la permission
+  if(user && user.perm_ajout_client === false){
+    afficherAlerte("🔒 Ajout de client non autorisé — contacte le bureau");
+    return;
+  }
   G("new-client-nom").value="";
   G("new-client-tel").value="";
   G("new-client-email").value="";
@@ -2020,6 +2033,7 @@ window.seConnecter = async function(){
     demarrerSuiviGPSContinu();
     demarrerSurveillanceCompte(uid);   // éjection temps réel si l'admin désactive le compte
     surveillerVersionApp();            // mise à jour automatique de l'appli
+    appliquerPermAjoutClient();        // droit d'ajouter un client
     lireEtatCatalogue();               // catalogue véhicules : la base fait autorité
     // Recharger les selects avec les données Firestore (CLIENTS est maintenant rempli)
     initClients();
@@ -2414,7 +2428,11 @@ function demarrerSurveillanceCompte(uid){
       // Compte supprimé, désactivé, ou rôle retiré → éjection immédiate
       if(!snap.exists() || snap.data().actif === false || snap.data().role !== "chauffeur"){
         couperAccesCompteDesactive();
+        return;
       }
+      // Permissions modifiées par l'admin : appliquées immédiatement, sans reconnexion
+      if(user){ user.perm_ajout_client = snap.data().perm_ajout_client; }
+      appliquerPermAjoutClient();
     },
     e => console.warn("Surveillance compte:", e)
   );
@@ -2454,6 +2472,7 @@ onAuthStateChanged(auth, async (firebaseUser) => {
         demarrerSuiviGPSContinu();
         demarrerSurveillanceCompte(firebaseUser.uid);   // éjection temps réel si l'admin désactive le compte
         surveillerVersionApp();                         // mise à jour automatique de l'appli
+        appliquerPermAjoutClient();                     // droit d'ajouter un client
         lireEtatCatalogue();                            // catalogue véhicules
       }
     } catch(e){ console.warn("Session restore failed:", e); }

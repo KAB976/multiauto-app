@@ -3313,11 +3313,13 @@ function chargerPermChauffeursFn(){
     snap.forEach(d=>{
       const ch=d.data(),uid=d.id;
       const sI=ch.perm_sans_immat===true,sP=ch.perm_sans_photo===true,sE=ch.perm_sans_emb===true;
+      // Ajout de client : autorisé par défaut (comportement actuel), coupable au cas par cas
+      const sC=ch.perm_ajout_client!==false;
       html+=`<div style="background:var(--gris);border-radius:10px;padding:12px;margin-bottom:10px">
         <div style="font-weight:700;font-size:13px;color:var(--bleu);margin-bottom:8px">
           👤 ${ch.nom} <span style="font-size:11px;color:var(--gris3)">${ch.identifiant||""} — ${ch.camion||""}</span>
         </div>
-        <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px">
+        <div style="display:grid;grid-template-columns:1fr 1fr 1fr 1fr;gap:8px">
           <div style="display:flex;align-items:center;justify-content:space-between;background:white;border-radius:8px;padding:8px 10px">
             <span style="font-size:12px;font-weight:600">Sans immat</span>
             <label class="switch"><input type="checkbox" ${sI?"checked":""} onchange="majPermCh('${uid}','perm_sans_immat',this.checked)"><span class="sw-slider"></span></label>
@@ -3329,6 +3331,10 @@ function chargerPermChauffeursFn(){
           <div style="display:flex;align-items:center;justify-content:space-between;background:white;border-radius:8px;padding:8px 10px">
             <span style="font-size:12px;font-weight:600">Sans GPS emb.</span>
             <label class="switch"><input type="checkbox" ${sE?"checked":""} onchange="majPermCh('${uid}','perm_sans_emb',this.checked)"><span class="sw-slider"></span></label>
+          </div>
+          <div style="display:flex;align-items:center;justify-content:space-between;background:white;border-radius:8px;padding:8px 10px">
+            <span style="font-size:12px;font-weight:600" title="Autoriser ce chauffeur à créer un nouveau client depuis son téléphone">Ajout client</span>
+            <label class="switch"><input type="checkbox" ${sC?"checked":""} onchange="majPermCh('${uid}','perm_ajout_client',this.checked)"><span class="sw-slider"></span></label>
           </div>
         </div>
       </div>`;
