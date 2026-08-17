@@ -291,6 +291,7 @@ self.addEventListener('fetch', e => {
     </div>
     <div class="hdr-info">
       <div class="hdr-name" id="hdr-nom">Chauffeur</div>
+      <div id="app-version" style="font-size:9px;color:#8b93a7;margin-top:2px">v17/08 10h25 · <span id="nb-marques">…</span> marques</div>
       <div class="hdr-cam" id="hdr-cam" style="color:rgba(255,255,255,.8)">—</div>
     </div>
     <div class="hdr-right">
@@ -1968,32 +1969,48 @@ window.seConnecter = async function(){
         // Si le catalogue a été publié dans la base (Admin > Paramètres), la base fait
         // autorité : les marques supprimées ne réapparaissent pas. Sinon, le catalogue
         // de référence sert de filet de secours.
-        if(window._catalogueInitialise===true && Object.keys(merged).length>0){
-          window.MARQUES_MODELES = merged;
-          if(typeof initMarques==="function") initMarques();
-          return;
-        }
-        Object.keys(MARQUES_MODELES_BASE).forEach(function(k){
-          if(!merged[k]) merged[k]=MARQUES_MODELES_BASE[k].slice();
-          else {
-            var set={};
-            merged[k].concat(MARQUES_MODELES_BASE[k]).forEach(function(m){ if(m) set[m]=1; });
-            merged[k]=Object.keys(set).sort();
-          }
-        });
-        window.MARQUES_MODELES = merged;
-        initMarques();
-        majModeles();
+        // Rejouable dès que l'état du catalogue est connu
+        window._derniereSyncVehicules = function(){ _appliquerCatalogue(merged); };
+        _appliquerCatalogue(merged);
       },
       e => {
         console.warn("Sync véhicules:", e);
-        // Hors-ligne au tout premier lancement (aucune donnée jamais reçue) → filet de secours
+        // Hors-ligne au tout premier lancement → filet de secours
         if(Object.keys(window.MARQUES_MODELES||{}).length===0){
           window.MARQUES_MODELES = MARQUES_MODELES_BASE;
-          initMarques(); majModeles();
+          if(typeof initMarques==="function") initMarques();
+          if(typeof majModeles==="function") majModeles();
         }
       }
     );
+  }
+}
+function _appliquerCatalogue(brut){
+  const merged = JSON.parse(JSON.stringify(brut));
+  // Catalogue publié dans la base → la base fait autorité (suppressions respectées)
+  if(window._catalogueInitialise===true && Object.keys(merged).length>0){
+    window.MARQUES_MODELES = merged;
+    if(typeof initMarques==="function") initMarques();
+    if(typeof majModeles==="function") majModeles();
+    var _n=document.getElementById("nb-marques");
+    if(_n) _n.textContent=Object.keys(merged).length+" (base)";
+    return;
+  }
+  // Catalogue pas encore publié : le référentiel complète la base (filet de secours)
+  Object.keys(MARQUES_MODELES_BASE).forEach(function(k){
+    if(!merged[k]) merged[k]=MARQUES_MODELES_BASE[k].slice();
+    else {
+      var set={};
+      merged[k].concat(MARQUES_MODELES_BASE[k]).forEach(function(m){ if(m) set[m]=1; });
+      merged[k]=Object.keys(set).sort();
+    }
+  });
+  window.MARQUES_MODELES = merged;
+  if(typeof initMarques==="function") initMarques();
+  if(typeof majModeles==="function") majModeles();
+  var _nb=document.getElementById("nb-marques");
+  if(_nb) _nb.textContent=Object.keys(merged).length;
+}
 
     loader(false);
     G("login-err").classList.remove("on");
@@ -2294,7 +2311,13 @@ window.enregistrer = async function(){
 function lireEtatCatalogue(){
   try{
     onSnapshot(doc(db,"parametres","catalogue"), function(snap){
+      var avant = window._catalogueInitialise;
       window._catalogueInitialise = !!(snap.exists() && (snap.data()||{}).initialise);
+      // L'état arrive souvent APRÈS la première synchro des véhicules : on relance
+      // alors la construction des listes, sinon la nouvelle règle ne s'applique pas.
+      if(avant !== window._catalogueInitialise && window._derniereSyncVehicules){
+        window._derniereSyncVehicules();
+      }
     }, function(){});
   }catch(e){}
 }
