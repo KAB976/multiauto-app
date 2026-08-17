@@ -1987,13 +1987,14 @@ window.seConnecter = async function(){
 }
 function _appliquerCatalogue(brut){
   const merged = JSON.parse(JSON.stringify(brut));
-  // Catalogue publié dans la base → la base fait autorité (suppressions respectées)
-  if(window._catalogueInitialise===true && Object.keys(merged).length>0){
+  // Même règle que l'admin et la secrétaire : dès que la base contient des marques,
+  // elle fait autorité. Aucune dépendance à un document de paramètres.
+  if(Object.keys(merged).length>0){
     window.MARQUES_MODELES = merged;
     if(typeof initMarques==="function") initMarques();
     if(typeof majModeles==="function") majModeles();
     var _n=document.getElementById("nb-marques");
-    if(_n) _n.textContent=Object.keys(merged).length+" (base)";
+    if(_n) _n.textContent=Object.keys(merged).length+" (base)";   // synchronisées depuis l'admin
     return;
   }
   // Catalogue pas encore publié : le référentiel complète la base (filet de secours)
@@ -2009,7 +2010,7 @@ function _appliquerCatalogue(brut){
   if(typeof initMarques==="function") initMarques();
   if(typeof majModeles==="function") majModeles();
   var _nb=document.getElementById("nb-marques");
-  if(_nb) _nb.textContent=Object.keys(merged).length;
+  if(_nb) _nb.textContent=Object.keys(merged).length+" (local)";   // base vide : liste de secours
 }
 
     loader(false);
