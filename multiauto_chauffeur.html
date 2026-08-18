@@ -236,7 +236,7 @@ self.addEventListener('fetch', e => {
 </head>
 <body>
 
-<div class="auteur">Auteur : KAB</div>
+<div class="auteur">Copyright KAB</div>
 <div class="loader" id="loader"><div class="spin"></div><div class="spin-txt" id="loader-txt">Chargement...</div></div>
 
 <!-- ══════════ MODAL NOUVEAU CLIENT ══════════ -->
@@ -252,8 +252,8 @@ self.addEventListener('fetch', e => {
       <input class="inp" id="new-client-tel" type="tel" placeholder="Ex : 0639 00 00 00">
     </div>
     <div class="mb14">
-      <span class="fl">Email <span class="tag-opt">Facultatif — pour l'envoi du reçu</span></span>
-      <input class="inp" id="new-client-email" type="email" placeholder="Ex : client@exemple.com" autocomplete="off">
+      <span class="fl">Email <span class="tag-opt">Facultatif</span></span>
+      <input class="inp" id="new-client-email" type="email" placeholder="client@exemple.com">
     </div>
     <button class="btn-modal-confirm" onclick="confirmerNouveauClient()">✅ Ajouter ce client</button>
     <button class="btn-modal-cancel" onclick="fermerModalClient()">Annuler</button>
@@ -291,7 +291,6 @@ self.addEventListener('fetch', e => {
     </div>
     <div class="hdr-info">
       <div class="hdr-name" id="hdr-nom">Chauffeur</div>
-      <div id="app-version" style="font-size:9px;color:#8b93a7;margin-top:2px">v17/08 10h25 · <span id="nb-marques">…</span> marques</div>
       <div class="hdr-cam" id="hdr-cam" style="color:rgba(255,255,255,.8)">—</div>
     </div>
     <div class="hdr-right">
@@ -451,8 +450,8 @@ self.addEventListener('fetch', e => {
           <input class="inp" id="inp-tel" type="tel" placeholder="Ex : 0639 00 00 00">
         </div>
         <div>
-          <span class="fl">Email <span class="tag-opt">Facultatif — pour l'envoi du reçu</span></span>
-          <input class="inp" id="inp-email" type="email" placeholder="Ex : client@exemple.com" autocomplete="off">
+          <span class="fl">Email <span class="tag-opt">Facultatif</span></span>
+          <input class="inp" id="inp-email" type="email" placeholder="client@exemple.com">
         </div>
       </div>
     </div>
@@ -486,10 +485,6 @@ self.addEventListener('fetch', e => {
             <div class="zv-sub" id="zv-emb-heure">—</div>
           </div>
         </div>
-        <button type="button" onclick="annulerTrajetEtRecommencer()" id="btn-annuler-trajet"
-          style="display:none;width:100%;margin-top:8px;padding:9px;background:none;border:1px solid #d33;color:#d33;border-radius:8px;font-size:12px;font-weight:700;cursor:pointer;font-family:inherit">
-          🗑️ Annuler ce trajet et commencer une nouvelle mission
-        </button>
       </div>
       <!-- Chrono invisible — enregistré en base, non affiché au chauffeur -->
       <div id="chrono-box" style="display:none" aria-hidden="true"></div>
@@ -632,65 +627,47 @@ var CHAUFFEURS = [
   {id:"PAP",  nom:"Papa",    mdp:"1234", camion:"Isuzu",    immatCam:"EF-789-GH", prefixBL:"PAP", prefixR:"PAP", photoOblig:true}
 ];
 
-var MARQUES_MODELES_BASE = {
-  "Alfa Romeo":["147","156","159","Giulia","Giulietta","MiTo","Stelvio","Tonale"],
-  "Audi":["A1","A3","A4","A5","A6","A7","A8","Q2","Q3","Q5","Q7","Q8","RS3","RS6","TT"],
-  "Autre":["Autre"],
-  "BMW":["M3","M5","Serie 1","Serie 3","Serie 5","Série 1","Série 2","Série 3","Série 4","Série 5","Série 6","Série 7","X1","X2","X3","X4","X5","X6","X7","Z4"],
-  "BMW Moto":["F 650 GS","F 750 GS","F 850 GS","G 310 GS","G 310 R","R 1200 GS","R 1250 GS","R nineT","S 1000 RR","S 1000 XR"],
-  "Bobcat":["Autre","E20","E35","S450","S530","S70"],
-  "Caterpillar":["416","428","432","Autre"],
-  "Citroën":["Berlingo","C1","C2","C3","C3 Aircross","C4","C5","C5 Aircross","C5 X","DS3","DS4","DS5","Jumper","Jumpy","SpaceTourer"],
-  "Dacia":["Dokker","Duster","Jogger","Lodgy","Logan","Sandero","Spring"],
-  "DAF":["Autre","CF","LF","XF"],
-  "Fiat":["500","500X","Bravo","Doblo","Ducato","Fiorino","Grande Punto","Panda","Qubo","Tipo"],
-  "Ford":["B-Max","C-Max","EcoSport","Edge","Explorer","Fiesta","Focus","Fusion","Galaxy","Ka","Kuga","Mondeo","Mustang","Puma","Ranger","S-Max","Tourneo","Transit","Transit Custom"],
-  "Hino":["300","500","700","Autre"],
-  "Honda":["Accord","CR-V","City","Civic","HR-V","Jazz","Legend","NSX","Pilot"],
-  "Honda Moto":["Africa Twin","CB 1000R","CB 500F","CB 650R","CB 750","CB500","CBR 1000RR","CBR 125R","CBR 500R","CBR 600RR","CBR600","Forza","PCX","SH","Transalp","VFR 800","X-ADV"],
-  "Hyundai":["Accent","Creta","Elantra","Ioniq","Kona","Santa Fe","Sonata","Tucson","i10","i20","i30","i40","ix20","ix35"],
-  "Isuzu":["D-Max","FSR","FVR","MU-X","NKR","NLR","NMR","NPR","NQR","Trooper"],
-  "Iveco":["Daily","Eurocargo","Stralis","Trakker"],
-  "JCB":["3CX","4CX","Autre","JS130"],
+var MARQUES_MODELES = {
+  "Alfa Romeo":["147","156","159","Giulia","Giulietta","Stelvio","MiTo"],
+  "Audi":["A1","A3","A4","A5","A6","A7","A8","Q2","Q3","Q5","Q7","Q8","TT","RS3","RS6"],
+  "BMW":["Série 1","Série 2","Série 3","Série 4","Série 5","Série 6","Série 7","X1","X2","X3","X4","X5","X6","X7","M3","M5"],
+  "Citroën":["C1","C2","C3","C4","C5","C5 X","Berlingo","Jumper","Jumpy","SpaceTourer","DS3","DS4","DS5"],
+  "Dacia":["Duster","Jogger","Logan","Sandero","Spring","Lodgy"],
+  "Fiat":["500","Bravo","Doblo","Ducato","Fiorino","Grande Punto","Panda","Tipo","Qubo"],
+  "Ford":["B-Max","C-Max","EcoSport","Edge","Explorer","Fiesta","Focus","Fusion","Galaxy","Ka","Kuga","Mondeo","Mustang","Puma","Ranger","S-Max","Transit","Transit Custom","Tourneo"],
+  "Honda":["Accord","City","Civic","CR-V","HR-V","Jazz","Legend","NSX","Pilot"],
+  "Hyundai":["Accent","Creta","Elantra","i10","i20","i30","i40","ix20","ix35","Kona","Santa Fe","Sonata","Tucson"],
+  "Isuzu":["D-Max","MU-X","NLR","NMR","NPR","NQR","NKR","FSR","FVR","Trooper"],
   "Jeep":["Cherokee","Compass","Gladiator","Grand Cherokee","Renegade","Wrangler"],
-  "Kawasaki":["ER-6N","KLR 650","Ninja 1000","Ninja 300","Ninja 400","Ninja 650","Versys","Versys 1000","Versys 650","Vulcan","Z1000","Z400","Z650","Z900","ZX-10R"],
   "Kia":["Carens","Ceed","Cerato","EV6","Niro","Picanto","Rio","Sorento","Sportage","Stinger","Stonic","Telluride","Xceed"],
-  "Kubota":["Autre","KX","M","U"],
-  "Land Rover":["Defender","Discovery","Discovery Sport","Evoque","Freelander","Range Rover","Range Rover Evoque","Range Rover Sport","Range Rover Velar"],
+  "Land Rover":["Defender","Discovery","Discovery Sport","Freelander","Range Rover","Range Rover Evoque","Range Rover Sport","Range Rover Velar"],
   "Lexus":["CT","ES","GS","IS","LC","LS","LX","NX","RX","UX"],
   "Mahindra":["Bolero","Marazzo","Pik Up","Scorpio","Thar","XUV300","XUV500","XUV700"],
-  "MAN":["Autre","L2000","TGE","TGL","TGM","TGS","TGX"],
-  "Manitou":["Autre","MLT","MRT","MT"],
-  "Mazda":["2","3","6","CX-3","CX-30","CX-5","CX-60","CX-9","MX-5","Mazda2","Mazda3","Mazda6","RX-8"],
-  "Mercedes":["Actros","Arocs","Atego","CLA","CLS","Classe A","Classe B","Classe C","Classe E","Classe G","Classe S","GLA","GLB","GLC","GLE","GLS","ML","Sprinter","Viano","Vito"],
+  "Mazda":["2","3","6","CX-3","CX-30","CX-5","CX-60","CX-9","MX-5","RX-8"],
+  "Mercedes":["Classe A","Classe B","Classe C","Classe E","Classe G","Classe S","CLA","CLS","GLA","GLB","GLC","GLE","GLS","ML","Sprinter","Viano","Vito","Actros","Arocs","Atego"],
   "Mini":["Clubman","Clubvan","Countryman","Hatch","Paceman","Roadster"],
   "Mitsubishi":["ASX","Colt","Eclipse Cross","L200","Outlander","Pajero","Space Star"],
-  "Mitsubishi Fuso":["Autre","Canter","Fighter"],
   "Moto":["Autre moto"],
-  "Nissan":["370Z","Cabstar","GT-R","Juke","Leaf","Micra","Murano","NT400","Navara","Note","Pathfinder","Patrol","Pixo","Pulsar","Qashqai","X-Trail"],
-  "Nissan Cabstar":["Autre","Cabstar","NT400"],
-  "Opel":["Adam","Agila","Ampera","Antara","Astra","Cascada","Corsa","Crossland","Grandland","Insignia","Meriva","Mokka","Movano","Omega","Vectra","Vivaro","Zafira"],
+  "Nissan":["370Z","GT-R","Juke","Leaf","Micra","Murano","Navara","Note","Pathfinder","Patrol","Pixo","Pulsar","Qashqai","X-Trail"],
+  "Opel":["Adam","Agila","Ampera","Antara","Astra","Cascada","Corsa","Crossland","Grandland","Insignia","Meriva","Mokka","Omega","Vectra","Vivaro","Zafira"],
   "Peugeot":["107","108","2008","206","207","208","3008","301","308","4007","4008","408","5008","508","Bipper","Boxer","Expert","Partner","Rifter","Traveller"],
-  "Piaggio":["Beverly","Liberty","MP3","Medley","Vespa","Vespa 125","Vespa 300","Vespa 50","Zip"],
-  "Renault":["Arkana","Austral","Captur","Clio","Duster","Espace","Express","Fluence","Kadjar","Kangoo","Koleos","Laguna","Latitude","Logan","Master","Megane","Modus","Scenic","Symbol","Talisman","Trafic","Twingo","Vel Satis","Zoe"],
-  "Renault Trucks":["Autre","C","D","K","Master","T"],
-  "Scania":["Autre","G","G Series","L Series","P","P Series","R","R Series","S","S Series"],
+  "Renault":["Arkana","Austral","Captur","Clio","Duster","Espace","Fluence","Kadjar","Kangoo","Koleos","Laguna","Latitude","Logan","Master","Megane","Modus","Scenic","Symbol","Talisman","Trafic","Twingo","Vel Satis","Zoe"],
+  "Scania":["P Series","R Series","S Series","G Series","L Series"],
   "Seat":["Alhambra","Altea","Arona","Ateca","Cordoba","Ibiza","Leon","Mii","Tarraco","Toledo"],
   "Skoda":["Citigo","Fabia","Kamiq","Karoq","Kodiaq","Octavia","Rapid","Roomster","Scala","Superb","Yeti"],
-  "Suzuki":["Alto","Baleno","Celerio","Dzire","Ertiga","Grand Vitara","Ignis","Jimny","S-Cross","SX4","Swift","Vitara"],
-  "Suzuki Moto":["Address","Bandit 650","Burgman","DL 1000","DL 650","GSR 750","GSX-R 1000","GSX-R 600","GSX-R 750","SV 650","V-Strom"],
-  "Tesla":["Cybertruck","Model 3","Model S","Model X","Model Y","Roadster","Semi"],
-  "Toyota":["4Runner","Auris","Avensis","Aygo","C-HR","Camry","Corolla","FJ Cruiser","GT86","HiLux","Highlander","Hilux","Land Cruiser","Prius","ProAce","RAV4","Rush","Sequoia","Sienna","Supra","Tundra","Urban Cruiser","Venza","Verso","Yaris"],
-  "Volkswagen":["Amarok","Arteon","Beetle","CC","Caddy","Crafter","Golf","ID.3","ID.4","Jetta","Multivan","Passat","Phaeton","Polo","Scirocco","Sharan","T-Cross","T-Roc","Tiguan","Touareg","Touran","Transporter","Up"],
+  "Suzuki":["Alto","Baleno","Celerio","Dzire","Ertiga","Grand Vitara","Ignis","Jimny","S-Cross","Swift","SX4","Vitara"],
+  "Tesla":["Model 3","Model S","Model X","Model Y","Roadster","Semi","Cybertruck"],
+  "Toyota":["4Runner","Auris","Avensis","Aygo","C-HR","Camry","Corolla","FJ Cruiser","GT86","Highlander","Hilux","Land Cruiser","Prius","ProAce","RAV4","Rush","Sequoia","Sienna","Supra","Tundra","Urban Cruiser","Venza","Verso","Yaris"],
+  "Volkswagen":["Amarok","Arteon","Beetle","Caddy","CC","Crafter","Golf","ID.3","ID.4","Jetta","Multivan","Passat","Phaeton","Polo","Scirocco","Sharan","T-Cross","T-Roc","Tiguan","Touareg","Touran","Transporter","Up"],
   "Volvo":["C30","C40","C70","S40","S60","S80","S90","V40","V50","V60","V70","V90","XC40","XC60","XC70","XC90"],
-  "Volvo Trucks":["Autre","FE","FH","FL","FM"],
-  "Yamaha":["FZ 07","FZ 09","MT-03","MT-07","MT-09","MT-10","NMAX","R1","TMAX","Tenere","Tenere 700","Tracer","Tracer 700","Tracer 900","XJ6","XJR 1300","XMAX","YZF-R1","YZF-R3","YZF-R6"]
+  // Motos
+  "BMW Moto":["F 650 GS","F 750 GS","F 850 GS","G 310 R","G 310 GS","R 1200 GS","R 1250 GS","S 1000 RR","S 1000 XR"],
+  "Honda Moto":["CBR 125R","CBR 500R","CBR 600RR","CBR 1000RR","CB 500F","CB 650R","CB 750","CB 1000R","Africa Twin","Forza","PCX","SH","Transalp","VFR 800","X-ADV"],
+  "Kawasaki":["ER-6N","KLR 650","Ninja 300","Ninja 400","Ninja 650","Ninja 1000","Versys 650","Versys 1000","Vulcan","Z400","Z650","Z900","Z1000","ZX-10R"],
+  "Piaggio":["Beverly","Liberty","Medley","MP3","Vespa 50","Vespa 125","Vespa 300","Zip"],
+  "Suzuki Moto":["Address","Bandit 650","Burgman","DL 650","DL 1000","GSR 750","GSX-R 600","GSX-R 750","GSX-R 1000","SV 650","V-Strom"],
+  "Yamaha":["FZ 07","FZ 09","MT-03","MT-07","MT-09","MT-10","NMAX","TMAX","Tenere 700","Tracer 700","Tracer 900","XJ6","XJR 1300","YZF-R1","YZF-R3","YZF-R6"]
 };
-// Marques poids lourds / engins (MAN, DAF...) : complètent le catalogue de base pour
-// que le chauffeur les voie même si elles ne sont pas encore dans vehicules_clients.
-var MARQUES_PL = {};   // fusionné dans MARQUES_MODELES_BASE (liste unique partagée)
-Object.keys(MARQUES_PL).forEach(function(k){ if(!MARQUES_MODELES_BASE[k]) MARQUES_MODELES_BASE[k]=MARQUES_PL[k]; });
-var MARQUES_MODELES = MARQUES_MODELES_BASE;
 
 var CLIENTS = [
   "Divers","Assurance LADOM","Assurance AESIO","Assurance ALLIANZ",
@@ -698,6 +675,7 @@ var CLIENTS = [
   "Assurance MMA","Assurance PACIFICA","Groupama","Préfecture",
   "Mairie Mamoudzou","CHM","Police Nationale","Gendarmerie"
 ];
+var CLIENTS_DATA = {}; // nom -> {tel, email} pour pré-remplissage
 
 // ════════════════════════════════════
 // ÉTAT
@@ -723,8 +701,6 @@ function setTypeIntervention(type){
 }
 var gpsEmb = {lat:"",lng:"",lieu:""};
 var gpsDest = {lat:"",lng:"",lieu:""};
-var gpsEmbPromise = null;
-var gpsDestPromise = null;
 var heureEmb = null;
 var heureArrivee = null;
 var chronoInterval = null;
@@ -742,14 +718,14 @@ function calculerTarif(){
   var h = now.getHours();
   var m = now.getMinutes();
   var hDec = h + m/60;
-  // TW : samedi dès 12h, tout dimanche, et lundi avant 7h
-  if(jour === 6 && hDec >= 12) return "TW";
-  if(jour === 0) return "TW";
-  if(jour === 1 && hDec < 7) return "TW";
-  // NORMAL : lundi-vendredi 7h-17h, et samedi matin (avant 12h)
+  // Lun-Ven 7h-17h = NORMAL
   if(jour >= 1 && jour <= 5 && hDec >= 7 && hDec < 17) return "NORMAL";
-  if(jour === 6 && hDec < 12) return "NORMAL";
-  // TN : le reste = soirs/nuits de semaine (lundi soir à vendredi >17h, et nuits mar-ven avant 7h)
+  // Sam ≥ 12h → TW, Sam < 12h et jour ouvré = TN
+  if(jour === 6 && hDec >= 12) return "TW";
+  if(jour === 0) return "TW"; // Dimanche
+  // Lundi avant 7h = TW
+  if(jour === 1 && hDec < 7) return "TW";
+  // Reste = TN (soirs semaine, sam matin)
   return "TN";
 }
 
@@ -819,11 +795,10 @@ function majNums(){
 // ════════════════════════════════════
 function initMarques(){
   var sel = G("sel-marque");
+  if(!sel){ console.warn("⚠️ sel-marque introuvable dans le DOM"); return; }
   var current = sel.value;
   sel.innerHTML = "<option value=''>— Marque —</option>";
-  // window.MARQUES_MODELES est la liste synchronisée depuis vehicules_clients ;
-  // MARQUES_MODELES seule reste figée sur le catalogue de base (d'où les marques manquantes).
-  var marques = Object.keys(window.MARQUES_MODELES||MARQUES_MODELES).sort(function(a,b){return a.localeCompare(b,"fr");});
+  var marques = Object.keys(MARQUES_MODELES).sort();
   marques.forEach(function(m){
     var o = document.createElement("option"); o.value=m; o.textContent=m; sel.appendChild(o);
   });
@@ -831,34 +806,6 @@ function initMarques(){
 }
 
 // ════════════════════════════════════
-function _appliquerCatalogue(brut){
-  const merged = JSON.parse(JSON.stringify(brut));
-  // Même règle que l'admin et la secrétaire : dès que la base contient des marques,
-  // elle fait autorité. Aucune dépendance à un document de paramètres.
-  if(Object.keys(merged).length>0){
-    window.MARQUES_MODELES = merged;
-    if(typeof initMarques==="function") initMarques();
-    if(typeof majModeles==="function") majModeles();
-    var _n=document.getElementById("nb-marques");
-    if(_n) _n.textContent=Object.keys(merged).length+" (base)";   // synchronisées depuis l'admin
-    return;
-  }
-  // Catalogue pas encore publié : le référentiel complète la base (filet de secours)
-  Object.keys(MARQUES_MODELES_BASE).forEach(function(k){
-    if(!merged[k]) merged[k]=MARQUES_MODELES_BASE[k].slice();
-    else {
-      var set={};
-      merged[k].concat(MARQUES_MODELES_BASE[k]).forEach(function(m){ if(m) set[m]=1; });
-      merged[k]=Object.keys(set).sort();
-    }
-  });
-  window.MARQUES_MODELES = merged;
-  if(typeof initMarques==="function") initMarques();
-  if(typeof majModeles==="function") majModeles();
-  var _nb=document.getElementById("nb-marques");
-  if(_nb) _nb.textContent=Object.keys(merged).length+" (local)";   // base vide : liste de secours
-}
-
 // SYNC MARQUES/MODÈLES DEPUIS vehicules_clients
 // Appelé depuis le module Firebase après login
 // ════════════════════════════════════
@@ -868,14 +815,12 @@ var _clientsUnsubscribe = null;
 function majModeles(){
   var marque = G("sel-marque").value;
   var sel = G("sel-modele");
-  var current = sel.value;
   sel.innerHTML = "<option value=''>— Modèle —</option>";
   if(!marque) return;
-  var modeles = ((window.MARQUES_MODELES||MARQUES_MODELES)[marque]||[]).slice().sort();
+  var modeles = (MARQUES_MODELES[marque]||[]).slice().sort();
   modeles.forEach(function(m){
     var o = document.createElement("option"); o.value=m; o.textContent=m; sel.appendChild(o);
   });
-  if(current) sel.value = current;
 }
 
 // ════════════════════════════════════
@@ -883,95 +828,36 @@ function majModeles(){
 // ════════════════════════════════════
 function initClients(){
   var sel = G("sel-client");
-  var cur = sel.value;
+  if(!sel){ console.warn("⚠️ sel-client introuvable dans le DOM"); return; }
   sel.innerHTML = "<option value=''>— Sélectionner —</option>";
   var liste = CLIENTS.slice().sort();
   liste.forEach(function(c){
     var o = document.createElement("option"); o.value=c; o.textContent=c; sel.appendChild(o);
   });
-  if(cur) sel.value=cur;
-}
-
-// ── Clients "assurance" : bascule automatique en Prise en charge ──
-// Quand le chauffeur choisit un de ces clients, le bon passe automatiquement en
-// type PC (dossier créé dans prises_en_charge), sans action de sa part.
-// "MONDIAL" couvre les deux orthographes présentes dans la base : "Mondial Assistance" et "Mondiale Assistance".
-var CLIENTS_PC_AUTO = ["GAA", "MONDIAL"];
-var _pcAutoForce = false;
-
-function estClientPC(nom){
-  if(!nom) return false;
-  var n = nom.toUpperCase();
-  for(var i=0;i<CLIENTS_PC_AUTO.length;i++){
-    var c = CLIENTS_PC_AUTO[i];
-    if(c === "GAA"){
-      // "GAA" en mot isolé (évite les faux positifs sur d'autres noms)
-      if(/(^|[^A-Z])GAA([^A-Z]|$)/.test(n)) return true;
-    } else if(n.indexOf(c) !== -1){
-      return true;
-    }
-  }
-  return false;
-}
-
-function appliquerTypePCAuto(){
-  var nom = G("sel-client") ? G("sel-client").value : "";
-  if(estClientPC(nom)){
-    if(typeIntervention !== "pc") setTypeIntervention("pc");
-    _pcAutoForce = true;
-  } else if(_pcAutoForce){
-    // On ne rétablit "normal" que si c'est l'automatisme qui avait forcé "pc"
-    // (un choix PC manuel du chauffeur pour un autre client n'est pas touché)
-    setTypeIntervention("normal");
-    _pcAutoForce = false;
-  }
 }
 
 function onClientChange(){
-  // Auto-remplir tel si client connu
-  appliquerTypePCAuto();
-}
-
-// Bouton "nouveau client" : masqué si l'administrateur a retiré la permission
-function appliquerPermAjoutClient(){
-  var btn=document.querySelector(".btn-add-client");
-  if(!btn) return;
-  var autorise = !(user && user.perm_ajout_client === false);
-  btn.style.display = autorise ? "" : "none";
+  var nom = G("sel-client").value;
+  var data = window.CLIENTS_DATA ? window.CLIENTS_DATA[nom] : null;
+  if(data){
+    if(data.tel && !G("inp-tel").value) G("inp-tel").value = data.tel;
+    if(data.email) G("inp-email").value = data.email;
+    else G("inp-email").value = "";
+  } else {
+    G("inp-email").value = "";
+  }
 }
 
 function ouvrirModalClient(){
-  // Sécurité : même en forçant, l'ajout reste bloqué sans la permission
-  if(user && user.perm_ajout_client === false){
-    afficherAlerte("🔒 Ajout de client non autorisé — contacte le bureau");
-    return;
-  }
   G("new-client-nom").value="";
   G("new-client-tel").value="";
-  G("new-client-email").value="";
   G("modal-client").classList.add("on");
   setTimeout(function(){ G("new-client-nom").focus(); },100);
 }
 
 function fermerModalClient(){ G("modal-client").classList.remove("on"); }
 
-function confirmerNouveauClient(){
-  var nom = G("new-client-nom").value.trim();
-  if(!nom){ G("new-client-nom").focus(); return; }
-  // Majuscule première lettre
-  nom = nom.charAt(0).toUpperCase()+nom.slice(1);
-  var tel = G("new-client-tel").value.trim();
-  var email = G("new-client-email").value.trim();
-  // Ajouter à la liste locale
-  CLIENTS.push(nom);
-  var sel = G("sel-client");
-  var o = document.createElement("option");
-  o.value=nom; o.textContent=nom; sel.appendChild(o);
-  sel.value=nom;
-  if(tel) G("inp-tel").value=tel;
-  if(email) G("inp-email").value=email;
-  fermerModalClient();
-}
+// confirmerNouveauClient est définie dans le module Firebase (avec sauvegarde Firestore + email)
 
 // ════════════════════════════════════
 // LOGIN
@@ -1004,39 +890,17 @@ function initApp(){
   initMarques();
   initClients();
   resetTrajet();
-  gpsEmbPromise = captureGPSPromise().then(function(g){ gpsEmb=g; return g; });
+  captureGPS(function(g){ gpsEmb=g; });
   // Sync offline si réseau
-  // syncOffline est définie dans le module Firebase : appel protégé, sinon une
-  // ReferenceError interrompt initApp AVANT la restauration du brouillon
-  if(window.syncOffline) window.syncOffline();
-  demarrerAutoSaveBrouillon();
-  restaurerBrouillon();
+  syncOffline();
 }
 
 // ════════════════════════════════════
 // GPS
 // ════════════════════════════════════
-// Position de secours mise à jour en continu en arrière-plan (résout le délai
-// de "démarrage à froid" du GPS : au moment où le chauffeur appuie sur Embarquement,
-// une position récente est déjà disponible au lieu de démarrer une recherche GPS à zéro)
-var _watchGPSId = null;
-var _lastKnownPos = {lat:"",lng:""};
-function demarrerSuiviGPSContinu(){
-  if(!navigator.geolocation || _watchGPSId!==null) return;
-  _watchGPSId = navigator.geolocation.watchPosition(function(pos){
-    var latN = pos.coords.latitude, lngN = pos.coords.longitude;
-    var horsZone = (latN < -14 || latN > -11 || lngN < 44 || lngN > 46);
-    if(horsZone || pos.coords.accuracy > 5000) return;
-    _lastKnownPos = {lat:latN.toFixed(6), lng:lngN.toFixed(6)};
-  }, function(){ /* silencieux */ }, {enableHighAccuracy:true, maximumAge:15000, timeout:30000});
-}
-function arreterSuiviGPSContinu(){
-  if(_watchGPSId!==null && navigator.geolocation){ navigator.geolocation.clearWatch(_watchGPSId); _watchGPSId=null; }
-}
-
 function captureGPS(cb, _essai){
   _essai = _essai || 1;
-  if(!navigator.geolocation){ cb(secoursOuVide()); return; }
+  if(!navigator.geolocation){ cb({lat:"",lng:"",lieu:""}); return; }
   navigator.geolocation.getCurrentPosition(function(pos){
     var acc = pos.coords.accuracy;
     var lat = pos.coords.latitude.toFixed(6);
@@ -1048,11 +912,6 @@ function captureGPS(cb, _essai){
       setTimeout(function(){ captureGPS(cb, _essai+1); }, 3000);
       return;
     }
-    if(horsZone || acc > 5000){
-      // Échec après 3 tentatives : se replier sur la position de secours (suivi continu)
-      cb(secoursOuVide());
-      return;
-    }
     fetch("https://nominatim.openstreetmap.org/reverse?format=json&lat="+lat+"&lon="+lng)
       .then(function(r){ return r.json(); })
       .then(function(d){
@@ -1060,17 +919,7 @@ function captureGPS(cb, _essai){
         var lieu=a.quarter||a.neighbourhood||a.village||a.suburb||a.town||a.city||a.county||"";
         cb({lat:lat,lng:lng,lieu:lieu});
       }).catch(function(){ cb({lat:lat,lng:lng,lieu:""}); });
-  },function(){ cb(secoursOuVide()); },{enableHighAccuracy:true,timeout:20000,maximumAge:10000});
-}
-function secoursOuVide(){
-  if(_lastKnownPos.lat && _lastKnownPos.lng) return {lat:_lastKnownPos.lat, lng:_lastKnownPos.lng, lieu:""};
-  return {lat:"",lng:"",lieu:""};
-}
-// Version "attendable" de captureGPS — permet d'await le résultat avant de sauvegarder le BL
-function captureGPSPromise(){
-  return new Promise(function(resolve){
-    captureGPS(function(g){ resolve(g); });
-  });
+  },function(){ cb({lat:"",lng:"",lieu:""}); },{enableHighAccuracy:true,timeout:20000,maximumAge:0});
 }
 
 // ════════════════════════════════════
@@ -1088,148 +937,6 @@ function resetTrajet(){
   G("btn-arrive").style.display="none";
   G("inp-dest").style.display="none";
   G("zv-dest").style.display="none";
-  if(G("btn-annuler-trajet")) G("btn-annuler-trajet").style.display="none";
-}
-
-function annulerTrajetEtRecommencer(){
-  if(!confirm("Annuler ce trajet et repartir sur une nouvelle mission ?\nLa saisie actuelle sera définitivement effacée.")) return;
-  effacerBrouillon();
-  ["inp-immat","inp-tel","inp-email","inp-emb","inp-dest","inp-montant"].forEach(function(id){ G(id).value=""; });
-  G("sel-marque").value=""; G("sel-modele").innerHTML="<option value=''>— Modèle —</option>";
-  G("sel-client").value="";
-  photoData=null;
-  G("photo-prev").style.display="none"; G("photo-prev").src="";
-  G("pz-inner").style.display="flex";
-  G("photo-zone").classList.remove("ok");
-  if(typeof clearSig==="function") clearSig();
-  if(G("sig-zone-active")) G("sig-zone-active").style.display="block";
-  if(G("sig-zone-validee")) G("sig-zone-validee").style.display="none";
-  if(G("sig-preview")) G("sig-preview").src="";
-  espActif=false; if(G("esp-switch")) G("esp-switch").classList.remove("on"); if(G("esp-box")) G("esp-box").style.display="none";
-  typeIntervention="normal"; setTypeIntervention("normal");
-  if(G("form-alert")) G("form-alert").style.display="none"; if(G("form-alert2")) G("form-alert2").classList.remove("on");
-  gpsEmb={lat:"",lng:"",lieu:""}; gpsDest={lat:"",lng:"",lieu:""};
-  try{ localStorage.removeItem('gps_emb_pending'); localStorage.removeItem('gps_dest_pending'); }catch(e){}
-  resetTrajet();
-  majTarif();
-  majNums();
-  window.scrollTo(0,0);
-  if(G("div-type-intervention")) G("div-type-intervention").style.display="block";
-  gpsEmbPromise = captureGPSPromise().then(function(g){ gpsEmb=g; return g; });
-  gpsDestPromise = null;
-  if(window.majStatutLive) window.majStatutLive({en_mission:false, lieu_embarquement:"", destination:""});
-  afficherAlerte("✅ Trajet annulé — prêt pour une nouvelle mission");
-}
-
-// ════════════════════════════════════
-// BROUILLON — garde la saisie en cours même si le chauffeur ferme l'appli
-// ════════════════════════════════════
-var DRAFT_KEY = "bl_draft_v1";
-var _draftFields = ["inp-immat","sel-marque","sel-modele","sel-client","inp-tel","inp-email","inp-emb","inp-dest","inp-montant"];
-
-function sauvegarderBrouillon(){
-  try{
-    var d = {
-      immat: G("inp-immat")?G("inp-immat").value:"",
-      marque: G("sel-marque")?G("sel-marque").value:"",
-      modele: G("sel-modele")?G("sel-modele").value:"",
-      client: G("sel-client")?G("sel-client").value:"",
-      tel: G("inp-tel")?G("inp-tel").value:"",
-      email: G("inp-email")?G("inp-email").value:"",
-      emb: G("inp-emb")?G("inp-emb").value:"",
-      dest: G("inp-dest")?G("inp-dest").value:"",
-      montant: G("inp-montant")?G("inp-montant").value:"",
-      typeIntervention: typeIntervention,
-      espActif: espActif,
-      embarquementFait: embarquementFait,
-      arriveeFaite: arriveeFaite,
-      heureEmb: heureEmb ? heureEmb.toISOString() : null,
-      heureArrivee: heureArrivee ? heureArrivee.toISOString() : null,
-      photoData: photoData,
-      savedAt: new Date().toISOString()
-    };
-    localStorage.setItem(DRAFT_KEY, JSON.stringify(d));
-  }catch(e){ /* silencieux — stockage plein ou indisponible, ne doit jamais bloquer le chauffeur */ }
-}
-
-function effacerBrouillon(){
-  try{ localStorage.removeItem(DRAFT_KEY); }catch(e){}
-}
-
-function demarrerAutoSaveBrouillon(){
-  _draftFields.forEach(function(id){
-    var el=G(id);
-    if(el && !el.dataset.draftBound){
-      el.addEventListener("input", sauvegarderBrouillon);
-      el.addEventListener("change", sauvegarderBrouillon);
-      el.dataset.draftBound="1";
-    }
-  });
-}
-
-function restaurerBrouillon(){
-  try{
-    var raw = localStorage.getItem(DRAFT_KEY);
-    if(!raw) return;
-    var d = JSON.parse(raw);
-    if(!d) return;
-    // Ne restaurer que s'il y a vraiment eu une saisie (évite de "restaurer" un formulaire vide)
-    if(!d.immat && !d.emb && !d.client && !d.dest) return;
-
-    if(G("inp-immat")) G("inp-immat").value = d.immat||"";
-    if(G("sel-marque") && d.marque){ G("sel-marque").value = d.marque; majModeles(); }
-    if(G("sel-modele") && d.modele) G("sel-modele").value = d.modele;
-    if(G("sel-client")) G("sel-client").value = d.client||"";
-    if(G("inp-tel")) G("inp-tel").value = d.tel||"";
-    if(G("inp-email")) G("inp-email").value = d.email||"";
-    if(G("inp-emb")) G("inp-emb").value = d.emb||"";
-    if(G("inp-montant")) G("inp-montant").value = d.montant||"";
-
-    if(d.typeIntervention && d.typeIntervention!=="normal" && typeof setTypeIntervention==="function"){
-      typeIntervention=d.typeIntervention; setTypeIntervention(d.typeIntervention);
-    }
-    // Client assurance restauré depuis le brouillon → bascule PC automatique
-    appliquerTypePCAuto();
-    if(d.espActif){
-      espActif=true;
-      if(G("esp-switch")) G("esp-switch").classList.add("on");
-      if(G("esp-box")) G("esp-box").style.display="block";
-    }
-    if(d.photoData){
-      photoData=d.photoData;
-      if(G("photo-prev")){ G("photo-prev").src=photoData; G("photo-prev").style.display="block"; }
-      if(G("pz-inner")) G("pz-inner").style.display="none";
-      if(G("photo-zone")) G("photo-zone").classList.add("ok");
-    }
-
-    // Restaurer l'état embarquement / arrivée (zones visuelles)
-    if(d.embarquementFait){
-      embarquementFait=true;
-      heureEmb = d.heureEmb ? new Date(d.heureEmb) : new Date();
-      if(G("btn-je-pars")) G("btn-je-pars").style.display="none";
-      if(G("zv-emb")){ G("zv-emb").style.display="flex"; }
-      if(G("zv-emb-txt")) G("zv-emb-txt").textContent="📍 "+(d.emb||"");
-      if(G("section-dest")){ G("section-dest").style.opacity="1"; G("section-dest").style.pointerEvents="auto"; }
-      if(!d.arriveeFaite && G("btn-arrive")) G("btn-arrive").style.display="flex";
-      if(G("btn-annuler-trajet")) G("btn-annuler-trajet").style.display="block";
-    }
-    if(d.arriveeFaite){
-      arriveeFaite=true;
-      heureArrivee = d.heureArrivee ? new Date(d.heureArrivee) : new Date();
-      if(G("btn-arrive")) G("btn-arrive").style.display="none";
-      if(G("inp-dest")){
-        G("inp-dest").style.display="block";
-        G("inp-dest").value = d.dest||"";
-        G("inp-dest").addEventListener("input", majDestValidee);
-      }
-      if(d.dest && G("zv-dest")){
-        G("zv-dest").style.display="flex";
-        if(G("zv-dest-txt")) G("zv-dest-txt").textContent="🏁 "+d.dest;
-      }
-    }
-
-    setTimeout(function(){ afficherAlerte("📋 Saisie précédente restaurée — continue où tu en étais"); },400);
-  }catch(e){ console.warn("restaurerBrouillon:", e); }
 }
 
 function enregistrerEmbarquement(){
@@ -1241,13 +948,8 @@ function enregistrerEmbarquement(){
   embarquementFait=true;
   heureEmb=new Date();
 
-  if(window.majStatutLive) window.majStatutLive({
-    en_mission:true, lieu_embarquement:emb, destination:"",
-    heure_debut_mission:new Date().toISOString()
-  });
-
   // GPS en arrière-plan — capture IMMÉDIATE et sauvegarde dès réception
-  gpsEmbPromise = captureGPSPromise().then(function(g){
+  captureGPS(function(g){
     gpsEmb=g;
     // Sauvegarder les coords dans une variable persistante localStorage
     try{
@@ -1256,8 +958,6 @@ function enregistrerEmbarquement(){
         heure: heureEmb ? heureEmb.toISOString() : new Date().toISOString()
       }));
     }catch(e){}
-    if(window.majStatutLive) window.majStatutLive({lat:g.lat||null, lng:g.lng||null});
-    return g;
   });
 
   // UI
@@ -1269,33 +969,20 @@ function enregistrerEmbarquement(){
   G("section-dest").style.opacity="1";
   G("section-dest").style.pointerEvents="auto";
   G("btn-arrive").style.display="flex";
-  if(G("btn-annuler-trajet")) G("btn-annuler-trajet").style.display="block";
   // Chrono silencieux
   chronoInterval=setInterval(function(){ /* durée calculée à l'arrivée */ },1000);
-  sauvegarderBrouillon();
 }
 
 function enregistrerArrivee(){
   arriveeFaite=true;
   heureArrivee=new Date();
-  gpsDestPromise = captureGPSPromise().then(function(g){
-    gpsDest=g;
-    // Sauvegarder les coords dans une variable persistante localStorage (même filet de sécurité que l'embarquement)
-    try{
-      localStorage.setItem('gps_dest_pending', JSON.stringify({
-        lat:g.lat, lng:g.lng, lieu:g.lieu,
-        heure: heureArrivee ? heureArrivee.toISOString() : new Date().toISOString()
-      }));
-    }catch(e){}
-    return g;
-  });
+  captureGPS(function(g){ gpsDest=g; });
   if(chronoInterval){ clearInterval(chronoInterval); chronoInterval=null; }
   G("btn-arrive").style.display="none";
   G("inp-dest").style.display="block";
   G("inp-dest").focus();
   // Écouter quand la destination est saisie
   G("inp-dest").addEventListener("input", majDestValidee);
-  sauvegarderBrouillon();
 }
 
 function majDestValidee(){
@@ -1304,7 +991,6 @@ function majDestValidee(){
     G("zv-dest").style.display="flex";
     G("zv-dest-txt").textContent="🏁 "+dest;
     G("zv-dest-duree").textContent="";
-    if(window.majStatutLive) window.majStatutLive({destination:dest});
   }
 }
 
@@ -1340,7 +1026,6 @@ function onPhoto(inp){
       G("photo-prev").style.display="block";
       G("pz-inner").style.display="none";
       G("photo-zone").classList.add("ok");
-      sauvegarderBrouillon();
     };
     img.src=e.target.result;
   };
@@ -1483,26 +1168,14 @@ function supprimerSig(){
 // ALERTE
 // ════════════════════════════════════
 function afficherAlerte(msg){
-  deverrouillerValidation();   // blocage : le chauffeur doit pouvoir corriger et re-valider
   var al=G("form-alert"); al.textContent=msg; al.style.display="block";
-  // Faire défiler l'écran vers le message : sinon, quand le chauffeur est en bas
-  // du formulaire (bouton Valider), l'alerte s'affiche hors écran et il croit
-  // que "rien ne se passe".
-  try{ al.scrollIntoView({behavior:"smooth", block:"center"}); }catch(e){}
-  setTimeout(function(){ al.style.display="none"; },5000);
+  setTimeout(function(){ al.style.display="none"; },3500);
 }
 
 // ════════════════════════════════════
 // VALIDATION & SOUMISSION
 // ════════════════════════════════════
-var _enregistrementEnCours = false;   // verrou anti double-appui sur "Valider"
-function deverrouillerValidation(){
-  _enregistrementEnCours = false;
-  var b = G("btn-valider");
-  if(b){ b.disabled = false; b.style.opacity = ""; }
-}
 function soumettre(){
-  if(_enregistrementEnCours) return;   // un enregistrement est déjà en route : on ignore
   G("form-alert").style.display="none";
   G("form-alert2").classList.remove("on");
 
@@ -1510,9 +1183,6 @@ function soumettre(){
   if(!G("sel-marque").value){ afficherAlerte("⚠️ Choisis la marque du véhicule"); return; }
   if(!G("sel-modele").value){ afficherAlerte("⚠️ Choisis le modèle du véhicule"); return; }
   if(!G("sel-client").value){ afficherAlerte("⚠️ Sélectionne ou ajoute le client"); return; }
-  // Filet de sécurité : client assurance (GAA / Mondial Assistance) → toujours en Prise en charge,
-  // même si le chauffeur a re-cliqué "Normal" ou si le client vient d'un brouillon restauré
-  appliquerTypePCAuto();
   if(!G("inp-emb").value.trim()){ afficherAlerte("⚠️ Saisis le lieu d'embarquement"); return; }
   if(!embarquementFait){ afficherAlerte("⚠️ Appuie sur le bouton rouge pour enregistrer l'embarquement"); return; }
   if(!G("inp-dest").value.trim()){ afficherAlerte("⚠️ Saisis la destination (bouton bleu d'abord)"); return; }
@@ -1521,58 +1191,34 @@ function soumettre(){
   }
   if(espActif && !G("inp-montant").value){ afficherAlerte("⚠️ Saisis le montant reçu en espèces"); return; }
 
-  _enregistrementEnCours = true;
-  var _btnV = G("btn-valider");
-  if(_btnV){ _btnV.disabled = true; _btnV.style.opacity = "0.5"; }
   loader(true,"Enregistrement...");
-  // Attendre (brièvement) la capture GPS pour éviter les coordonnées manquantes,
-  // sans bloquer indéfiniment si le GPS/réseau est mauvais (max 6 secondes)
-  (async function(){
-    try{
-      await Promise.race([
-        Promise.all([gpsEmbPromise, gpsDestPromise].filter(Boolean)),
-        new Promise(function(resolve){ setTimeout(resolve, 6000); })
-      ]);
-    }catch(e){}
-
-    // GPS NON BLOQUANT : si le téléphone n'a pas pu capturer l'embarquement ou la
-    // destination, on enregistre quand même le BL (coordonnées vides) — le chauffeur
-    // ne doit jamais être bloqué sur le terrain.
-    var gpsEmbFinal = gpsEmb.lat || (function(){ try{ return JSON.parse(localStorage.getItem('gps_emb_pending')||'{}').lat||""; }catch(e){ return ""; } })();
-    var gpsDestFinal = gpsDest.lat || (function(){ try{ return JSON.parse(localStorage.getItem('gps_dest_pending')||'{}').lat||""; }catch(e){ return ""; } })();
-    if(!gpsEmbFinal || !gpsDestFinal){
-      console.warn("⚠️ BL enregistré avec GPS incomplet (emb:", gpsEmbFinal||"—", "/ dest:", gpsDestFinal||"—", ")");
-    }
-
-    // Appel Firebase (défini dans le module ES)
-    if(window.enregistrer){
-      window.enregistrer();
-    } else {
-      // Fallback offline
-      var now=new Date();
-      var bonNum=fmtBL(user.prefixBL, getBLNum());
-      var recuNum=espActif?fmtRC(user.prefixR, getRCNum()):"";
-      var payload={
-        bon_num:bonNum, recu_num:recuNum,
-        chauffeur_uid:user.uid, chauffeur_nom:user.nom, camion:user.camion||"",
-        date_bl:fmtDate(now), heure_bl:fmtHeure(now),
-        tarif:calculerTarif(),
-        immatriculation:G("inp-immat").value.trim().toUpperCase(),
-        type_bl: typeIntervention==="pc" ? "pc" : "client",
-        marque:G("sel-marque").value, modele:G("sel-modele").value,
-        nom_client:G("sel-client").value, tel_client:G("inp-tel").value.trim(), email_client:G("inp-email").value.trim(),
-        lieu_embarquement:G("inp-emb").value.trim(),
-        destination:G("inp-dest").value.trim(),
-        gps_emb_lat:gpsEmb.lat||(function(){ try{ return JSON.parse(localStorage.getItem('gps_emb_pending')||'{}').lat||""; }catch(e){ return ""; } })(),
-        gps_emb_lng:gpsEmb.lng||(function(){ try{ return JSON.parse(localStorage.getItem('gps_emb_pending')||'{}').lng||""; }catch(e){ return ""; } })(),
-        gps_dest_lat:gpsDest.lat||(function(){ try{ return JSON.parse(localStorage.getItem('gps_dest_pending')||'{}').lat||""; }catch(e){ return ""; } })(),
-        gps_dest_lng:gpsDest.lng||(function(){ try{ return JSON.parse(localStorage.getItem('gps_dest_pending')||'{}').lng||""; }catch(e){ return ""; } })(),
-        especes:espActif,
-        montant_especes:espActif?(parseFloat(G("inp-montant").value)||0):0
-      };
-      sauvegarderOffline(payload, bonNum+"★", recuNum);
-    }
-  })();
+  // Appel Firebase (défini dans le module ES)
+  if(window.enregistrer){
+    window.enregistrer();
+  } else {
+    // Fallback offline
+    var now=new Date();
+    var bonNum=fmtBL(user.prefixBL, getBLNum());
+    var recuNum=espActif?fmtRC(user.prefixR, getRCNum()):"";
+    var payload={
+      bon_num:bonNum, recu_num:recuNum,
+      chauffeur_nom:user.nom, camion:user.camion||"",
+      date_bl:fmtDate(now), heure_bl:fmtHeure(now),
+      tarif:calculerTarif(),
+      immatriculation:G("inp-immat").value.trim().toUpperCase(),
+      type_bl: typeIntervention==="pc" ? "pc" : "client",
+      marque:G("sel-marque").value, modele:G("sel-modele").value,
+      nom_client:G("sel-client").value, tel_client:G("inp-tel").value.trim(), email_client:G("inp-email").value.trim(),
+      lieu_embarquement:G("inp-emb").value.trim(),
+      destination:G("inp-dest").value.trim(),
+      gps_emb_lat:gpsEmb.lat||(function(){ try{ return JSON.parse(localStorage.getItem('gps_emb_pending')||'{}').lat||""; }catch(e){ return ""; } })(),
+      gps_emb_lng:gpsEmb.lng||(function(){ try{ return JSON.parse(localStorage.getItem('gps_emb_pending')||'{}').lng||""; }catch(e){ return ""; } })(),
+      gps_dest_lat:gpsDest.lat, gps_dest_lng:gpsDest.lng,
+      especes:espActif,
+      montant_especes:espActif?(parseFloat(G("inp-montant").value)||0):0
+    };
+    sauvegarderOffline(payload, bonNum+"★", recuNum);
+  }
 }
 
 // enregistrer() est défini dans le module Firebase ES ci-dessous
@@ -1585,8 +1231,6 @@ function sauvegarderOffline(payload,bon,recu){
 }
 
 function terminer(bon,recu,p){
-  effacerBrouillon();
-  deverrouillerValidation();   // le BL est enregistré : on peut re-valider un nouveau bon
   loader(false);
   G("pg-app").classList.remove("on");
   G("pg-success").classList.add("on");
@@ -1609,7 +1253,6 @@ function loader(on,txt){ G("loader").classList.toggle("on",on); if(txt) G("loade
 
 function nouveauBon(){
   // Reset tout
-  effacerBrouillon();
   G("pg-success").classList.remove("on");
   G("pg-app").classList.add("on");
   ["inp-immat","inp-tel","inp-email","inp-emb","inp-dest","inp-montant"].forEach(function(id){ G(id).value=""; });
@@ -1627,14 +1270,12 @@ function nouveauBon(){
   typeIntervention="normal"; setTypeIntervention("normal");
   G("form-alert").style.display="none"; G("form-alert2").classList.remove("on");
   gpsEmb={lat:"",lng:"",lieu:""}; gpsDest={lat:"",lng:"",lieu:""};
-  try{ localStorage.removeItem('gps_emb_pending'); localStorage.removeItem('gps_dest_pending'); }catch(e){}
   resetTrajet();
   majTarif();
   majNums();
   window.scrollTo(0,0);
   if(G("div-type-intervention")) G("div-type-intervention").style.display="block";
-  gpsEmbPromise = captureGPSPromise().then(function(g){ gpsEmb=g; return g; });
-  gpsDestPromise = null;
+  captureGPS(function(g){ gpsEmb=g; });
 }
 
 
@@ -1856,6 +1497,15 @@ try {
   enableIndexedDbPersistence(db).catch(()=>{});
 } catch(e){}
 
+// Charger le logo personnalisé dès l'arrivée sur la page
+getDoc(doc(db,"parametres","societe")).then(snap=>{
+  const logo = snap.exists() ? snap.data().logo_base64 : null;
+  if(logo){
+    const img = document.getElementById("login-logo");
+    if(img) img.src = logo;
+  }
+}).catch(()=>{});
+
 // ════════════════════════════════════
 // STRUCTURE FIRESTORE
 // Collections :
@@ -1908,19 +1558,51 @@ async function initFirestore(){
 // ════════════════════════════════════
 // CONNEXION FIREBASE AUTH
 // ════════════════════════════════════
-// ════════════════════════════════════
-// STATUT EN DIRECT (pour admin/secrétaire — carte live + alerte missions bloquées)
-// ════════════════════════════════════
-async function majStatutLive(patch){
-  if(!user || !user.uid) return;
-  try{
-    await setDoc(doc(db,"chauffeurs_live",user.uid),Object.assign({
-      nom:user.nom||"", camion:user.camion||"", immat_camion:user.immatCam||"",
-      updated_at:serverTimestamp()
-    },patch),{merge:true});
-  }catch(e){ /* silencieux — ne doit jamais bloquer le chauffeur */ }
+function activerSyncTempsReel(){
+  console.log("🔄 Activation sync temps réel — clients et véhicules");
+  if(window._clientsUnsubscribe) window._clientsUnsubscribe();
+  window._clientsUnsubscribe = onSnapshot(
+    query(collection(db,"clients"), orderBy("nom","asc")),
+    snap => {
+      window.CLIENTS = [];
+      window.CLIENTS_DATA = {};
+      snap.forEach(d => {
+        const c = d.data();
+        window.CLIENTS.push(c.nom);
+        window.CLIENTS_DATA[c.nom] = { tel: c.tel||"", email: c.email||"" };
+      });
+      console.log("✅ Sync clients reçue:", window.CLIENTS.length, "clients —", window.CLIENTS);
+      initClients();
+    },
+    e => console.error("❌ Sync clients ERREUR:", e)
+  );
+
+  if(window._vehiculesUnsubscribe) window._vehiculesUnsubscribe();
+  window._vehiculesUnsubscribe = onSnapshot(
+    query(collection(db,"vehicules_clients"), orderBy("marque","asc")),
+    snap => {
+      console.log("✅ Sync véhicules reçue:", snap.size, "documents");
+      const fsMarques = {};
+      snap.forEach(d => {
+        const v = d.data();
+        const marque = v.marque||"";
+        if(!marque) return;
+        // Structure réelle Firestore : un doc par marque, champ "modeles" (tableau)
+        const modeles = Array.isArray(v.modeles) ? v.modeles : [];
+        fsMarques[marque] = modeles.filter(m=>m);
+      });
+      // Remplacer entièrement MARQUES_MODELES par les données Firestore à jour
+      // (fusion avec la base statique pour ne pas perdre les marques par défaut)
+      Object.keys(fsMarques).forEach(marque => {
+        window.MARQUES_MODELES[marque] = fsMarques[marque];
+      });
+      console.log("✅ MARQUES_MODELES mis à jour:", Object.keys(window.MARQUES_MODELES).length, "marques —", Object.keys(fsMarques));
+      initMarques();
+      majModeles();
+    },
+    e => console.error("❌ Sync véhicules ERREUR:", e)
+  );
 }
-window.majStatutLive = majStatutLive;
 
 window.seConnecter = async function(){
   var id = G("inp-id").value.trim();
@@ -1953,15 +1635,6 @@ window.seConnecter = async function(){
       return;
     }
 
-    // ── Compte désactivé par l'admin → connexion refusée ──
-    if(profil.actif === false){
-      await signOut(auth);
-      loader(false);
-      G("login-err").textContent = "⛔ Compte désactivé. Contactez l'administrateur.";
-      G("login-err").classList.add("on");
-      return;
-    }
-
     // Vérifier assignation temporaire de camion
     user = {
       uid: uid,
@@ -1972,69 +1645,19 @@ window.seConnecter = async function(){
       prefixBL: profil.prefixe_bl || profil.identifiant,
       prefixR:  profil.prefixe_recu || profil.identifiant,
       photoOblig: profil.photo_obligatoire !== false && profil.perm_sans_photo !== true,
-      gpsEmbOblig: profil.perm_sans_emb !== true,
       bl_compteur: profil.bl_compteur || 1,
       recu_compteur: profil.recu_compteur || 1
     };
 
     // Charger clients et marques depuis Firestore
     await chargerClients();
+    activerSyncTempsReel();
 
-    // Sync temps réel clients
-    if(window._clientsUnsubscribe) window._clientsUnsubscribe();
-    window._clientsUnsubscribe = onSnapshot(
-      query(collection(db,"clients"), orderBy("nom","asc")),
-      snap => {
-        window.CLIENTS = [];
-        snap.forEach(d => window.CLIENTS.push(d.data().nom));
-        initClients();
-      },
-      e => console.warn("Sync clients:", e)
-    );
-
-    // Sync temps réel véhicules/marques/modèles
-    if(window._vehiculesUnsubscribe) window._vehiculesUnsubscribe();
-    window._vehiculesUnsubscribe = onSnapshot(
-      query(collection(db,"vehicules_clients"), orderBy("marque","asc")),
-      snap => {
-        // Source unique de vérité : identique à ce que voient admin et secrétaire.
-        // Pas de fusion avec un catalogue générique — ajouts/suppressions faits dans
-        // l'admin ou la secrétaire se répercutent ici à l'identique, immédiatement.
-        const merged = {};
-        snap.forEach(d => {
-          const v = d.data();
-          const marque = v.marque||"";
-          if(!marque) return;
-          merged[marque] = (v.modeles||[]).slice();
-        });
-        // Si le catalogue a été publié dans la base (Admin > Paramètres), la base fait
-        // autorité : les marques supprimées ne réapparaissent pas. Sinon, le catalogue
-        // de référence sert de filet de secours.
-        // Rejouable dès que l'état du catalogue est connu
-        window._derniereSyncVehicules = function(){ _appliquerCatalogue(merged); };
-        _appliquerCatalogue(merged);
-      },
-      e => {
-        console.warn("Sync véhicules:", e);
-        // Hors-ligne au tout premier lancement → filet de secours
-        if(Object.keys(window.MARQUES_MODELES||{}).length===0){
-          window.MARQUES_MODELES = MARQUES_MODELES_BASE;
-          if(typeof initMarques==="function") initMarques();
-          if(typeof majModeles==="function") majModeles();
-        }
-      }
-    );
     loader(false);
     G("login-err").classList.remove("on");
     G("pg-login").classList.remove("on");
     G("pg-app").classList.add("on");
     initApp();
-    majStatutLive({en_ligne:true, en_mission:false});
-    demarrerSuiviGPSContinu();
-    demarrerSurveillanceCompte(uid);   // éjection temps réel si l'admin désactive le compte
-    surveillerVersionApp();            // mise à jour automatique de l'appli
-    appliquerPermAjoutClient();        // droit d'ajouter un client
-    lireEtatCatalogue();               // catalogue véhicules : la base fait autorité
     // Recharger les selects avec les données Firestore (CLIENTS est maintenant rempli)
     initClients();
     initMarques();
@@ -2052,15 +1675,10 @@ window.seConnecter = async function(){
 // DÉCONNEXION
 // ════════════════════════════════════
 window.seDeconnecter = async function(){
-  arreterSuiviGPSContinu();
-  if(user && user.uid){
-    try{ await setDoc(doc(db,"chauffeurs_live",user.uid),{en_ligne:false,en_mission:false,updated_at:serverTimestamp()},{merge:true}); }catch(e){}
-  }
   await signOut(auth);
   // Arrêter les listeners temps réel
   if(window._clientsUnsubscribe){ window._clientsUnsubscribe(); window._clientsUnsubscribe=null; }
   if(window._vehiculesUnsubscribe){ window._vehiculesUnsubscribe(); window._vehiculesUnsubscribe=null; }
-  if(window._compteUnsubscribe){ try{ window._compteUnsubscribe(); }catch(e){} window._compteUnsubscribe=null; }
   user=null; photoData=null; sigSigned=false; espActif=false;
   embarquementFait=false; arriveeFaite=false;
   if(chronoInterval){ clearInterval(chronoInterval); chronoInterval=null; }
@@ -2079,7 +1697,12 @@ async function chargerClients(){
   try {
     const snap = await getDocs(query(collection(db,"clients"), orderBy("nom","asc")));
     window.CLIENTS = [];
-    snap.forEach(d => window.CLIENTS.push(d.data().nom));
+    window.CLIENTS_DATA = {};
+    snap.forEach(d => {
+      const c = d.data();
+      window.CLIENTS.push(c.nom);
+      window.CLIENTS_DATA[c.nom] = { tel: c.tel||"", email: c.email||"" };
+    });
     if(window.CLIENTS.length === 0){
       const defauts = [
         "Divers","Assurance LADOM","Assurance AESIO","Assurance ALLIANZ",
@@ -2124,10 +1747,11 @@ window.confirmerNouveauClient = async function(){
   if(!nom){ G("new-client-nom").focus(); return; }
   nom = nom.charAt(0).toUpperCase() + nom.slice(1);
   var tel = G("new-client-tel").value.trim();
+  var email = G("new-client-email").value.trim();
 
   try {
     await addDoc(collection(db,"clients"),{
-      nom, tel: tel || "", mode_paiement:"", solde:0,
+      nom, tel: tel || "", email: email || "", mode_paiement:"", solde:0,
       createdAt: serverTimestamp(),
       ajoute_par: user ? user.nom : ""
     });
@@ -2189,17 +1813,16 @@ window.enregistrer = async function(){
     gps_emb_lat:  gpsEmb.lat || (function(){ try{ var p=JSON.parse(localStorage.getItem('gps_emb_pending')||'{}'); return p.lat||""; }catch(e){ return ""; } })(),
     gps_emb_lng:  gpsEmb.lng || (function(){ try{ var p=JSON.parse(localStorage.getItem('gps_emb_pending')||'{}'); return p.lng||""; }catch(e){ return ""; } })(),
     gps_emb_lieu: gpsEmb.lieu || (function(){ try{ var p=JSON.parse(localStorage.getItem('gps_emb_pending')||'{}'); return p.lieu||""; }catch(e){ return ""; } })(),
-    gps_dest_lat:  gpsDest.lat || (function(){ try{ var p=JSON.parse(localStorage.getItem('gps_dest_pending')||'{}'); return p.lat||""; }catch(e){ return ""; } })(),
-    gps_dest_lng:  gpsDest.lng || (function(){ try{ var p=JSON.parse(localStorage.getItem('gps_dest_pending')||'{}'); return p.lng||""; }catch(e){ return ""; } })(),
-    gps_dest_lieu: gpsDest.lieu || (function(){ try{ var p=JSON.parse(localStorage.getItem('gps_dest_pending')||'{}'); return p.lieu||""; }catch(e){ return ""; } })(),
+    gps_dest_lat:  gpsDest.lat,
+    gps_dest_lng:  gpsDest.lng,
+    gps_dest_lieu: gpsDest.lieu,
     // Paiement
     especes:         espActif,
     montant_especes: espActif ? (parseFloat(G("inp-montant").value)||0) : 0,
-    // Signature et photo : stockées à part (collection bons_photos) pour que le bon
-    // reste léger — sinon toutes les listes des applis bureau deviennent très lentes.
-    signature:       "",
-    photo_vehicule:  "",
-    a_photos:        !!(photoData || sigSigned),
+    // Signature (base64)
+    signature:       sigSigned ? (G("sig-preview")&&G("sig-preview").src&&G("sig-preview").src.startsWith("data:") ? G("sig-preview").src : G("sig-canvas").toDataURL("image/png")) : "",
+    // Photo (base64 — sera migré vers Google Drive)
+    photo_vehicule:  photoData || "",
     // Statut
     statut: "valide",
     synced: true
@@ -2217,49 +1840,22 @@ window.enregistrer = async function(){
       }
     }
 
-    // ANTI-DOUBLON : si un BL portant ce numéro existe déjà (double envoi, réseau
-    // instable, double appui), on ne le recrée pas — on passe simplement à la suite.
-    let dejaEnregistre = false;
-    try{
-      const dejaSnap = await getDocs(query(collection(db,"bons"), where("bon_num","==",bonNum)));
-      dejaEnregistre = !dejaSnap.empty;
-    }catch(e){ console.warn("Vérification doublon impossible:", e); }
-
-    // Images à stocker séparément
-    const _sig = sigSigned ? (G("sig-preview")&&G("sig-preview").src&&G("sig-preview").src.startsWith("data:") ? G("sig-preview").src : G("sig-canvas").toDataURL("image/png")) : "";
-    const _photo = photoData || "";
-
     // Sauvegarder le BL dans Firestore
-    if(dejaEnregistre){
-      console.warn("BL " + bonNum + " déjà enregistré — doublon évité");
-    } else {
-      const _ref = await addDoc(collection(db,"bons"), payload);
-      // Photo et signature dans une collection dédiée, même identifiant que le bon
-      if(_photo || _sig){
-        try{
-          await setDoc(doc(db,"bons_photos",_ref.id), {
-            photo_vehicule:_photo, signature:_sig,
-            bon_num:bonNum, createdAt:serverTimestamp()
-          });
-        }catch(e){ console.warn("Photos non enregistrées:", e); }
-      }
-    }
+    await addDoc(collection(db,"bons"), payload);
 
-    // Si type PC → créer aussi un doc dans prises_en_charge (jamais deux fois)
-    if(payload.type_bl === "pc" && !dejaEnregistre){
+    // Si type PC → créer aussi un doc dans prises_en_charge
+    if(payload.type_bl === "pc"){
       const pcData = {
         dossier: "BL→PC " + bonNum,
         date: payload.date_bl,
         assureur: payload.nom_client || "",
         client: payload.nom_client || "",
         tel: payload.tel_client || "",
-        email: payload.email_client || "",
         marque: payload.marque || "",
         modele: payload.modele || "",
         immat: payload.immatriculation || "",
         bon_num: bonNum,
-        chauffeur: payload.chauffeur_nom || "",           // CORRECTIF : rattache le dossier PC au chauffeur (commissions)
-        chauffeur_uid: payload.chauffeur_uid || "",
+        recu_num: (espActif && payload.montant_especes > 0) ? recuNum : "",
         montant_assurance: 0,
         montant_client: 0,
         montant_reel: 0,
@@ -2284,7 +1880,6 @@ window.enregistrer = async function(){
         chauffeur_nom: user.nom,
         nom_client:    payload.nom_client,
         tel_client:    payload.tel_client,
-        email_client:  payload.email_client || "",
         marque:        payload.marque,
         modele:        payload.modele,
         immatriculation: payload.immatriculation,
@@ -2299,7 +1894,6 @@ window.enregistrer = async function(){
     }
 
     await incrementerBL();
-    majStatutLive({en_mission:false, lieu_embarquement:"", destination:""});
     terminer(bonNum, recuNum, payload);
 
   } catch(err){
@@ -2311,76 +1905,6 @@ window.enregistrer = async function(){
   }
 };
 
-
-// ════════════════════════════════════
-// MISE À JOUR AUTOMATIQUE DE L'APPLI
-// L'admin publie un numéro de version ; dès qu'il change, le téléphone recharge
-// l'appli tout seul (le chauffeur n'a rien à faire).
-// ════════════════════════════════════
-// La version DÉJÀ APPLIQUÉE est mémorisée sur le téléphone (et non écrite en dur dans
-// le fichier) : après un rechargement, l'appli sait qu'elle est à jour et ne recharge
-// plus en boucle. Un rechargement par version au maximum, jamais deux.
-// Le catalogue publié dans la base rend celle-ci prioritaire (suppressions respectées)
-function lireEtatCatalogue(){
-  try{
-    onSnapshot(doc(db,"parametres","catalogue"), function(snap){
-      var avant = window._catalogueInitialise;
-      window._catalogueInitialise = !!(snap.exists() && (snap.data()||{}).initialise);
-      // L'état arrive souvent APRÈS la première synchro des véhicules : on relance
-      // alors la construction des listes, sinon la nouvelle règle ne s'applique pas.
-      if(avant !== window._catalogueInitialise && window._derniereSyncVehicules){
-        window._derniereSyncVehicules();
-      }
-    }, function(){});
-  }catch(e){}
-}
-
-function surveillerVersionApp(){
-  try{
-    onSnapshot(doc(db,"parametres","app_version"), snap=>{
-      if(!snap.exists()) return;
-      const v = (snap.data()||{}).version || "";
-      if(!v) return;
-
-      let appliquee = "";
-      try{ appliquee = localStorage.getItem("app_version_appliquee") || ""; }catch(e){}
-
-      // Premier lancement après installation de ce mécanisme : on enregistre la version
-      // courante sans recharger (sinon rechargement inutile au démarrage).
-      if(!appliquee){
-        try{ localStorage.setItem("app_version_appliquee", v); }catch(e){}
-        return;
-      }
-      if(v === appliquee) return;                    // déjà à jour → ne rien faire
-
-      // Sécurité anti-boucle : jamais plus d'un rechargement toutes les 60 secondes
-      let dernier = 0;
-      try{ dernier = parseInt(localStorage.getItem("app_version_dernier_reload")||"0",10)||0; }catch(e){}
-      if(Date.now() - dernier < 60000){
-        try{ localStorage.setItem("app_version_appliquee", v); }catch(e){}
-        return;
-      }
-      // Ne jamais interrompre une saisie en cours : on attend la fin du bon
-      if(typeof _enregistrementEnCours !== "undefined" && _enregistrementEnCours) return;
-
-      // On marque AVANT de recharger : au redémarrage, l'appli se sait à jour
-      try{
-        localStorage.setItem("app_version_appliquee", v);
-        localStorage.setItem("app_version_dernier_reload", String(Date.now()));
-      }catch(e){}
-
-      const b = document.createElement("div");
-      b.style.cssText = "position:fixed;left:0;right:0;bottom:0;z-index:99999;background:#1a2540;color:#fff;padding:14px;text-align:center;font-weight:700;font-size:15px";
-      b.textContent = "🔄 Nouvelle version — mise à jour en cours...";
-      document.body.appendChild(b);
-      setTimeout(()=>{
-        // Le paramètre ?v= force le téléchargement du fichier neuf (contourne le cache)
-        location.replace(location.pathname + "?v=" + encodeURIComponent(v));
-      }, 1500);
-    }, e=>console.warn("Surveillance version:", e));
-  }catch(e){ console.warn("Surveillance version:", e); }
-}
-
 // ════════════════════════════════════
 // SYNC HORS-LIGNE → FIRESTORE
 // ════════════════════════════════════
@@ -2390,7 +1914,6 @@ async function syncOffline(){
   var restants = [];
   for(const p of off){
     try {
-      if(!p.chauffeur_uid && user) p.chauffeur_uid = user.uid; // filet de sécurité pour BL créés avant correctif
       p.synced = true;
       p.timestamp = serverTimestamp();
       await addDoc(collection(db,"bons"), p);
@@ -2403,53 +1926,16 @@ async function syncOffline(){
     console.log(`✅ ${off.length - restants.length} bon(s) synchronisé(s)`);
   }
 }
+window.syncOffline = syncOffline;
 
 // ════════════════════════════════════
 // INIT FIREBASE AU CHARGEMENT
 // ════════════════════════════════════
-// ════════════════════════════════════
-// BLOCAGE COMPTE DÉSACTIVÉ (temps réel)
-// ════════════════════════════════════
-// Coupure immédiate : déconnexion propre (GPS/écouteurs arrêtés, statut live remis
-// à zéro) + message sur l'écran de connexion. Le brouillon localStorage n'est PAS
-// effacé : si le compte est réactivé, la mission en cours sera restaurée.
-async function couperAccesCompteDesactive(){
-  if(window._compteUnsubscribe){ try{ window._compteUnsubscribe(); }catch(e){} window._compteUnsubscribe=null; }
-  try{ await window.seDeconnecter(); }catch(e){ console.warn("Coupure compte:", e); }
-  const err=G("login-err");
-  if(err){ err.textContent="⛔ Compte désactivé. Contactez l'administrateur."; err.classList.add("on"); }
-  loader(false);
-}
-
-function demarrerSurveillanceCompte(uid){
-  if(window._compteUnsubscribe){ try{ window._compteUnsubscribe(); }catch(e){} }
-  window._compteUnsubscribe = onSnapshot(doc(db,"users",uid),
-    snap => {
-      // Compte supprimé, désactivé, ou rôle retiré → éjection immédiate
-      if(!snap.exists() || snap.data().actif === false || snap.data().role !== "chauffeur"){
-        couperAccesCompteDesactive();
-        return;
-      }
-      // Permissions modifiées par l'admin : appliquées immédiatement, sans reconnexion
-      if(user){ user.perm_ajout_client = snap.data().perm_ajout_client; }
-      appliquerPermAjoutClient();
-    },
-    e => console.warn("Surveillance compte:", e)
-  );
-}
-
 onAuthStateChanged(auth, async (firebaseUser) => {
   if(firebaseUser && !user){
     // Session déjà active — recharger le profil
     try {
       const userSnap = await getDoc(doc(db,"users",firebaseUser.uid));
-      // ── Compte désactivé par l'admin → session refusée ──
-      if(userSnap.exists() && userSnap.data().actif === false){
-        await signOut(auth);
-        const err=G("login-err");
-        if(err){ err.textContent="⛔ Compte désactivé. Contactez l'administrateur."; err.classList.add("on"); }
-        return;
-      }
       if(userSnap.exists() && userSnap.data().role === "chauffeur"){
         const profil = userSnap.data();
         user = {
@@ -2461,19 +1947,15 @@ onAuthStateChanged(auth, async (firebaseUser) => {
           prefixBL: profil.prefixe_bl || profil.identifiant,
           prefixR:  profil.prefixe_recu || profil.identifiant,
           photoOblig: profil.photo_obligatoire !== false && profil.perm_sans_photo !== true,
-          gpsEmbOblig: profil.perm_sans_emb !== true,
           bl_compteur: profil.bl_compteur || 1,
           recu_compteur: profil.recu_compteur || 1
         };
         await chargerClients();
+        activerSyncTempsReel();
+
         G("pg-login").classList.remove("on");
         G("pg-app").classList.add("on");
         initApp();
-        demarrerSuiviGPSContinu();
-        demarrerSurveillanceCompte(firebaseUser.uid);   // éjection temps réel si l'admin désactive le compte
-        surveillerVersionApp();                         // mise à jour automatique de l'appli
-        appliquerPermAjoutClient();                     // droit d'ajouter un client
-        lireEtatCatalogue();                            // catalogue véhicules
       }
     } catch(e){ console.warn("Session restore failed:", e); }
   }
@@ -2484,7 +1966,6 @@ initFirestore().catch(console.warn);
 
 // Exposer enregistrer globalement
 window._enregistrerFirebase = window.enregistrer;
-window.syncOffline = syncOffline; // exposée pour initApp (script classique) — l'oubli de cette ligne cassait la restauration du brouillon
 window._db   = db;
 window._auth = auth;
 // Exposer les fonctions Firestore pour le JS non-module (carburant)
