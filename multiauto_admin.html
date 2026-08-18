@@ -209,7 +209,7 @@ tr:hover td{background:var(--gris)}
 </style>
 </head>
 <body>
-<div class="auteur">Auteur : KAB</div>
+<div class="auteur">Copyright KAB</div>
 <div class="loader" id="loader"><div class="spin"></div><div class="spin-txt" id="loader-txt">Chargement...</div></div>
 <div class="toast" id="toast"></div>
 <button class="menu-toggle" onclick="G('sidebar').classList.toggle('open')">☰</button>
@@ -2464,6 +2464,7 @@ async function executerRechercheGlobale(q){
             <div style="font-weight:700;font-size:13px">${r.label}</div>
             <div style="font-size:11px;color:var(--gris3)">${r.type} · ${r.sub}</div>
           </div>
+          ${(r.page==="pg-bons"||r.page==="pg-pc"||r.page==="pg-magasinage")?`<span title="Ouvrir dans Soldes clients" onclick="event.stopPropagation();allerVersResultat('pg-soldes','${r.id}')" style="font-size:11px;font-weight:700;color:var(--vert);border:1px solid var(--vert);border-radius:6px;padding:3px 7px;white-space:nowrap">💰 Solde</span>`:""}
         </div>`).join("");
     }
     el.style.display="block";
@@ -2473,27 +2474,54 @@ async function executerRechercheGlobale(q){
   }
 }
 // Surligne brièvement la ligne trouvée par la recherche, où qu'elle soit dans le tableau
-function surlignerResultat(id){
+// Surligne la ligne trouvée par la recherche et la MAINTIENT en évidence
+// jusqu'au premier clic de l'utilisateur (sur la ligne ou ailleurs).
+function highlightLigne(id){
   if(!id) return;
+  // Retire un éventuel surlignage précédent en restaurant la couleur d'origine
+  document.querySelectorAll("tr.hl-recherche").forEach(r=>{
+    r.style.background = r.dataset.hlFond || "";
+    r.style.boxShadow  = "";
+    r.classList.remove("hl-recherche");
+    delete r.dataset.hlFond;
+  });
   let essais=0;
   const chercher=()=>{
     essais++;
-    let el=document.querySelector('[data-id="'+id+'"]');
-    if(!el && document.getElementById(id)) el=document.getElementById(id);
-    const tr = el ? el.closest("tr") : null;
-    if(tr){
-      tr.scrollIntoView({behavior:"smooth", block:"center"});
-      const fond=tr.style.background;
-      tr.style.transition="background .3s";
-      tr.style.background="#fff3cd";
-      tr.style.boxShadow="inset 0 0 0 2px #f59e0b";
-      setTimeout(()=>{ tr.style.background=fond; tr.style.boxShadow=""; }, 4000);
+    // IMPORTANT : on ne cherche que dans la page actuellement affichée.
+    // Un même document (ex. un BL) apparaît dans plusieurs tableaux
+    // (BL, historique, stats, soldes) : sans ce filtre on surlignerait
+    // une ligne située sur une page masquée.
+    const zone = document.querySelector(".pg.on") || document;
+    let el = zone.querySelector('tr[data-id="'+id+'"]');
+    if(!el){
+      const enfant = zone.querySelector('[data-id="'+id+'"]');
+      if(enfant) el = enfant.closest("tr");
+    }
+    if(el){
+      el.dataset.hlFond = el.style.background || "";
+      el.classList.add("hl-recherche");
+      el.style.transition = "background .3s";
+      el.style.background = "#FFF176";
+      el.style.boxShadow  = "inset 0 0 0 2px #f59e0b";
+      el.scrollIntoView({behavior:"smooth", block:"center"});
+      const effacer=()=>{
+        el.style.background = el.dataset.hlFond || "";
+        el.style.boxShadow  = "";
+        el.classList.remove("hl-recherche");
+        delete el.dataset.hlFond;
+        document.removeEventListener("click", effacer);
+      };
+      // Léger décalage : sinon le clic qui a ouvert le résultat efface aussitôt
+      setTimeout(()=>document.addEventListener("click", effacer), 200);
     } else if(essais<20){
       setTimeout(chercher, 300);   // le tableau se charge peut-être encore
     }
   };
   setTimeout(chercher, 400);
 }
+// Ancien nom conservé pour ne casser aucun appel existant
+function surlignerResultat(id){ highlightLigne(id); }
 
 function allerVersResultat(page,id){
   surlignerResultat(id);   // met en évidence la ligne trouvée
@@ -5663,7 +5691,7 @@ async function chargerSoldes(prefix){
       // Correction immat / montant — disponible sur TOUTES les lignes (immat souvent mal saisie par les chauffeurs)
       const btnCorriger = `<button class="btn btn-sm" style="background:#ede7f6;color:#5e35b1;border:1px solid #9575cd;margin-left:2px" title="Corriger l'immatriculation ou le montant" onclick="ouvrirCorriger('${item.id}','${item.collection}','${docEsc}','${clientEsc}')">✏️ Corriger</button>`;
 
-      html+=`<tr style="${trStyle}">
+      html+=`<tr data-id="${item.id}" style="${trStyle}">
         <td><input type="checkbox" class="soldes-cb" data-idx="${idx}"></td>
         <td style="font-size:11px">${item.date||"—"}</td>
         <td style="font-weight:600">${item.client}${item.parChauffeur?`<br><span style="font-size:10px;color:var(--vert)">💵 ch.</span>`:""}</td>
@@ -7370,7 +7398,7 @@ function pdfPied(doc,qrText){
   doc.setFont('helvetica','normal');doc.setFontSize(7);doc.setTextColor(...jaune);
   doc.text(SOC.adresse+' • '+SOC.tel+' • '+SOC.email,W/2,y+9,{align:'center'});
   doc.setFont('helvetica','italic');doc.setFontSize(7);doc.setTextColor(107,58,31);
-  doc.text('Auteur : KAB',W-12,y+9,{align:'right'});
+  doc.text('Copyright KAB',W-12,y+9,{align:'right'});
   if(qrText){
     try{
       const qrData=genererQRDataURL(qrText);
