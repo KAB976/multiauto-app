@@ -1723,10 +1723,10 @@ async function executerRechercheGlobale(q){
   G("recherche-globale-count").textContent="Recherche...";
   try{
     const [blSnap,recuSnap,pcSnap,magSnap] = await Promise.all([
-      db.collection("bons").orderBy("timestamp","desc").limit(300).get(),
-      db.collection("recus").limit(300).get(),
-      db.collection("prises_en_charge").orderBy("date","desc").limit(200).get(),
-      db.collection("magasinage").orderBy("date_entree","desc").limit(200).get()
+      db.collection("bons").limit(500).get(),
+      db.collection("recus").limit(500).get(),
+      db.collection("prises_en_charge").limit(300).get(),
+      db.collection("magasinage").limit(300).get()
     ]);
 
     const resultats=[];
