@@ -3166,6 +3166,21 @@ function copierEmailClient(email){
     toast("Email : "+email);
   });
 }
+// ── BADGE MODE DE PAIEMENT (espèces / CB / chèque / virement) ──
+// Le mode est enregistré dans le reçu par confirmerPaiement() sous la clé mode_paiement.
+// Les reçus émis par les chauffeurs n'ont pas ce champ : ils sont toujours en espèces.
+function badgeModePaiement(mode, typeRecu){
+  const M={
+    especes :{t:"💵 Espèces", bg:"#e8f5e9", c:"#2e7d32"},
+    cb      :{t:"💳 CB",      bg:"#e3f2fd", c:"#1565c0"},
+    cheque  :{t:"📝 Chèque",  bg:"#fff3e0", c:"#e65100"},
+    virement:{t:"🏦 Virement",bg:"#ede7f6", c:"#5e35b1"}
+  };
+  const cle=String(mode||"").toLowerCase().trim();
+  const m=M[cle];
+  if(!m) return "";
+  return `<br><span style="font-size:9px;background:${m.bg};color:${m.c};padding:1px 5px;border-radius:8px;font-weight:700;display:inline-block;margin-top:2px">${m.t}</span>`;
+}
 function chargerRecus(){
   loader(true);
   db.collection("recus").limit(500).get().then(snap=>{
@@ -3197,11 +3212,14 @@ function chargerRecus(){
       const typeBadge=r.type_recu==="solde_client"?`<span style="font-size:10px;background:#e3f2fd;color:#1565c0;padding:1px 5px;border-radius:8px;font-weight:700">💳 Solde</span>`
         :r.type_recu==="magasinage"||r.type_bl==="magasinage"?`<span style="font-size:10px;background:#f3e5f5;color:#6a1b9a;padding:1px 5px;border-radius:8px;font-weight:700">🏠 Mag</span>`
         :`<span style="font-size:10px;background:#e8f5e9;color:#2e7d32;padding:1px 5px;border-radius:8px;font-weight:700">💵 Esp.</span>`;
+      // Mode de paiement réel (espèces / CB / chèque / virement), affiché sous le badge Type.
+      // Les reçus chauffeur n'ont pas de champ mode_paiement : ils sont toujours en espèces.
+      const modeBadge=badgeModePaiement(r.mode_paiement, r.type_recu);
       html+=`<tr>
         <td><input type="checkbox" class="rc-check" data-id="${r.id}" onchange="majBoutonsSelection('rc')"></td>
         <td style="font-weight:700;color:var(--vert);font-size:11px">${r.recu_num||"—"}</td>
         <td>${r.date||"—"}</td>
-        <td>${typeBadge}</td>
+        <td>${typeBadge}${modeBadge}</td>
         <td>${r.chauffeur_nom||"—"}</td>
         <td style="font-weight:600">${r.nom_client||"—"}</td>
         <td style="font-size:11px">${r.marque||""} ${r.modele||""}${r.immatriculation?` <span style="font-family:monospace;font-size:10px">${r.immatriculation}</span>`:""}</td>
