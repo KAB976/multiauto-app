@@ -4037,6 +4037,30 @@ function confirmerReset(){
 }
 
 // ── MAGASINAGE ──
+// ══════════════════════════════════════════════════════════════
+// CALCUL DU NET MAGASINAGE — source unique de vérité
+// Utilisée par les lignes du tableau, les badges de totaux et le
+// statut de paiement, pour qu'ils ne puissent plus se contredire.
+// La remise (initiale + accordée au comptoir) est TOUJOURS déduite.
+// ══════════════════════════════════════════════════════════════
+function joursMagasinage(m){
+  if(!m || !m.date_entree) return parseFloat(m && m.jours)||0;
+  const e=new Date(m.date_entree);
+  const s=m.date_sortie?new Date(m.date_sortie):new Date();
+  return Math.max(1, Math.ceil((s-e)/(1000*60*60*24)));
+}
+function netMagasinage(m){
+  if(!m) return 0;
+  // Dossier restitué : les montants sont figés en base, montant_net fait foi.
+  const stocke=parseFloat(m.montant_net)||0;
+  if(m.statut!=="en_cours" && stocke>0) return stocke;
+  // Dossier en cours (ou net jamais écrit) : le montant court au jour le jour.
+  const tarif=parseFloat(m.tarif_jour)||40;
+  const remise=parseFloat(m.remise)||0;
+  const stockeBrut=parseFloat(m.montant_total)||0;
+  const brut=stockeBrut>0?stockeBrut:joursMagasinage(m)*tarif;
+  return Math.max(0, brut-remise);
+}
 function chargerMagasinage(){
   const filtreStatut = G("mag-filtre-statut")?.value||"";
   const filtreClient = G("mag-filtre-client")?.value||"";
@@ -4057,7 +4081,7 @@ function chargerMagasinage(){
     // Calcul statut paiement pour chaque entrée
     list.forEach(m=>{
       if(m.statut==="en_cours"){ m._statutPaie="en_cours"; return; }
-      const net = m.montant_net||m.montant_total||0;
+      const net = netMagasinage(m);   // remise déduite (corrigé : comparait au brut)
       const paye = m.paye_montant||0;
       if(paye<=0) m._statutPaie="impaye";
       else if(paye>=net&&net>0) m._statutPaie="paye";
@@ -4075,7 +4099,10 @@ function chargerMagasinage(){
     if(filtreFin)   filtered=filtered.filter(m=>toComp(m.date_entree)<=filtreFin);
 
     const enCours=list.filter(m=>m.statut==="en_cours");
-    const totalNet=list.filter(m=>m.statut!=="en_cours").reduce((s,m)=>s+(m.montant_net||0),0);
+    // Total facturable = dossiers RESTITUÉS uniquement (facture réellement émise).
+    const totalNet=list.filter(m=>m.statut!=="en_cours").reduce((s,m)=>s+netMagasinage(m),0);
+    // Gardiennages en cours : montant qui court au jour le jour, pas encore facturé.
+    const totalEnCours=enCours.reduce((s,m)=>s+netMagasinage(m),0);
     const totalPaye=list.reduce((s,m)=>s+(m.paye_montant||0),0);
     const nbImpaye=list.filter(m=>m.statut!=="en_cours"&&m._statutPaie==="impaye").length;
 
@@ -4083,7 +4110,8 @@ function chargerMagasinage(){
       <div class="stat-card"><div class="stat-num">${enCours.length}</div><div class="stat-label">En gardiennage</div></div>
       <div class="stat-card" style="border-left-color:var(--rouge)"><div class="stat-num">${nbImpaye}</div><div class="stat-label">Impayés</div></div>
       <div class="stat-card" style="border-left-color:var(--vert)"><div class="stat-num">${fmtMontant(totalPaye)}</div><div class="stat-label">Total encaissé</div></div>
-      <div class="stat-card" style="border-left-color:var(--bleu)"><div class="stat-num">${fmtMontant(totalNet)}</div><div class="stat-label">Total facturable</div></div>`;
+      <div class="stat-card" style="border-left-color:var(--bleu)"><div class="stat-num">${fmtMontant(totalNet)}</div><div class="stat-label">Total facturé (restitués)</div></div>
+      <div class="stat-card" style="border-left-color:var(--jaune)"><div class="stat-num">${fmtMontant(totalEnCours)}</div><div class="stat-label">En cours (estimé)</div></div>`;
 
     let html="";
     filtered.forEach(m=>{
@@ -4091,7 +4119,7 @@ function chargerMagasinage(){
       const s=m.date_sortie?new Date(m.date_sortie):new Date();
       const jours=e?Math.max(1,Math.ceil((s-e)/(1000*60*60*24))):m.jours||0;
       const tarif=m.tarif_jour||40, total=m.montant_total||(jours*tarif), remise=m.remise||0;
-      const net=m.montant_net||(total-remise);
+      const net=netMagasinage(m);
       const paye=m.paye_montant||0;
       const reste=Math.max(0,net-paye);
 
