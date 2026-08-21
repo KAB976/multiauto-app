@@ -1435,6 +1435,7 @@ tr:hover td{background:var(--gris)}
               <div class="switch-row"><div class="switch-info"><div class="switch-label">Voir les clients</div></div><label class="switch"><input type="checkbox" id="d-clients" checked><span class="sw-slider"></span></label></div>
               <div class="switch-row"><div class="switch-info"><div class="switch-label">Ajouter un client</div></div><label class="switch"><input type="checkbox" id="d-clients-ajouter" checked><span class="sw-slider"></span></label></div>
               <div class="switch-row"><div class="switch-info"><div class="switch-label">Modifier un client</div></div><label class="switch"><input type="checkbox" id="d-clients-modifier"><span class="sw-slider"></span></label></div>
+              <div class="switch-row"><div class="switch-info"><div class="switch-label">Réattribuer un dossier à un autre client</div><div class="switch-desc" style="font-size:11px;color:var(--gris3)">Depuis Soldes clients — déplace le montant d'un client vers un autre</div></div><label class="switch"><input type="checkbox" id="d-dossier-client"><span class="sw-slider"></span></label></div>
               <div class="switch-row"><div class="switch-info"><div class="switch-label">Voir le solde client</div></div><label class="switch"><input type="checkbox" id="d-solde"><span class="sw-slider"></span></label></div>
             </div>
           </div>
@@ -1859,6 +1860,7 @@ tr:hover td{background:var(--gris)}
   <div id="mc-info" style="font-size:13px;color:var(--gris3);margin-bottom:12px"></div>
   <div class="form-group"><span class="fl">Client correct</span>
     <select class="inp" id="mc-select"></select>
+    <button type="button" class="btn btn-secondary btn-sm" style="margin-top:4px" onclick="ajouterClientRapide('mc-select')">➕ Nouveau client</button>
   </div>
   <div class="modal-footer">
     <button class="btn btn-secondary" onclick="fermerModal('modal-modifier-client')">Annuler</button>
@@ -2193,7 +2195,7 @@ async function estimerStockage(){
   const el=G("storage-indicator");
   el.innerHTML=`<div style="color:var(--gris3);font-size:13px">⏳ Calcul en cours...</div>`;
   try{
-    const collections=["bons","recus","clients","magasinage","prises_en_charge","carburant","vehicules_clients","vehicules","users"];
+    const collections=["bons","recus","clients","magasinage","prises_en_charge","carburant","vehicules_clients","vehicules","users","audit_log","immobilisations","chauffeurs_live"];
     let totalOctets=0, nbDocs=0, nbPhotos=0, octetsPhotos=0;
 
     for(const col of collections){
@@ -2203,12 +2205,34 @@ async function estimerStockage(){
         const json=JSON.stringify(d.data());
         const taille=new Blob([json]).size;
         totalOctets+=taille;
-        if(col==="bons" && d.data().photo_vehicule){
-          nbPhotos++;
-          octetsPhotos+=new Blob([d.data().photo_vehicule]).size;
-        }
       });
     }
+
+    // ── Photos et signatures : collection dédiée "bons_photos" ──
+    // C'est de loin le plus gros poste. Les lire toutes coûterait plusieurs
+    // dizaines de Mo à chaque clic : on échantillonne et on extrapole.
+    let photosExact=false;
+    try{
+      const agg=await db.collection("bons_photos").count().get();
+      nbPhotos=agg.data().count;
+      if(nbPhotos>0){
+        const ech=await db.collection("bons_photos").limit(40).get();
+        let sommeEch=0, nEch=0;
+        ech.forEach(d=>{ sommeEch+=new Blob([JSON.stringify(d.data())]).size; nEch++; });
+        const moyenne = nEch>0 ? sommeEch/nEch : 0;
+        octetsPhotos = moyenne*nbPhotos;
+        photosExact = (nEch>=nbPhotos);   // échantillon = totalité
+      }
+      nbDocs+=nbPhotos;
+    }catch(e){
+      // Comptage agrégé indisponible : lecture complète (plus lent mais exact)
+      console.warn("Comptage agrégé indisponible, lecture complète:", e);
+      const snap=await db.collection("bons_photos").get();
+      snap.forEach(d=>{ nbPhotos++; octetsPhotos+=new Blob([JSON.stringify(d.data())]).size; });
+      nbDocs+=nbPhotos;
+      photosExact=true;
+    }
+    totalOctets+=octetsPhotos;
 
     const totalMo=(totalOctets/1024/1024);
     const photosMo=(octetsPhotos/1024/1024);
@@ -2226,8 +2250,9 @@ async function estimerStockage(){
       <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:10px;font-size:12px;color:var(--gris3)">
         <div>📄 <strong style="color:var(--gris4)">${nbDocs}</strong> documents</div>
         <div>📸 <strong style="color:var(--gris4)">${nbPhotos}</strong> photos BL</div>
-        <div>💾 <strong style="color:var(--gris4)">${photosMo.toFixed(1)} Mo</strong> en photos</div>
+        <div>💾 <strong style="color:var(--gris4)">${photosMo.toFixed(1)} Mo</strong> en photos${photosExact?"":" <span style=\"font-size:10px\">(estimé)</span>"}</div>
       </div>
+      <div style="margin-top:8px;font-size:11px;color:var(--gris3)">Les photos représentent <strong>${totalMo>0?Math.round(photosMo/totalMo*100):0} %</strong> de l'espace occupé.</div>
       ${pctQuota>70?`<div style="margin-top:10px;background:#fff3e0;border:1px solid #f57c00;border-radius:6px;padding:8px;font-size:12px;color:#e65100">⚠️ Approche du quota gratuit — pensez à purger les anciennes photos (onglet Maintenance)</div>`:""}
     `;
   }catch(e){
@@ -3160,6 +3185,7 @@ function chargerBons(){
           <button class="btn btn-secondary btn-sm btn-icon" onclick="voirBL('${b.id}')">👁</button>
           <button class="btn btn-secondary btn-sm btn-icon" onclick="imprimerBL('${b.id}')">🖨</button>
           <button class="btn btn-secondary btn-sm btn-icon" onclick="telechargerBL('${b.id}')">⬇</button>
+          <button class="btn btn-sm btn-icon" style="background:#ede7f6;color:#5e35b1;border:1px solid #9575cd" title="Corriger l'immatriculation ou le montant" onclick="ouvrirCorriger('${b.id}','bons','${(b.bon_num||"").replace(/'/g,"\\'")}','${(b.nom_client||"").replace(/'/g,"\\'")}')">✏️</button>
           <button class="btn btn-danger btn-sm btn-icon" onclick="supprimerBon('${b.id}')">🗑</button>
         </div></td></tr>`;
     });
@@ -5878,7 +5904,12 @@ async function confirmerCorriger(){
     }
     toast("Correction enregistrée ✅");
     fermerModal("modal-corriger");
-    chargerSoldes("");
+    // Le modal s'ouvre depuis Soldes clients ET depuis la liste des BL :
+    // on rafraîchit la page réellement affichée, sinon la correction
+    // resterait invisible jusqu'au rechargement.
+    const pageActive=document.querySelector(".pg.on");
+    if(pageActive && pageActive.id==="pg-bons") chargerBons();
+    else chargerSoldes("");
   }catch(e){ toast("Erreur","err"); console.error(e); }
   loader(false);
 }
@@ -5890,6 +5921,13 @@ function ouvrirModifierClient(id, collection, currentClient){
   const sel=G("mc-select");
   sel.innerHTML="<option value=''>— Choisir —</option>";
   clientsList.forEach(cl=>{const o=document.createElement("option");o.value=cl.nom;o.textContent=cl.nom;sel.appendChild(o);});
+  // Le client actuel peut ne plus figurer dans la fiche Clients (ancien dossier,
+  // nom saisi à la main par un chauffeur) : on l'ajoute pour ne pas le perdre.
+  if(currentClient && ![...sel.options].some(o=>o.value===currentClient)){
+    const o=document.createElement("option");
+    o.value=currentClient; o.textContent=currentClient+" (hors liste)";
+    sel.appendChild(o);
+  }
   sel.value=currentClient||"";
   G("modal-modifier-client").classList.add("on");
 }
@@ -7056,7 +7094,7 @@ function chargerDroitsOnglet(idx){
   const tousLesIds = ["d-bl-creer","d-bl-voir","d-bl-imprimer","d-bl-telecharger",
     "d-rc-voir","d-rc-imprimer","d-rc-telecharger","d-stats","d-gps","d-commissions",
     "d-carburant","d-chauffeurs-voir","d-camions-voir","d-clients","d-clients-ajouter",
-    "d-clients-modifier","d-solde","d-missions-alertes","d-carte-live","d-ca-remorq"];
+    "d-clients-modifier","d-solde","d-missions-alertes","d-carte-live","d-ca-remorq","d-dossier-client"];
   tousLesIds.forEach(id=>{ const el=G(id); if(el) el.checked=false; });
   G("sec-droits-nom").textContent = "Chargement...";
   G("sec-uid-actif").textContent = uid;
@@ -7102,6 +7140,7 @@ function chargerDroitsOnglet(idx){
       s("d-clients-ajouter", d.secretaire_clients_ajouter===true);
     }
     s("d-clients-modifier",d.secretaire_clients_modifier===true);
+    s("d-dossier-client",  d.secretaire_dossier_client===true);
     s("d-solde",           d.secretaire_solde===true);
     s("d-missions-alertes", d.secretaire_missions_alertes===true);
     s("d-carte-live",       d.secretaire_carte_live===true);
@@ -7157,6 +7196,7 @@ function sauvegarderDroits(){
     secretaire_clients:        g("d-clients"),
     secretaire_clients_ajouter:g("d-clients-ajouter"),
     secretaire_clients_modifier:g("d-clients-modifier"),
+    secretaire_dossier_client: g("d-dossier-client"),
     secretaire_solde:          g("d-solde"),
     secretaire_missions_alertes: g("d-missions-alertes"),
     secretaire_carte_live:     g("d-carte-live"),
@@ -7423,16 +7463,64 @@ function changerMDP(){
   if(m1.length<6){toast("Minimum 6 caractères","err");return;}
   auth.currentUser.updatePassword(m1).then(()=>{toast("Mot de passe modifié ✅");G("new-mdp").value="";G("new-mdp2").value="";}).catch(e=>toast("Erreur: "+e.message,"err"));
 }
-function purgerPhotos(){
+async function purgerPhotos(){
   const mois=parseInt(G("purge-mois")?.value||3);
-  if(!confirm("Purger les photos de plus de "+mois+" mois ?"))return;
+  if(!confirm("Purger les photos ET signatures des bons de plus de "+mois+" mois ?\n\n"
+    +"CE QUI EST SUPPRIMÉ :\n"
+    +"• La photo du véhicule\n"
+    +"• La signature\n\n"
+    +"CE QUI EST CONSERVÉ :\n"
+    +"• Les bons de livraison eux-mêmes (client, montant, immatriculation, trajet, dates)\n"
+    +"• Les reçus, les soldes, l'historique — rien n'est touché\n\n"
+    +"Seuls les BL réimprimés n'auront plus ni photo ni signature.\n"
+    +"Cette opération est IRRÉVERSIBLE.")) return;
   loader(true,"Purge...");
-  const limite=new Date();limite.setMonth(limite.getMonth()-mois);
-  db.collection("bons").get().then(snap=>{
-    let count=0;const batch=db.batch();
-    snap.forEach(d=>{const b=d.data();const ts=b.timestamp?.toDate?b.timestamp.toDate():null;if(ts&&ts<limite&&b.photo_vehicule){batch.update(d.ref,{photo_vehicule:""});count++;}});
-    return batch.commit().then(()=>{if(G("purge-result"))G("purge-result").textContent="✅ "+count+" photo(s) purgée(s)";toast(count+" photo(s) purgée(s)");loader(false);});
-  }).catch(e=>{toast("Erreur : "+((e&&(e.code||e.message))||e),"err");loader(false);console.error("ERREUR:",e);});
+  const limite=new Date(); limite.setMonth(limite.getMonth()-mois);
+  try{
+    // Les photos vivent dans "bons_photos", mais la date fiable est sur le bon
+    // (bons_photos mélange createdAt pour les récentes et migre_le — une chaîne —
+    // pour les anciennes, donc non filtrable côté serveur). On part donc des bons.
+    const snap=await db.collection("bons").get();
+    const aPurger=[];
+    snap.forEach(d=>{
+      const b=d.data();
+      const ts=b.timestamp?.toDate?b.timestamp.toDate():(b.date_bl?new Date(b.date_bl):null);
+      if(ts && ts<limite) aPurger.push(d.id);
+    });
+
+    // Firestore limite un batch à 500 opérations : on découpe par 400.
+    let count=0;
+    for(let i=0;i<aPurger.length;i+=400){
+      const lot=aPurger.slice(i,i+400);
+      const refs=await Promise.all(lot.map(id=>db.collection("bons_photos").doc(id).get()));
+      const batch=db.batch();
+      let dansCeLot=0;
+      refs.forEach(ph=>{
+        if(!ph.exists) return;
+        // ── VERROU DE SÉCURITÉ ──
+        // On ne supprime QUE dans la collection bons_photos, jamais dans "bons".
+        // Si jamais une référence pointait ailleurs, on l'ignore au lieu de l'effacer.
+        if(ph.ref.parent.id !== "bons_photos"){
+          console.error("Purge refusée — collection inattendue :", ph.ref.path);
+          return;
+        }
+        // Le document ne contient que la photo et la signature : le BL
+        // correspondant, lui, vit dans la collection "bons" et n'est pas touché.
+        batch.delete(ph.ref);
+        dansCeLot++;
+      });
+      if(dansCeLot>0){ await batch.commit(); count+=dansCeLot; }
+      loader(true,"Purge... "+Math.min(i+400,aPurger.length)+"/"+aPurger.length);
+    }
+
+    if(G("purge-result")) G("purge-result").textContent="✅ "+count+" photo(s) purgée(s) sur "+aPurger.length+" bon(s) de plus de "+mois+" mois";
+    toast(count+" photo(s) purgée(s)");
+    loader(false);
+    if(G("storage-indicator")) estimerStockage();
+  }catch(e){
+    toast("Erreur : "+((e&&(e.code||e.message))||e),"err");
+    loader(false); console.error("ERREUR:",e);
+  }
 }
 
 // ── PDF MOTEUR ──
