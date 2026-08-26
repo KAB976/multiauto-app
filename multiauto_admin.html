@@ -529,6 +529,32 @@ tr:hover td{background:var(--gris)}
     <div class="form-group"><span class="fl">Date intervention</span><input class="inp inp-sm" id="pc-date-intervention" type="date"></div>
   </div>
   <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px">
+    <div class="form-group"><span class="fl">Statut de la mission</span>
+      <select class="inp inp-sm" id="pc-statut" onchange="majZoneAnnulPC()">
+        <option value="en_cours">🟡 En cours</option>
+        <option value="livre">✅ Livré</option>
+        <option value="annule">❌ Annulé</option>
+      </select>
+    </div>
+    <div class="form-group" id="pc-zone-motif" style="display:none"><span class="fl">Motif d'annulation *</span>
+      <select class="inp inp-sm" id="pc-motif-annul">
+        <option value="">— Choisir le motif —</option>
+        <option>Client désiste</option>
+        <option>Véhicule déjà dépanné</option>
+        <option>Client injoignable</option>
+        <option>Adresse introuvable</option>
+        <option>Véhicule redémarré sur place</option>
+        <option>Hors zone</option>
+        <option>Doublon</option>
+        <option>Refus de l'assureur</option>
+        <option>Autre</option>
+      </select>
+    </div>
+  </div>
+  <div id="pc-avert-annul" style="display:none;background:#fce4ec;border:1px solid #f8bbd0;border-radius:6px;padding:8px;font-size:11px;color:#c2185b;margin-bottom:8px">
+    ⚠️ Mission annulée = jamais facturée. Les montants seront remis à 0 à l'enregistrement.
+  </div>
+  <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px">
     <div class="form-group"><span class="fl">N° BL lié</span><input class="inp inp-sm" id="pc-bl" placeholder="AMD/BL-000001" oninput="chercherRecuPC()"></div>
     <div class="form-group"><span class="fl">N° Reçu</span><input class="inp inp-sm" id="pc-recu" readonly style="background:var(--gris-lt)"></div>
   </div>
@@ -1832,7 +1858,7 @@ tr:hover td{background:var(--gris)}
 <!-- ══ MODAL CORRECTION IMMAT / MONTANT (admin) ══ -->
 <div class="modal-bg" id="modal-corriger">
 <div class="modal" style="max-width:420px">
-  <div class="modal-title">✏️ Corriger immatriculation / montant</div>
+  <div class="modal-title">✏️ Corriger véhicule / montant</div>
   <input type="hidden" id="cor-id">
   <input type="hidden" id="cor-collection">
   <div id="cor-info" style="font-size:13px;color:var(--gris3);margin-bottom:12px"></div>
@@ -1842,6 +1868,12 @@ tr:hover td{background:var(--gris)}
     </div>
     <div class="form-group"><span class="fl">Montant (€)</span>
       <input class="inp" id="cor-montant" type="number" step="0.01" min="0" placeholder="0">
+    </div>
+    <div class="form-group"><span class="fl">Marque</span>
+      <input class="inp" id="cor-marque" placeholder="Renault">
+    </div>
+    <div class="form-group"><span class="fl">Modèle</span>
+      <input class="inp" id="cor-modele" placeholder="Clio">
     </div>
   </div>
   <div id="cor-note" style="font-size:11px;color:var(--gris3);margin-top:-6px;margin-bottom:8px"></div>
@@ -2466,7 +2498,7 @@ async function _donneesRecherche(){
   _snapsRecherche = await Promise.all([
     db.collection("bons").orderBy("timestamp","desc").limit(300).get(),
     db.collection("recus").limit(300).get(),
-    db.collection("prises_en_charge").orderBy("date","desc").limit(200).get(),
+    db.collection("prises_en_charge").limit(1000).get(),
     db.collection("magasinage").orderBy("date_entree","desc").limit(200).get()
   ]);
   _snapsRechercheTs = Date.now();
@@ -4481,7 +4513,7 @@ function chargerPC(){
   const debut=G("pc-date-debut")?.value||"";
   const fin=G("pc-date-fin")?.value||"";
   _chargerTarifsBL().then(()=>
-  db.collection("prises_en_charge").orderBy("date","desc").limit(200).get().then(snap=>{
+  db.collection("prises_en_charge").limit(1000).get().then(snap=>{
     let list=[]; snap.forEach(d=>list.push({id:d.id,...d.data()}));
     // Les dates existent en 2 formats (2026-08-08 et 08/08/2026) : on trie sur une
     // date normalisée, sinon le classement est faux. Plus récent en haut.
@@ -4822,6 +4854,9 @@ function ouvrirModalPC(){
   peuplerMarquesPC();
   if(G("pc-modele"))G("pc-modele").innerHTML="<option value=''>— Modèle —</option>";
   if(G("pc-observation"))G("pc-observation").value="";
+  if(G("pc-statut"))G("pc-statut").value="en_cours";
+  if(G("pc-motif-annul"))G("pc-motif-annul").value="";
+  majZoneAnnulPC();
   if(G("pc-statut-assureur"))G("pc-statut-assureur").value="en_attente";
   if(G("pc-statut-assureur-info"))G("pc-statut-assureur-info").textContent="Utilisez le bouton \"💶 Assurance\" dans la liste pour enregistrer un virement.";
   resetPaieParChauffeur("pc-");
@@ -4843,6 +4878,10 @@ function editerPC(id){
     G("pc-montant-ass").value=_v(p.montant_assurance); G("pc-montant-client").value=_v(p.montant_client);
     if(G("pc-montant-reel"))G("pc-montant-reel").value=_v(p.montant_reel||((parseFloat(p.montant_assurance)||0)+(parseFloat(p.montant_client)||0)));
     G("pc-date").value=p.date||"";
+    // Recharger le statut réel, sinon toute modification remettrait la mission "en cours"
+    if(G("pc-statut"))G("pc-statut").value=p.statut||"en_cours";
+    if(G("pc-motif-annul"))G("pc-motif-annul").value=p.motif_annulation||"";
+    majZoneAnnulPC();
     if(G("pc-date-intervention"))G("pc-date-intervention").value=p.date_intervention||"";
     if(G("pc-bl"))G("pc-bl").value=p.bon_num||"";
     if(G("pc-recu"))G("pc-recu").value=p.recu_num||"";
@@ -4923,6 +4962,12 @@ async function ajouterClientRapide(selectId){
   }catch(e){ toast("Erreur : "+((e&&(e.code||e.message))||e),"err"); }
 }
 
+// Affiche le motif d'annulation uniquement quand le statut "Annulé" est choisi
+function majZoneAnnulPC(){
+  const annule = (G("pc-statut")?.value === "annule");
+  if(G("pc-zone-motif"))  G("pc-zone-motif").style.display  = annule ? "" : "none";
+  if(G("pc-avert-annul")) G("pc-avert-annul").style.display = annule ? "" : "none";
+}
 function sauvegarderPC(){
   const dossier=G("pc-dossier").value.trim(), assureur=G("pc-assureur").value.trim();
   const marque=G("pc-marque")?.value||"", modele=G("pc-modele")?.value||"", immat=formatImmat(G("pc-immat").value);
@@ -4939,6 +4984,20 @@ function sauvegarderPC(){
     date_intervention:G("pc-date-intervention")?.value||"",
     bon_num:G("pc-bl")?.value.trim()||"",recu_num:G("pc-recu")?.value.trim()||"",
     notes:G("pc-notes").value.trim(),observation:G("pc-observation")?.value.trim()||""};
+
+  // ── STATUT DE LA MISSION ──
+  // Sans ce champ, une mission saisie restait "en cours" pour la base et
+  // n'apparaissait jamais dans le filtre Annulé.
+  const statutChoisi = G("pc-statut")?.value || "en_cours";
+  data.statut = statutChoisi;
+  if(statutChoisi === "annule"){
+    const motif = G("pc-motif-annul")?.value || "";
+    if(!motif){ toast("Choisissez un motif d'annulation","err"); return; }
+    data.motif_annulation = motif;
+    data.date_annulation  = new Date().toLocaleDateString("fr-FR");
+    // Mission annulée = jamais facturée (même règle que le bouton ✕ de la liste)
+    data.montant_reel = 0; data.montant_assurance = 0; data.montant_client = 0;
+  }
   // Paiement client
   const payCh = G("pc-zone-recu-chauffeur") && G("pc-zone-recu-chauffeur").style.display!=="none";
   const paySoc = G("pc-zone-paiement-societe") && G("pc-zone-paiement-societe").style.display!=="none";
@@ -5717,7 +5776,7 @@ async function chargerSoldes(prefix){
     });
 
     // 3. PC — tous les dossiers PC (y compris GAA/Mondiale quand filtre "pc" actif)
-    const pcSnap = await db.collection("prises_en_charge").orderBy("date","desc").limit(200).get();
+    const pcSnap = await db.collection("prises_en_charge").limit(1000).get();
     pcSnap.forEach(d=>{
       const p=d.data();
       // En mode "Tous types", on exclut les clients PC auto (GAA/Mondiale) car ils ont leur propre onglet PC
@@ -5855,6 +5914,9 @@ function ouvrirCorriger(id, collection, docNum, client){
     G("cor-id").value=id;
     G("cor-collection").value=collection;
     G("cor-info").innerHTML=`<strong>${docNum||"—"}</strong> — ${client||"—"}`;
+    // Marque et modèle portent le même nom dans les trois collections
+    G("cor-marque").value=d.marque||"";
+    G("cor-modele").value=d.modele||"";
     // L'immatriculation et le montant ne portent pas le même nom selon la collection
     if(collection==="bons"){
       G("cor-immat").value=d.immatriculation||"";
@@ -5877,20 +5939,22 @@ function ouvrirCorriger(id, collection, docNum, client){
 async function confirmerCorriger(){
   const id=G("cor-id").value, collection=G("cor-collection").value;
   const immat=formatImmat(G("cor-immat").value);
+  const marque=G("cor-marque").value.trim();
+  const modele=G("cor-modele").value.trim();
   const montant=parseFloat(G("cor-montant").value)||0;
   if(montant<0){ toast("Montant invalide","err"); return; }
   loader(true);
   try{
     let maj={};
     if(collection==="bons"){
-      maj={immatriculation:immat, montant};
+      maj={immatriculation:immat, montant, marque, modele};
     } else if(collection==="magasinage"){
-      maj={immat, montant_net:montant};
+      maj={immat, montant_net:montant, marque, modele};
     } else {
       // PC : la part client change → recalculer le montant réel (assurance + client)
       const snap=await db.collection(collection).doc(id).get();
       const d=snap.data()||{};
-      maj={immat, montant_client:montant, montant_reel:(parseFloat(d.montant_assurance)||0)+montant};
+      maj={immat, montant_client:montant, montant_reel:(parseFloat(d.montant_assurance)||0)+montant, marque, modele};
     }
     await db.collection(collection).doc(id).update(maj);
     // Si on corrige un BL, répercuter l'immatriculation sur le dossier PC créé depuis ce BL
@@ -5899,7 +5963,7 @@ async function confirmerCorriger(){
       const bonNum=(snapBL.data()||{}).bon_num;
       if(bonNum){
         const pcs=await db.collection("prises_en_charge").where("bon_num","==",bonNum).get();
-        for(const doc of pcs.docs){ await doc.ref.update({immat}); }
+        for(const doc of pcs.docs){ await doc.ref.update({immat, marque, modele}); }
       }
     }
     toast("Correction enregistrée ✅");
@@ -6250,7 +6314,7 @@ async function chargerCASection(){
       const paye=parseFloat(m.paye_montant)||0;
       items.push({date:m.date_sortie||m.date_entree||"",montant,paye,statut:paye>=montant?"solde":paye>0?"partiel":"impaye"});
     });
-    const pcSnap=await db.collection("prises_en_charge").orderBy("date","desc").limit(500).get();
+    const pcSnap=await db.collection("prises_en_charge").limit(1000).get();
     pcSnap.forEach(d=>{
       const p=d.data();
       if(p.statut==="annule") return;
@@ -6871,6 +6935,23 @@ function pdfEnteteDetail(){
 
 function chargerCommissions(){
   loader(true,"Calcul commissions...");
+  // ── CHAUFFEURS EXCLUS DU COMMISSIONNEMENT ──
+  // "Sur Place" (identifiant sp / préfixe SP/BL) ne génère aucune commission :
+  // ni pour lui, ni pour le responsable — son CA sort de la base de calcul,
+  // comme le magasinage. On se base sur l'IDENTIFIANT et le PRÉFIXE, jamais sur
+  // le nom affiché : renommer le chauffeur ne doit pas casser l'exclusion.
+  const nomsExclus=new Set(
+    (typeof chauffeursList!=="undefined"?chauffeursList:[])
+      .filter(c=> String(c.identifiant||"").toLowerCase().trim()==="sp"
+               || String(c.prefixe_bl||"").toUpperCase().trim().startsWith("SP/"))
+      .map(c=>c.nom)
+  );
+  // Filet de secours si la liste des chauffeurs n'est pas encore chargée
+  const estExclu=nom=>{
+    if(nomsExclus.has(nom)) return true;
+    const n=String(nom||"").toLowerCase().replace(/[\s.]/g,"");
+    return n==="sp"||n==="surplace";
+  };
   const mode=G("comm-mode")?.value||"montant";
   db.collection("parametres").doc("societe").get().then(snap=>{
     const p=snap.data()||{};
@@ -6887,7 +6968,7 @@ function chargerCommissions(){
       if(fin)   bons=bons.filter(b=>toComp(b.date_bl)<=fin);
       let parCh={};
       bons.forEach(b=>{
-        const k=b.chauffeur_nom||"—"; if(!parCh[k]) parCh[k]={blN:[],montN:0,blTW:[],montTW:0};
+        const k=b.chauffeur_nom||"—"; if(!parCh[k]) parCh[k]={blN:[],montN:0,blTW:[],montTW:0,_exclu:estExclu(k)};
         // Base de calcul = montant réel du BL (pas les espèces encaissées)
         const m=parseFloat(b.montant)||0;
         if(b.tarif==="NORMAL"){parCh[k].blN.push(b);parCh[k].montN+=m;}
@@ -6922,7 +7003,7 @@ function chargerCommissions(){
         if(debut) pcs=pcs.filter(p=>toComp(p.date_intervention||p.date)>=debut);
         if(fin)   pcs=pcs.filter(p=>toComp(p.date_intervention||p.date)<=fin);
         pcs.forEach(p=>{
-          const k=p.chauffeur||chauffeurParBonNum[p.bon_num]||"—"; if(!parCh[k]) parCh[k]={blN:[],montN:0,blTW:[],montTW:0};   // fallback : chauffeur du BL lié
+          const k=p.chauffeur||chauffeurParBonNum[p.bon_num]||"—"; if(!parCh[k]) parCh[k]={blN:[],montN:0,blTW:[],montTW:0,_exclu:estExclu(k)};   // fallback : chauffeur du BL lié
           const m=parseFloat(p.montant_reel)||(parseFloat(p.montant_client)||0)+(parseFloat(p.montant_assurance)||0);
           // Tarif hérité du BL lié (champ bon_num du dossier PC). Si pas de BL lié / introuvable → Normal par défaut.
           const tarifPC = tarifParBonNum[p.bon_num] || "NORMAL";
@@ -6936,12 +7017,14 @@ function chargerCommissions(){
       });
     }).then(parCh=>{
       let html="", total=0;
-      const totalCA=Object.values(parCh).reduce((s,d)=>s+(d.montN+d.montTW),0);
+      const totalCA=Object.values(parCh).filter(d=>!d._exclu).reduce((s,d)=>s+(d.montN+d.montTW),0);
       Object.entries(parCh).sort((a,b)=>a[0].localeCompare(b[0])).forEach(([nom,d])=>{
-        const cN=Math.round(d.montN*txN/100*100)/100, cTW=Math.round(d.montTW*txTW/100*100)/100, t=cN+cTW; total+=t;   // arrondi AVANT total : plus d'écart d'un centime
+        // Chauffeur exclu : la ligne reste visible (information de gestion) mais
+        // la commission est nulle et son CA n'entre pas dans totalCA ci-dessus.
+        const cN=d._exclu?0:Math.round(d.montN*txN/100*100)/100, cTW=d._exclu?0:Math.round(d.montTW*txTW/100*100)/100, t=cN+cTW; total+=t;   // arrondi AVANT total : plus d'écart d'un centime
         if(mode==="montant"){
-          html+=`<tr>
-            <td><strong>${nom}</strong></td>
+          html+=`<tr${d._exclu?' style="opacity:.55;background:var(--gris)"':''}>
+            <td><strong>${nom}</strong>${d._exclu?'<br><span style="font-size:10px;font-weight:700;color:var(--gris3)">🚫 EXCLU DU COMMISSIONNEMENT</span>':''}</td>
             <td>${d.blN.length}</td><td>${fmtMontant(d.montN)}</td>
             <td style="color:var(--vert);font-weight:700">${fmtMontant(cN)}</td>
             <td>${d.blTW.length}</td><td>${fmtMontant(d.montTW)}</td>
@@ -6952,7 +7035,7 @@ function chargerCommissions(){
           html+=`<tr style="background:var(--gris)"><td colspan="8"><strong>👤 ${nom}</strong> — Normal: ${d.blN.length} BL / ${fmtMontant(d.montN)} → <span style="color:var(--vert)">${fmtMontant(cN)}</span> | TN/TW: ${d.blTW.length} BL / ${fmtMontant(d.montTW)} → <span style="color:var(--violet)">${fmtMontant(cTW)}</span> | <strong style="color:var(--rouge)">${fmtMontant(t)}</strong></td></tr>`;
           [...d.blN,...d.blTW].sort((a,b)=>(a.date_bl||"").localeCompare(b.date_bl||"")).forEach(b=>{
             const estNormal = b.tarif==="NORMAL"||b.tarif==="PC-NORMAL";
-            const m=parseFloat(b.montant)||0, tx=estNormal?txN:txTW, comm=Math.round(m*tx/100*100)/100;
+            const m=parseFloat(b.montant)||0, tx=estNormal?txN:txTW, comm=d._exclu?0:Math.round(m*tx/100*100)/100;
             html+=`<tr style="font-size:11px"><td colspan="2" style="padding-left:20px;color:var(--gris3)">${b.date_bl||"—"}</td><td colspan="2">${b.bon_num||"—"} — ${b.nom_client||"—"}</td><td colspan="2">${b.lieu_embarquement||"—"} → ${b.destination||"—"}</td><td><span class="badge ${estNormal?"tarif-normal":"tarif-tw"}">${b.tarif}</span></td><td style="font-weight:700;color:var(--vert)">${fmtMontant(comm)}</td></tr>`;
           });
         }
