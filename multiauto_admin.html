@@ -2471,10 +2471,17 @@ async function chargerCarteLive(){
   }
 }
 let _rechercheTimeout=null;
+let _qPrecedente="";
+// Vide le cache : à appeler après toute création / modification / suppression
+function _invaliderCacheRecherche(){ _snapsRecherche=null; _snapsRechercheTs=0; }
 function rechercheGlobaleInput(){
   clearTimeout(_rechercheTimeout);
   const q=G("recherche-globale").value.trim();
-  if(q.length<1){ fermerRechercheGlobale(); return; }
+  if(q.length<1){ _qPrecedente=""; fermerRechercheGlobale(); return; }
+  // Nouvelle recherche (le champ etait vide) : on repart de donnees fraiches.
+  // Sans cela, un bon cree il y a 30 secondes restait introuvable.
+  if(_qPrecedente===""){ _invaliderCacheRecherche(); }
+  _qPrecedente=q;
   _donneesRecherche();   // précharge en fond dès la 1re lettre
   _rechercheTimeout=setTimeout(()=>executerRechercheGlobale(q), 120);
 }
@@ -2486,6 +2493,8 @@ function fermerRechercheGlobale(){
 // Normalise pour la recherche : supprime tirets, espaces, points et met en majuscules.
 // Permet de trouver "EK-209-VD" en tapant "EK209VD" (et inversement).
 function normImmat(t){ return String(t==null?"":t).toUpperCase().replace(/[^A-Z0-9]/g,""); }
+// Recherche insensible aux accents : "reunion" doit trouver "Réunion".
+function normTexte(t){ return String(t==null?"":t).toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g,""); }
 
 // ── Recherche instantanée ──
 // Avant, chaque frappe relançait le téléchargement de ~1000 documents (dont les photos
@@ -2494,19 +2503,25 @@ function normImmat(t){ return String(t==null?"":t).toUpperCase().replace(/[^A-Z0
 // filtrent en local, donc instantanément.
 var _snapsRecherche=null, _snapsRechercheTs=0;
 async function _donneesRecherche(){
-  if(_snapsRecherche && (Date.now()-_snapsRechercheTs) < 180000) return _snapsRecherche;
+  if(_snapsRecherche && (Date.now()-_snapsRechercheTs) < 60000) return _snapsRecherche;
+  // AUCUN orderBy ici : Firestore exclut silencieusement tout document auquel
+  // manque le champ trié. Un BL sans "timestamp" ou un magasinage sans
+  // "date_entree" devenait introuvable. Le tri n'a de toute façon aucun intérêt
+  // pour une recherche : on filtre ensuite sur la totalite des documents.
+  // Les limites sont volontairement larges : depuis que les photos vivent dans
+  // bons_photos, un bon ne pese plus que quelques centaines d'octets.
   _snapsRecherche = await Promise.all([
-    db.collection("bons").orderBy("timestamp","desc").limit(300).get(),
-    db.collection("recus").limit(300).get(),
-    db.collection("prises_en_charge").limit(1000).get(),
-    db.collection("magasinage").orderBy("date_entree","desc").limit(200).get()
+    db.collection("bons").limit(5000).get(),
+    db.collection("recus").limit(5000).get(),
+    db.collection("prises_en_charge").limit(5000).get(),
+    db.collection("magasinage").limit(5000).get()
   ]);
   _snapsRechercheTs = Date.now();
   return _snapsRecherche;
 }
 
 async function executerRechercheGlobale(q){
-  const qLower=q.toLowerCase();
+  const qLower=normTexte(q);   // normalisé : insensible aux accents
   const qUpper=q.toUpperCase();
   const qNorm=normImmat(q);   // recherche d'immatriculation insensible aux tirets/espaces
   G("recherche-globale-count").textContent="Recherche...";
@@ -2516,7 +2531,7 @@ async function executerRechercheGlobale(q){
     const resultats=[];
     blSnap.forEach(d=>{
       const b=d.data();
-      if((b.nom_client||"").toLowerCase().includes(qLower) ||
+      if(normTexte(b.nom_client).includes(qLower) ||
          (qNorm.length>0 && normImmat(b.immatriculation).includes(qNorm)) ||
          (qNorm.length>0 && normImmat(b.bon_num).includes(qNorm))){
         resultats.push({type:"BL",icon:"📋",label:`${b.bon_num||"—"} — ${b.nom_client||"—"} (${b.immatriculation||"—"})`,
@@ -2525,7 +2540,7 @@ async function executerRechercheGlobale(q){
     });
     recuSnap.forEach(d=>{
       const r=d.data();
-      if((r.nom_client||"").toLowerCase().includes(qLower) ||
+      if(normTexte(r.nom_client).includes(qLower) ||
          (qNorm.length>0 && normImmat(r.recu_num).includes(qNorm)) ||
          (qNorm.length>0 && normImmat(r.immatriculation).includes(qNorm))){
         resultats.push({type:"Reçu",icon:"🧾",label:`${r.recu_num||"—"} — ${r.nom_client||"—"}`,
@@ -2534,7 +2549,7 @@ async function executerRechercheGlobale(q){
     });
     pcSnap.forEach(d=>{
       const p=d.data();
-      if((p.client||"").toLowerCase().includes(qLower) ||
+      if(normTexte(p.client).includes(qLower) ||
          (qNorm.length>0 && normImmat(p.dossier).includes(qNorm)) ||
          (qNorm.length>0 && normImmat(p.immat).includes(qNorm))){
         resultats.push({type:"PC",icon:"📁",label:`${p.dossier||"—"} — ${p.client||"—"} (${p.immat||"—"})`,
@@ -2543,7 +2558,7 @@ async function executerRechercheGlobale(q){
     });
     magSnap.forEach(d=>{
       const m=d.data();
-      if((m.client||"").toLowerCase().includes(qLower) ||
+      if(normTexte(m.client).includes(qLower) ||
          (qNorm.length>0 && normImmat(m.immat).includes(qNorm))){
         resultats.push({type:"Magasinage",icon:"🏠",label:`${m.client||"—"} — ${m.immat||"—"}`,
           sub:`Entrée: ${m.date_entree||""}`, page:"pg-magasinage", id:d.id});
