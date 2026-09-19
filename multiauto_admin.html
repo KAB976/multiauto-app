@@ -641,7 +641,7 @@ tr:hover td{background:var(--gris)}
     <div class="sb-user">
       <div class="sb-user-name" id="sb-nom">—</div>
       <div class="sb-user-role" id="sb-role">—</div>
-      <div id="app-version" style="font-size:10px;color:#9aa3b5;margin-top:6px;letter-spacing:.3px" title="Version du fichier en ligne">Version 05/10/2026 — R8</div>
+      <div id="app-version" style="font-size:10px;color:#9aa3b5;margin-top:6px;letter-spacing:.3px" title="Version du fichier en ligne">Version 05/10/2026 — R9</div>
     </div>
     <nav class="sb-nav">
       <div class="sb-section">Tableau de bord</div>
@@ -2305,7 +2305,7 @@ async function chargerAlertesImpayes(){
     const _pcExistants=new Set();
     try{
       const _pcS=await db.collection("prises_en_charge").get();
-      _pcS.forEach(d=>{ const p=d.data(); if(p.bon_num && p.statut!=="annule") _pcExistants.add(p.bon_num); });
+      _pcS.forEach(d=>{ const p=d.data(); if(!pcActif(p)) return; if(p.bon_num && p.statut!=="annule") _pcExistants.add(p.bon_num); });
     }catch(e){ console.warn("Vérif dossiers PC:", e); }
     const blSnap=await db.collection("bons").orderBy("timestamp","desc").limit(500).get();
     const impayes=[];
@@ -2492,6 +2492,14 @@ function fermerRechercheGlobale(){
 }
 // Normalise pour la recherche : supprime tirets, espaces, points et met en majuscules.
 // Permet de trouver "EK-209-VD" en tapant "EK209VD" (et inversement).
+// ══════════════════════════════════════════════════════════════
+// DOSSIER PC ARCHIVÉ
+// "Transférer vers solde client" n'efface plus le dossier : il le
+// marque archive:true. Le montant repart sur le BL, donc le dossier
+// ne doit plus apparaître nulle part ni compter dans aucun total —
+// sinon le chiffre d'affaires serait compté deux fois.
+// ══════════════════════════════════════════════════════════════
+function pcActif(p){ return !!p && p.archive!==true; }
 function normImmat(t){ return String(t==null?"":t).toUpperCase().replace(/[^A-Z0-9]/g,""); }
 // Recherche insensible aux accents : "reunion" doit trouver "Réunion".
 function normTexte(t){ return String(t==null?"":t).toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g,""); }
@@ -2561,6 +2569,7 @@ async function executerRechercheGlobale(q){
     });
     pcSnap.forEach(d=>{
       const p=d.data();
+      if(!pcActif(p)) return;                               // dossier transféré vers solde client
       if(normTexte(p.client).includes(qLower) ||
          (qNorm.length>0 && normImmat(p.dossier).includes(qNorm)) ||
          (qNorm.length>0 && normImmat(p.immat).includes(qNorm))){
@@ -3967,7 +3976,7 @@ async function calculerSoldesClients(debut, fin){
     const _pcExistants=new Set();
     try{
       const _pcS=await db.collection("prises_en_charge").get();
-      _pcS.forEach(d=>{ const p=d.data(); if(p.bon_num && p.statut!=="annule") _pcExistants.add(p.bon_num); });
+      _pcS.forEach(d=>{ const p=d.data(); if(!pcActif(p)) return; if(p.bon_num && p.statut!=="annule") _pcExistants.add(p.bon_num); });
     }catch(e){ console.warn("Vérif dossiers PC:", e); }
     // 1. Bons de livraison
     const blSnap = await db.collection("bons").limit(1000).get();
@@ -4008,6 +4017,7 @@ async function calculerSoldesClients(debut, fin){
     const pcSnap = await db.collection("prises_en_charge").get();
     pcSnap.forEach(d=>{
       const p=d.data();
+      if(!pcActif(p)) return;                               // dossier transféré vers solde client
       if(p.statut==="annule") return;                       // mission annulée : jamais facturée
       if(!dansPeriode(p.date)) return;
       const mClient = parseFloat(p.montant_client)||0;
@@ -4578,7 +4588,7 @@ function chargerPC(){
   const fin=G("pc-date-fin")?.value||"";
   _chargerTarifsBL().then(()=>
   db.collection("prises_en_charge").limit(1000).get().then(snap=>{
-    let list=[]; snap.forEach(d=>list.push({id:d.id,...d.data()}));
+    let list=[]; snap.forEach(d=>{ if(!pcActif(d.data())) return; list.push({id:d.id,...d.data()}); });
     // Les dates existent en 2 formats (2026-08-08 et 08/08/2026) : on trie sur une
     // date normalisée, sinon le classement est faux. Plus récent en haut.
     list.sort((a,b)=>String(toComp(datePC(b))).localeCompare(String(toComp(datePC(a)))));
@@ -5283,7 +5293,15 @@ async function transfererPCVersClient(){
         transfere_depuis_pc: p.dossier||p.bon_num||"",
         date_transfert_pc: new Date().toLocaleDateString("fr-FR")
       });
-      await db.collection("prises_en_charge").doc(p.id).delete();
+      // ARCHIVAGE au lieu de suppression : le montant est reparti sur le BL,
+      // le dossier disparaît donc de partout (listes, totaux, recherche, CA)
+      // mais ses données restent en base — et aucun droit de suppression
+      // n'est nécessaire pour la secrétaire.
+      await db.collection("prises_en_charge").doc(p.id).update({
+        archive: true,
+        archive_le: new Date().toLocaleString("fr-FR"),
+        archive_motif: "Transféré vers solde client"
+      });
       ok++;
     }catch(e){ console.error("Transfert",p.id,e); ignores.push((p.dossier||p.bon_num||"—")+" ("+((e&&(e.code||e.message))||e)+")"); }
   }
@@ -5791,7 +5809,7 @@ async function chargerSoldes(prefix){
     const _pcExistants=new Set();
     try{
       const _pcSnap=await db.collection("prises_en_charge").get();
-      _pcSnap.forEach(d=>{ const p=d.data(); if(p.bon_num && p.statut!=="annule") _pcExistants.add(p.bon_num); });
+      _pcSnap.forEach(d=>{ const p=d.data(); if(!pcActif(p)) return; if(p.bon_num && p.statut!=="annule") _pcExistants.add(p.bon_num); });
     }catch(e){ console.warn("Vérif dossiers PC:", e); }
     // Correspondance N° BL -> tarif, pour afficher le tarif des dossiers PC issus d'un BL
     const _tarifParBonNum={};
@@ -5843,6 +5861,7 @@ async function chargerSoldes(prefix){
     const pcSnap = await db.collection("prises_en_charge").limit(1000).get();
     pcSnap.forEach(d=>{
       const p=d.data();
+      if(!pcActif(p)) return;                               // dossier transféré vers solde client
       // En mode "Tous types", on exclut les clients PC auto (GAA/Mondiale) car ils ont leur propre onglet PC
       // En mode "PC Assurance" explicite, on les montre tous sans exception
       if(typeSel===""&&(estClientPC(p.client)||estClientPC(p.assureur))) return;
@@ -6381,6 +6400,7 @@ async function chargerCASection(){
     const pcSnap=await db.collection("prises_en_charge").limit(1000).get();
     pcSnap.forEach(d=>{
       const p=d.data();
+      if(!pcActif(p)) return;                               // dossier transféré vers solde client
       if(p.statut==="annule") return;
       const montant=parseFloat(p.montant_reel)||(parseFloat(p.montant_client)||0)+(parseFloat(p.montant_assurance)||0);
       if(montant<=0) return;
@@ -6755,7 +6775,7 @@ function chargerStats(){
     db.collection("prises_en_charge").get()
   ]).then(([snap,snapPC])=>{
     let bons=[]; snap.forEach(d=>bons.push({id:d.id,...d.data()}));
-    let pcsAll=[]; snapPC.forEach(d=>pcsAll.push({id:d.id,...d.data()}));
+    let pcsAll=[]; snapPC.forEach(d=>{ if(!pcActif(d.data())) return; pcsAll.push({id:d.id,...d.data()}); });
     if(stType==="tous_chauffeurs") bons=bons.filter(b=>b.type_bl==="chauffeur");
     else if(stType==="tous_clients") bons=bons.filter(b=>!b.type_bl||b.type_bl==="client");
     else if(stType==="chauffeur"){ if(ch) bons=bons.filter(b=>matchChauffeur(b,ch)); else bons=bons.filter(b=>b.type_bl==="chauffeur"); }
@@ -7044,7 +7064,7 @@ function chargerCommissions(){
       const tarifParBonNum={}, chauffeurParBonNum={};
       bonsComplet.forEach(b=>{ if(b.bon_num){ tarifParBonNum[b.bon_num]=b.tarif; chauffeurParBonNum[b.bon_num]=b.chauffeur_nom||""; } });
       return db.collection("prises_en_charge").get().then(snapPC=>{
-        let pcs=[]; snapPC.forEach(d=>pcs.push({id:d.id,...d.data()}));
+        let pcs=[]; snapPC.forEach(d=>{ if(!pcActif(d.data())) return; pcs.push({id:d.id,...d.data()}); });
         pcs=pcs.filter(p=>p.statut!=="annule");
         // ── ANTI-DOUBLON ──
         // Un dossier PC est créé À PARTIR d'un BL : la mission existe donc dans les deux
