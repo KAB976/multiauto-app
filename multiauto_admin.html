@@ -641,7 +641,7 @@ tr:hover td{background:var(--gris)}
     <div class="sb-user">
       <div class="sb-user-name" id="sb-nom">—</div>
       <div class="sb-user-role" id="sb-role">—</div>
-      <div id="app-version" style="font-size:10px;color:#9aa3b5;margin-top:6px;letter-spacing:.3px" title="Version du fichier en ligne">Version 05/10/2026 — R7</div>
+      <div id="app-version" style="font-size:10px;color:#9aa3b5;margin-top:6px;letter-spacing:.3px" title="Version du fichier en ligne">Version 05/10/2026 — R8</div>
     </div>
     <nav class="sb-nav">
       <div class="sb-section">Tableau de bord</div>
@@ -2501,26 +2501,38 @@ function normTexte(t){ return String(t==null?"":t).toLowerCase().normalize("NFD"
 // des BL) : plusieurs dizaines de Mo et de longues secondes d'attente. Les données sont
 // désormais chargées UNE fois puis gardées en mémoire 3 minutes ; les frappes suivantes
 // filtrent en local, donc instantanément.
-var _snapsRecherche=null, _snapsRechercheTs=0;
+var _snapsRecherche=null, _snapsRechercheTs=0, _snapsPromesse=null, _seqRecherche=0;
 async function _donneesRecherche(){
   if(_snapsRecherche && (Date.now()-_snapsRechercheTs) < 60000) return _snapsRecherche;
+  // Une seule requête à la fois. Sans ce verrou, CHAQUE frappe relançait
+  // 4 requêtes : taper 8 lettres = 32 requêtes concurrentes, et la plus lente
+  // écrasait l'affichage de la plus récente. D'où des résultats qui
+  // apparaissaient une fois sur deux.
+  if(_snapsPromesse) return _snapsPromesse;
+  _snapsPromesse = (async()=>{
   // AUCUN orderBy ici : Firestore exclut silencieusement tout document auquel
   // manque le champ trié. Un BL sans "timestamp" ou un magasinage sans
   // "date_entree" devenait introuvable. Le tri n'a de toute façon aucun intérêt
   // pour une recherche : on filtre ensuite sur la totalite des documents.
   // Les limites sont volontairement larges : depuis que les photos vivent dans
   // bons_photos, un bon ne pese plus que quelques centaines d'octets.
-  _snapsRecherche = await Promise.all([
-    db.collection("bons").limit(5000).get(),
-    db.collection("recus").limit(5000).get(),
-    db.collection("prises_en_charge").limit(5000).get(),
-    db.collection("magasinage").limit(5000).get()
-  ]);
-  _snapsRechercheTs = Date.now();
-  return _snapsRecherche;
+    _snapsRecherche = await Promise.all([
+      db.collection("bons").limit(5000).get(),
+      db.collection("recus").limit(5000).get(),
+      db.collection("prises_en_charge").limit(5000).get(),
+      db.collection("magasinage").limit(5000).get()
+    ]);
+    _snapsRechercheTs = Date.now();
+    return _snapsRecherche;
+  })();
+  try{ return await _snapsPromesse; }
+  finally{ _snapsPromesse=null; }
 }
 
 async function executerRechercheGlobale(q){
+  // Jeton de séquence : si l'utilisateur a continué à taper pendant que les
+  // données arrivaient, cette exécution est périmée et ne doit rien afficher.
+  const _monSeq = ++_seqRecherche;
   const qLower=normTexte(q);   // normalisé : insensible aux accents
   const qUpper=q.toUpperCase();
   const qNorm=normImmat(q);   // recherche d'immatriculation insensible aux tirets/espaces
@@ -2565,6 +2577,7 @@ async function executerRechercheGlobale(q){
       }
     });
 
+    if(_monSeq!==_seqRecherche) return;   // une frappe plus récente a pris la main
     G("recherche-globale-count").textContent=resultats.length+" résultat(s)";
     const el=G("recherche-globale-resultats");
     if(!resultats.length){
