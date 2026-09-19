@@ -645,7 +645,7 @@ tr:hover td{background:var(--gris)}
     <div class="sb-user">
       <div class="sb-user-name" id="sb-nom">—</div>
       <div class="sb-user-role" id="sb-role">—</div>
-      <div id="app-version" style="font-size:10px;color:#9aa3b5;margin-top:6px;letter-spacing:.3px" title="Version du fichier en ligne">Version 05/10/2026 — R18</div>
+      <div id="app-version" style="font-size:10px;color:#9aa3b5;margin-top:6px;letter-spacing:.3px" title="Version du fichier en ligne">Version 05/10/2026 — R19</div>
     </div>
     <nav class="sb-nav">
       <div class="sb-section">Tableau de bord</div>
@@ -8052,13 +8052,32 @@ function genererRecu(recu){
   doc.text(montantStr,105,y+20,{align:'center'});
   doc.setDrawColor(232,192,64);doc.setLineWidth(0.4);doc.line(20,y+23,190,y+23);
   // Montant en lettres
+  // Montant en toutes lettres. L'ancienne version renvoyait les CHIFFRES
+  // au-delà de 999 et se trompait sur 71-99 (ex. "soixante-dix-un").
   function montantLettres(n){
-    const u=['zéro','un','deux','trois','quatre','cinq','six','sept','huit','neuf','dix','onze','douze','treize','quatorze','quinze','seize','dix-sept','dix-huit','dix-neuf'];
-    const d=['vingt','trente','quarante','cinquante','soixante','soixante-dix','quatre-vingts','quatre-vingt-dix'];
-    if(n<20)return u[Math.floor(n)];
-    if(n<100){const di=Math.floor(n/10)-2,un=Math.floor(n%10);return d[di]+(un>0?'-'+u[un]:'');}
-    if(n<1000){return u[Math.floor(n/100)]+' cent'+(n%100>0?' '+montantLettres(n%100):'');}
-    return Math.floor(n)+' ';
+    n = Math.floor(Math.abs(n));
+    const u=['zéro','un','deux','trois','quatre','cinq','six','sept','huit','neuf','dix','onze','douze',
+             'treize','quatorze','quinze','seize','dix-sept','dix-huit','dix-neuf'];
+    const d=['','','vingt','trente','quarante','cinquante','soixante','soixante','quatre-vingt','quatre-vingt'];
+    function sousCent(x){
+      if(x<20) return u[x];
+      const di=Math.floor(x/10), un=x%10;
+      if(di===7||di===9) return d[di] + ((di===7&&un===1)?' et ':'-') + u[10+un];
+      if(un===0) return d[di] + (di===8?'s':'');
+      if(un===1 && di!==8) return d[di] + ' et un';
+      return d[di] + '-' + u[un];
+    }
+    function sousMille(x){
+      if(x<100) return sousCent(x);
+      const c=Math.floor(x/100), r=x%100;
+      const tete=(c===1?'cent':u[c]+' cent')+((c>1&&r===0)?'s':'');
+      return r===0 ? tete : tete+' '+sousCent(r);
+    }
+    if(n===0) return 'zéro';
+    if(n<1000) return sousMille(n);
+    const mil=Math.floor(n/1000), reste=n%1000;
+    const tete=(mil===1?'mille':sousMille(mil)+' mille');
+    return reste===0 ? tete : tete+' '+sousMille(reste);
   }
   const m=recu.montant||0,ent=Math.floor(m),cent=Math.round((m-ent)*100);
   const txt=montantLettres(ent).charAt(0).toUpperCase()+montantLettres(ent).slice(1)+' euro'+(ent>1?'s':'')+' et '+cent+' centime'+(cent>1?'s':'')+'.';
