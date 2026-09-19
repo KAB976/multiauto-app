@@ -645,7 +645,7 @@ tr:hover td{background:var(--gris)}
     <div class="sb-user">
       <div class="sb-user-name" id="sb-nom">—</div>
       <div class="sb-user-role" id="sb-role">—</div>
-      <div id="app-version" style="font-size:10px;color:#9aa3b5;margin-top:6px;letter-spacing:.3px" title="Version du fichier en ligne">Version 05/10/2026 — R16</div>
+      <div id="app-version" style="font-size:10px;color:#9aa3b5;margin-top:6px;letter-spacing:.3px" title="Version du fichier en ligne">Version 05/10/2026 — R18</div>
     </div>
     <nav class="sb-nav">
       <div class="sb-section">Tableau de bord</div>
@@ -1439,6 +1439,10 @@ tr:hover td{background:var(--gris)}
       </div>
       <!-- Onglets secrétaires -->
       <div id="tabs-sec" style="display:flex;gap:0;margin-bottom:16px;border-bottom:2px solid var(--gris2);flex-wrap:wrap"></div>
+      <!-- Identifiant de la secrétaire affichée : lu par sauvegarderDroits().
+           Supprimé par erreur lors de la refonte des onglets, rétabli ici. -->
+      <div id="sec-uid-actif" style="display:none"></div>
+      <div id="sec-nom-actif" style="font-size:13px;color:var(--gris3);margin-bottom:10px"></div>
       <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px">
         <div>
           <div class="card">
@@ -2198,9 +2202,13 @@ function seConnecter(){
   // Utilisateurs utilisent somalan2000+{id}@gmail.com, les comptes plus anciens
   // (créés du temps du fichier secrétaire) utilisent {id}@multiauto.fr.
   // On tente le premier, puis le second si le compte est introuvable.
+  // ORDRE IMPORTANT : vos comptes réellement utilisés sont en {id}@multiauto.fr.
+  // Des doublons existent en somalan2000+{id}@gmail.com (créés depuis la page
+  // Utilisateurs) et n'ont aucun droit. On essaie donc le format historique
+  // EN PREMIER, sinon "ibra" tomberait sur le doublon et n'aurait rien.
   const emailsPossibles = id==="admin"
     ? ["admin@multiauto.fr"]
-    : ["somalan2000+"+id+"@gmail.com", id+"@multiauto.fr"];
+    : [id+"@multiauto.fr", "somalan2000+"+id+"@gmail.com"];
   const tenterConnexion = (i)=>
     auth.signInWithEmailAndPassword(emailsPossibles[i], pw)
       .catch(err=>{
