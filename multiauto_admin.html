@@ -645,7 +645,7 @@ tr:hover td{background:var(--gris)}
     <div class="sb-user">
       <div class="sb-user-name" id="sb-nom">—</div>
       <div class="sb-user-role" id="sb-role">—</div>
-      <div id="app-version" style="font-size:10px;color:#9aa3b5;margin-top:6px;letter-spacing:.3px" title="Version du fichier en ligne">Version 05/10/2026 — R14</div>
+      <div id="app-version" style="font-size:10px;color:#9aa3b5;margin-top:6px;letter-spacing:.3px" title="Version du fichier en ligne">Version 05/10/2026 — R15</div>
     </div>
     <nav class="sb-nav">
       <div class="sb-section">Tableau de bord</div>
@@ -2199,10 +2199,21 @@ function seConnecter(){
   const pw=G("inp-pw").value;
   if(!id||!pw){ G("login-err").classList.add("on"); return; }
   loader(true,"Connexion...");
-  auth.signInWithEmailAndPassword(
-      id==="admin" ? "admin@multiauto.fr" : "somalan2000+"+id+"@gmail.com",
-      pw
-    )
+  // Deux formats d'e-mail cohabitent : les comptes créés depuis la page
+  // Utilisateurs utilisent somalan2000+{id}@gmail.com, les comptes plus anciens
+  // (créés du temps du fichier secrétaire) utilisent {id}@multiauto.fr.
+  // On tente le premier, puis le second si le compte est introuvable.
+  const emailsPossibles = id==="admin"
+    ? ["admin@multiauto.fr"]
+    : ["somalan2000+"+id+"@gmail.com", id+"@multiauto.fr"];
+  const tenterConnexion = (i)=>
+    auth.signInWithEmailAndPassword(emailsPossibles[i], pw)
+      .catch(err=>{
+        const introuvable = err && (err.code==="auth/user-not-found" || err.code==="auth/invalid-email");
+        if(introuvable && i+1 < emailsPossibles.length) return tenterConnexion(i+1);
+        throw err;
+      });
+  tenterConnexion(0)
     .then(cred=>db.collection("users").doc(cred.user.uid).get())
     .then(snap=>{
       if(!snap.exists||!["admin","secretaire"].includes(snap.data().role)){
@@ -7356,20 +7367,28 @@ function exporterCommissionsPDF(){
 
 // ── DROITS ──
 // UIDs fixes des 3 secrétaires
-var SEC_UIDS = ["uiBvjickYuQy9rZfzS7783W9oVE2", "fFvuAlNHiBdIOaJWxPeFwFLvK162", "YZ3jl7wCGcMaPsJ2pXgQ1XuRSx92"];
+var SEC_UIDS = [];   // rempli dynamiquement depuis users (role == "secretaire")
 var secOngletActif = 0;
 
 function chargerDroits(){
-  // Charger les noms des 3 secrétaires pour les onglets
-  const promises = SEC_UIDS.map(uid => db.collection("users").doc(uid).get());
-  Promise.all(promises).then(snaps=>{
-    snaps.forEach((snap, idx)=>{
-      const nom = snap.exists ? (snap.data().nom || "Secrétaire "+(idx+1)) : "Secrétaire "+(idx+1);
+  // Les UID étaient écrits en dur : toute secrétaire créée depuis n'apparaissait
+  // pas ici, et ses droits partaient dans le compte de quelqu'un d'autre.
+  // On lit désormais les comptes réels.
+  db.collection("users").where("role","==","secretaire").get().then(snap=>{
+    SEC_UIDS = [];
+    snap.forEach(d=>SEC_UIDS.push(d.id));
+    SEC_UIDS.sort();
+    const noms = {};
+    snap.forEach(d=>{ noms[d.id] = (d.data().nom || d.data().identifiant || "Secrétaire"); });
+    for(let idx=0; idx<3; idx++){
       const btn = G("tab-sec-btn-"+idx);
-      if(btn) btn.textContent = nom;
-    });
+      if(!btn) continue;
+      if(SEC_UIDS[idx]){ btn.textContent = noms[SEC_UIDS[idx]]; btn.style.display=""; }
+      else { btn.style.display="none"; }
+    }
+    if(secOngletActif >= SEC_UIDS.length) secOngletActif = 0;
     chargerDroitsOnglet(secOngletActif);
-  }).catch(console.error);
+  }).catch(e=>{ console.error(e); toast("Impossible de lister les secrétaires","err"); });
 }
 
 function changerOngletSec(idx){
