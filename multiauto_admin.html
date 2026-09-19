@@ -641,7 +641,7 @@ tr:hover td{background:var(--gris)}
     <div class="sb-user">
       <div class="sb-user-name" id="sb-nom">—</div>
       <div class="sb-user-role" id="sb-role">—</div>
-      <div id="app-version" style="font-size:10px;color:#9aa3b5;margin-top:6px;letter-spacing:.3px" title="Version du fichier en ligne">Version 05/10/2026 — R9</div>
+      <div id="app-version" style="font-size:10px;color:#9aa3b5;margin-top:6px;letter-spacing:.3px" title="Version du fichier en ligne">Version 05/10/2026 — R13</div>
     </div>
     <nav class="sb-nav">
       <div class="sb-section">Tableau de bord</div>
@@ -2060,6 +2060,9 @@ function _doitCharger(id){
   return false;
 }
 function afficherPage(id){
+  // Garde-fou de rôle : une secrétaire ne peut pas atteindre une page
+  // qui ne lui est pas accordée, même en contournant le menu.
+  if(!pageAutorisee(id)){ toast("Accès non autorisé","err"); return; }
   document.querySelectorAll(".pg").forEach(p=>p.classList.remove("on"));
   document.querySelectorAll(".sb-item").forEach(i=>i.classList.remove("active"));
   G(id)?.classList.add("on");
@@ -2097,6 +2100,82 @@ function afficherPage(id){
 }
 function fermerModal(id){ G(id)?.classList.remove("on"); }
 
+// ══════════════════════════════════════════════════════════════════
+// RÔLE ET PERMISSIONS  (fusion admin / secrétaire)
+// Ce fichier sert les deux rôles. L'administrateur voit tout ;
+// la secrétaire ne voit que ce que l'admin lui a accordé dans la
+// page Droits (stocké dans users/{uid}.droits).
+//
+// ⚠️ Ce filtrage est un CONFORT D'AFFICHAGE, pas une sécurité :
+// la vraie barrière est dans les règles Firestore, côté serveur.
+// ══════════════════════════════════════════════════════════════════
+var droitsUtilisateur = {};
+
+function estAdminConnecte(){
+  return !userAdmin || userAdmin.role === "admin";
+}
+
+// Permission accordée ?
+//   defautOui = true  -> autorisé sauf si l'admin a explicitement coché non
+//   defautOui = false -> refusé sauf si l'admin a explicitement accordé
+function peut(cle, defautOui){
+  if(estAdminConnecte()) return true;
+  return defautOui ? droitsUtilisateur[cle] !== false
+                   : droitsUtilisateur[cle] === true;
+}
+
+// Menu → permission requise. Les pages absentes de cette table sont
+// visibles par tous. La 3e colonne est la valeur par défaut.
+var MENU_DROITS = {
+  "nav-bons":        ["secretaire_bl_voir",         true],
+  "nav-recus":       ["secretaire_recu_voir",       true],
+  "nav-chauffeurs":  ["secretaire_chauffeurs_voir", true],
+  "nav-camions":     ["secretaire_camions_voir",    true],
+  "nav-clients":     ["secretaire_clients",         true],
+  "nav-magasinage":  ["secretaire_magasinage",      true],
+  "nav-carburant":   ["secretaire_carburant",       true],
+  "nav-recap":       ["secretaire_recap",           true],
+  "nav-soldes":      ["secretaire_solde",           true],
+  "nav-stats":       ["secretaire_stats",           true],
+  "nav-gps":         ["secretaire_gps",             true],
+  "nav-commissions": ["secretaire_commissions",    false],
+  "nav-ca-remorq":   ["secretaire_ca_remorq",      false],
+  "nav-carte-live":  ["secretaire_carte_live",     false],
+  "nav-audit-log":   ["secretaire_audit_log",      false]
+};
+
+// Réservé à l'administrateur, quelles que soient les permissions.
+var MENU_ADMIN_SEUL = ["nav-droits","nav-parametres","nav-utilisateurs","nav-reset"];
+
+function appliquerRole(){
+  const admin = estAdminConnecte();
+  MENU_ADMIN_SEUL.forEach(id=>{ const el=G(id); if(el) el.style.display = admin ? "" : "none"; });
+  if(admin) return;                     // l'administrateur voit tout
+  Object.keys(MENU_DROITS).forEach(id=>{
+    const el=G(id); if(!el) return;
+    const [cle, defautOui] = MENU_DROITS[id];
+    el.style.display = peut(cle, defautOui) ? "" : "none";
+  });
+  // Masquer un intitulé de section devenu vide (ex. "ADMINISTRATION")
+  document.querySelectorAll(".sb-section").forEach(sect=>{
+    let n=sect.nextElementSibling, visibles=0;
+    while(n && n.classList && n.classList.contains("sb-item")){
+      if(n.style.display !== "none") visibles++;
+      n=n.nextElementSibling;
+    }
+    sect.style.display = visibles ? "" : "none";
+  });
+}
+
+// Garde-fou : empêche d'atteindre une page interdite autrement que par le menu
+function pageAutorisee(pageId){
+  if(estAdminConnecte()) return true;
+  const navId = "nav-" + pageId.replace("pg-","");
+  if(MENU_ADMIN_SEUL.indexOf(navId) !== -1) return false;
+  const regle = MENU_DROITS[navId];
+  return regle ? peut(regle[0], regle[1]) : true;
+}
+
 // ── LOGIN / LOGOUT ──
 function seConnecter(){
   const id=G("inp-id").value.trim().toLowerCase();
@@ -2116,9 +2195,14 @@ function seConnecter(){
       G("sb-nom").textContent=userAdmin.nom||"—";
       G("sb-role").textContent=userAdmin.role==="admin"?"Administrateur":"Secrétaire";
       G("login-err").classList.remove("on");
+      // ── FUSION : une secrétaire peut se connecter ici. On charge SES droits
+      // (stockés dans users/{uid}.droits, gérés depuis la page Droits) avant
+      // d'afficher quoi que ce soit.
+      droitsUtilisateur = userAdmin.droits || {};
       return Promise.all([chargerListeChauffeurs(),chargerListeCamions(),chargerListeClients()]);
     })
     .then(()=>{
+      appliquerRole();   // masque le menu et les pages interdites
       loader(false);
       G("pg-login").style.display="none";
       G("pg-app").classList.add("on");
