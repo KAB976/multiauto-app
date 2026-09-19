@@ -2119,11 +2119,29 @@ async function incrementerRC(){
 // ════════════════════════════════════
 // AJOUTER NOUVEAU CLIENT DANS FIRESTORE
 // ════════════════════════════════════
+// Compare les noms sans casse, accents ni ponctuation : "gaa" = "GAA" = "Gaa "
+function normNomClient(s){
+  return String(s||"").toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g,"")
+         .replace(/[^a-z0-9]+/g," ").trim();
+}
 window.confirmerNouveauClient = async function(){
   var nom = G("new-client-nom").value.trim();
   if(!nom){ G("new-client-nom").focus(); return; }
   nom = nom.charAt(0).toUpperCase() + nom.slice(1);
   var tel = G("new-client-tel").value.trim();
+
+  // ANTI-DOUBLON : si le client existe déjà dans la liste chargée, on le
+  // réutilise au lieu d'en créer un second. CLIENTS est déjà en mémoire,
+  // donc le contrôle fonctionne même sans réseau.
+  var cible = normNomClient(nom);
+  var existant = CLIENTS.find(function(c){ return normNomClient(c) === cible; });
+  if(existant){
+    var selEx = G("sel-client");
+    if(selEx){ selEx.value = existant; }
+    if(tel) G("inp-tel").value = tel;
+    fermerModalClient();
+    return;
+  }
 
   try {
     await addDoc(collection(db,"clients"),{

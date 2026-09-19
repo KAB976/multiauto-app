@@ -645,7 +645,7 @@ tr:hover td{background:var(--gris)}
     <div class="sb-user">
       <div class="sb-user-name" id="sb-nom">—</div>
       <div class="sb-user-role" id="sb-role">—</div>
-      <div id="app-version" style="font-size:10px;color:#9aa3b5;margin-top:6px;letter-spacing:.3px" title="Version du fichier en ligne">Version 05/10/2026 — R19</div>
+      <div id="app-version" style="font-size:10px;color:#9aa3b5;margin-top:6px;letter-spacing:.3px" title="Version du fichier en ligne">Version 05/10/2026 — R21</div>
     </div>
     <nav class="sb-nav">
       <div class="sb-section">Tableau de bord</div>
@@ -927,7 +927,7 @@ tr:hover td{background:var(--gris)}
     <div class="pg" id="pg-clients">
       <div class="page-header">
         <div><div class="page-title">👥 Clients</div></div>
-        <button class="btn btn-primary" onclick="ouvrirModalClientAjout()">➕ Ajouter</button>
+        <button class="btn btn-secondary" onclick="detecterDoublonsClients()" style="margin-right:6px">🔍 Détecter les doublons</button><button class="btn btn-primary" onclick="ouvrirModalClientAjout()">➕ Ajouter</button>
       </div>
       <div class="card">
         <input class="filtre-inp" type="text" id="client-search" placeholder="🔍 Rechercher un client..." oninput="filtrerClients()" style="width:100%;margin-bottom:14px">
@@ -1833,6 +1833,15 @@ tr:hover td{background:var(--gris)}
   </div>
 </div>
 </div>
+<div class="modal-bg" id="modal-doublons">
+  <div class="modal" style="max-width:760px">
+    <div class="modal-title">🔍 Doublons de clients</div>
+    <div id="doublons-contenu" style="max-height:60vh;overflow:auto"></div>
+    <div class="modal-footer">
+      <button class="btn btn-secondary" onclick="fermerModal('modal-doublons')">Fermer</button>
+    </div>
+  </div>
+</div>
 <div class="modal-bg" id="modal-client">
 <div class="modal">
   <div class="modal-title" id="modal-client-title">👥 Ajouter un client</div>
@@ -2615,6 +2624,24 @@ function fermerRechercheGlobale(){
 // sinon le chiffre d'affaires serait compté deux fois.
 // ══════════════════════════════════════════════════════════════
 function pcActif(p){ return !!p && p.archive!==true; }
+// ══════════════════════════════════════════════════════════════
+// ANTI-DOUBLON CLIENT
+// Compare les noms sans tenir compte de la casse, des accents, des
+// espaces multiples ni de la ponctuation : "GAA", "gaa" et "Gaa "
+// sont le même client. Renvoie le client existant, ou null.
+// ══════════════════════════════════════════════════════════════
+function normNomClient(s){
+  return String(s||"").toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g,"")
+         .replace(/[^a-z0-9]+/g," ").trim();
+}
+async function clientExistant(nom){
+  const cible = normNomClient(nom);
+  if(!cible) return null;
+  const snap = await db.collection("clients").get();
+  let trouve = null;
+  snap.forEach(d=>{ if(!trouve && normNomClient((d.data()||{}).nom) === cible) trouve = {id:d.id, ...d.data()}; });
+  return trouve;
+}
 function normImmat(t){ return String(t==null?"":t).toUpperCase().replace(/[^A-Z0-9]/g,""); }
 // Recherche insensible aux accents : "reunion" doit trouver "Réunion".
 function normTexte(t){ return String(t==null?"":t).toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g,""); }
@@ -4216,6 +4243,13 @@ function sauvegarderClient(){
   const mode=G("nc-mode").value;
   if(!nom){toast("Nom obligatoire","err");return;}
   if(email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)){toast("Email invalide","err");return;}
+  // Anti-doublon : on refuse un nom déjà pris (hors le client en cours de modification)
+  clientExistant(nom).then(dej=>{
+    if(dej && dej.id !== id){ toast("Le client « "+dej.nom+" » existe déjà","err"); return; }
+    _enregistrerClient(id, nom, tel, email, mode);
+  }).catch(()=>_enregistrerClient(id, nom, tel, email, mode));
+}
+function _enregistrerClient(id, nom, tel, email, mode){
   loader(true);
   const data={nom:nom.charAt(0).toUpperCase()+nom.slice(1), tel, email, mode_paiement:mode};
   const p = id
@@ -5146,27 +5180,106 @@ function editerPC(id){
   });
 }
 // Créer un client à la volée depuis n'importe quel formulaire, sans quitter la page
+// ══════════════════════════════════════════════════════════════
+// DÉTECTION DES DOUBLONS DE CLIENTS
+// Regroupe les fiches dont le nom est identique une fois normalisé
+// (casse, accents, espaces, ponctuation ignorés) et compte, pour
+// chaque orthographe, le nombre de dossiers réellement rattachés.
+// LECTURE SEULE : rien n'est modifié.
+// ══════════════════════════════════════════════════════════════
+async function detecterDoublonsClients(){
+  loader(true,"Analyse des clients...");
+  try{
+    const [cl, bons, recus, pcs, mags] = await Promise.all([
+      db.collection("clients").get(),
+      db.collection("bons").limit(5000).get(),
+      db.collection("recus").limit(5000).get(),
+      db.collection("prises_en_charge").limit(5000).get(),
+      db.collection("magasinage").limit(5000).get()
+    ]);
+
+    // Combien de dossiers portent chaque orthographe exacte ?
+    const usage = {};
+    const compter = (snap, champ, cle)=>snap.forEach(d=>{
+      const v = (d.data()||{})[champ];
+      if(!v) return;
+      usage[v] = usage[v] || {bons:0, recus:0, pc:0, mag:0};
+      usage[v][cle]++;
+    });
+    compter(bons,  "nom_client", "bons");
+    compter(recus, "nom_client", "recus");
+    compter(pcs,   "client",     "pc");
+    compter(mags,  "client",     "mag");
+
+    // Regrouper les fiches par nom normalisé
+    const groupes = {};
+    cl.forEach(d=>{
+      const nom = (d.data()||{}).nom || "";
+      if(!nom) return;
+      const k = normNomClient(nom);
+      if(!k) return;
+      (groupes[k] = groupes[k] || []).push({id:d.id, nom});
+    });
+    const doublons = Object.values(groupes).filter(g=>g.length>1);
+
+    let html;
+    if(!doublons.length){
+      html = '<div style="padding:24px;text-align:center;color:var(--vert);font-weight:700">✅ Aucun doublon détecté</div>';
+    } else {
+      html = '<div style="font-size:12px;color:var(--gris3);margin-bottom:12px">'
+           + doublons.length + ' groupe(s) de doublons. Pour chacun, gardez l\'orthographe la plus utilisée, '
+           + 'rebasculez les dossiers des autres dessus, puis supprimez les fiches vides.</div>';
+      doublons.forEach(g=>{
+        const lignes = g.map(c=>{
+          const u = usage[c.nom] || {bons:0,recus:0,pc:0,mag:0};
+          const total = u.bons+u.recus+u.pc+u.mag;
+          return '<tr><td style="font-weight:700">' + c.nom + '</td>'
+               + '<td style="text-align:center">' + u.bons + '</td>'
+               + '<td style="text-align:center">' + u.recus + '</td>'
+               + '<td style="text-align:center">' + u.pc + '</td>'
+               + '<td style="text-align:center">' + u.mag + '</td>'
+               + '<td style="text-align:center;font-weight:800;color:' + (total?'var(--bleu)':'var(--gris3)') + '">' + total + '</td>'
+               + '<td style="font-size:10px;color:var(--gris3)">' + (total===0 ? 'fiche vide — supprimable' : '') + '</td></tr>';
+        }).join("");
+        html += '<div class="table-wrap" style="margin-bottom:14px"><table><thead><tr>'
+              + '<th>Orthographe</th><th>BL</th><th>Reçus</th><th>PC</th><th>Magasinage</th><th>Total</th><th></th>'
+              + '</tr></thead><tbody>' + lignes + '</tbody></table></div>';
+      });
+    }
+    G("doublons-contenu").innerHTML = html;
+    G("modal-doublons").classList.add("on");
+  }catch(e){
+    toast("Erreur d'analyse : " + ((e&&(e.code||e.message))||e), "err");
+    console.error(e);
+  }
+  loader(false);
+}
 async function ajouterClientRapide(selectId){
   const nom=prompt("Nom du nouveau client :");
   if(!nom || !nom.trim()) return;
   const n=nom.trim();
   try{
-    const dej=await db.collection("clients").where("nom","==",n).limit(1).get();
-    if(dej.empty){
+    // Correspondance normalisée : "gaa", "GAA " et "Gaa" sont le même client.
+    // L'ancienne comparaison exacte laissait passer tous ces doublons.
+    const dej=await clientExistant(n);
+    if(!dej){
       await db.collection("clients").add({nom:n, tel:"", email:"", mode_paiement:"", solde:0,
         cree_le:new Date().toLocaleDateString("fr-FR")});
       if(typeof clientsList!=="undefined") clientsList.push({nom:n});
       toast("Client « "+n+" » créé ✅");
     } else {
-      toast("Ce client existe déjà — sélectionné");
+      toast("Client « "+dej.nom+" » existant — sélectionné");
     }
-    // L'ajouter à la liste déroulante et le sélectionner
+    // Sélectionner le nom RÉEL du client : si "gaa" a été tapé et que "GAA"
+    // existe, c'est "GAA" qui doit être retenu, sinon le BL porterait un nom
+    // différent de la fiche client et les soldes se sépareraient en deux.
+    const nomRetenu = dej ? dej.nom : n;
     const sel=G(selectId);
     if(sel){
-      if(![...sel.options].some(o=>o.value===n)){
-        const o=document.createElement("option"); o.value=n; o.textContent=n; sel.appendChild(o);
+      if(![...sel.options].some(o=>o.value===nomRetenu)){
+        const o=document.createElement("option"); o.value=nomRetenu; o.textContent=nomRetenu; sel.appendChild(o);
       }
-      sel.value=n;
+      sel.value=nomRetenu;
     }
   }catch(e){ toast("Erreur : "+((e&&(e.code||e.message))||e),"err"); }
 }
