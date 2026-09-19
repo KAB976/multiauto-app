@@ -645,7 +645,7 @@ tr:hover td{background:var(--gris)}
     <div class="sb-user">
       <div class="sb-user-name" id="sb-nom">—</div>
       <div class="sb-user-role" id="sb-role">—</div>
-      <div id="app-version" style="font-size:10px;color:#9aa3b5;margin-top:6px;letter-spacing:.3px" title="Version du fichier en ligne">Version 05/10/2026 — R15</div>
+      <div id="app-version" style="font-size:10px;color:#9aa3b5;margin-top:6px;letter-spacing:.3px" title="Version du fichier en ligne">Version 05/10/2026 — R16</div>
     </div>
     <nav class="sb-nav">
       <div class="sb-section">Tableau de bord</div>
@@ -1438,12 +1438,7 @@ tr:hover td{background:var(--gris)}
         <button class="btn btn-primary" onclick="sauvegarderDroits()">💾 Enregistrer</button>
       </div>
       <!-- Onglets secrétaires -->
-      <div style="display:flex;gap:0;margin-bottom:16px;border-bottom:2px solid var(--gris2)">
-        <button id="tab-sec-btn-0" class="tab-sec-btn active" onclick="changerOngletSec(0)" style="padding:8px 20px;border:none;background:none;cursor:pointer;font-weight:700;font-size:13px;color:var(--rouge);border-bottom:2px solid var(--rouge);margin-bottom:-2px">Secrétaire 1</button>
-        <button id="tab-sec-btn-1" class="tab-sec-btn" onclick="changerOngletSec(1)" style="padding:8px 20px;border:none;background:none;cursor:pointer;font-weight:600;font-size:13px;color:var(--gris3);border-bottom:2px solid transparent;margin-bottom:-2px">Secrétaire 2</button>
-        <button id="tab-sec-btn-2" class="tab-sec-btn" onclick="changerOngletSec(2)" style="padding:8px 20px;border:none;background:none;cursor:pointer;font-weight:600;font-size:13px;color:var(--gris3);border-bottom:2px solid transparent;margin-bottom:-2px">Secrétaire 3</button>
-      </div>
-      <div id="sec-uid-actif" style="display:none"></div>
+      <div id="tabs-sec" style="display:flex;gap:0;margin-bottom:16px;border-bottom:2px solid var(--gris2);flex-wrap:wrap"></div>
       <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px">
         <div>
           <div class="card">
@@ -7379,12 +7374,24 @@ function chargerDroits(){
     snap.forEach(d=>SEC_UIDS.push(d.id));
     SEC_UIDS.sort();
     const noms = {};
-    snap.forEach(d=>{ noms[d.id] = (d.data().nom || d.data().identifiant || "Secrétaire"); });
-    for(let idx=0; idx<3; idx++){
-      const btn = G("tab-sec-btn-"+idx);
-      if(!btn) continue;
-      if(SEC_UIDS[idx]){ btn.textContent = noms[SEC_UIDS[idx]]; btn.style.display=""; }
-      else { btn.style.display="none"; }
+    snap.forEach(d=>{
+      const u = d.data();
+      noms[d.id] = u.nom || u.identifiant || ("Compte " + d.id.slice(0,6));
+    });
+    // Un onglet par secrétaire réellement présente : la barre était figée à 3,
+    // toute secrétaire au-delà restait invisible et ne pouvait rien recevoir.
+    const barre = G("tabs-sec");
+    if(barre){
+      barre.innerHTML = SEC_UIDS.map((uid, idx)=>{
+        const actif = idx === secOngletActif;
+        return '<button id="tab-sec-btn-'+idx+'" class="tab-sec-btn'+(actif?' active':'')+'"'
+             + ' onclick="changerOngletSec('+idx+')"'
+             + ' style="padding:8px 20px;border:none;background:none;cursor:pointer;font-weight:'+(actif?700:600)+';'
+             + 'font-size:13px;color:var(--'+(actif?'rouge':'gris3')+');'
+             + 'border-bottom:2px solid '+(actif?'var(--rouge)':'transparent')+';margin-bottom:-2px">'
+             + noms[uid] + '</button>';
+      }).join("");
+      if(!SEC_UIDS.length) barre.innerHTML = '<div style="padding:10px;color:var(--gris3);font-size:13px">Aucun compte secrétaire trouvé</div>';
     }
     if(secOngletActif >= SEC_UIDS.length) secOngletActif = 0;
     chargerDroitsOnglet(secOngletActif);
