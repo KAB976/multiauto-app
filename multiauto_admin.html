@@ -98,6 +98,10 @@ select.inp{cursor:pointer;appearance:none}
 
 /* TABLEAU */
 .table-wrap{overflow-x:auto;border-radius:var(--radius-sm)}
+/* Actions réservées à l'administrateur : masquées pour une secrétaire.
+   Le masquage est un confort ; le vrai verrou est dans chaque fonction
+   (estAdminConnecte) et dans les règles Firestore. */
+body.role-secretaire .adm-only{display:none!important}
 /* ══════════════════════════════════════════════════════════════
    FIGEAGE DES TABLEAUX — en-tête + 2 premières colonnes
    Le conteneur .table-wrap devient la zone de défilement : l'en-tête
@@ -353,7 +357,7 @@ tr:hover td{background:var(--gris)}
   </div>
   <div class="modal-footer">
     <button class="btn btn-secondary" onclick="fermerModal('modal-reset')">Annuler</button>
-    <button class="btn btn-danger" onclick="confirmerReset()">🔄 Remettre à zéro</button>
+    <button class="btn btn-danger adm-only" onclick="confirmerReset()">🔄 Remettre à zéro</button>
   </div>
 </div>
 </div>
@@ -641,7 +645,7 @@ tr:hover td{background:var(--gris)}
     <div class="sb-user">
       <div class="sb-user-name" id="sb-nom">—</div>
       <div class="sb-user-role" id="sb-role">—</div>
-      <div id="app-version" style="font-size:10px;color:#9aa3b5;margin-top:6px;letter-spacing:.3px" title="Version du fichier en ligne">Version 05/10/2026 — R13</div>
+      <div id="app-version" style="font-size:10px;color:#9aa3b5;margin-top:6px;letter-spacing:.3px" title="Version du fichier en ligne">Version 05/10/2026 — R14</div>
     </div>
     <nav class="sb-nav">
       <div class="sb-section">Tableau de bord</div>
@@ -817,7 +821,7 @@ tr:hover td{background:var(--gris)}
           <button class="btn btn-secondary btn-sm" id="btn-voir-bl-sel" onclick="voirSelectionBL()" disabled>👁 Voir</button>
           <button class="btn btn-secondary btn-sm" id="btn-imprimer-bl-sel" onclick="imprimerSelectionBL()" disabled>🖨 Imprimer</button>
           <button class="btn btn-secondary btn-sm" id="btn-telecharger-bl-sel" onclick="telechargerSelectionBL()" disabled>⬇ Télécharger</button>
-          <button class="btn btn-danger btn-sm" id="btn-supprimer-bl-sel" onclick="supprimerSelectionBL()" disabled>🗑 Supprimer</button>
+          <button class="btn btn-danger btn-sm adm-only" id="btn-supprimer-bl-sel" onclick="supprimerSelectionBL()" disabled>🗑 Supprimer</button>
           <button class="btn btn-secondary btn-sm" onclick="exporterBonsPDF()">⬇ Tout exporter</button>
         </div>
       </div>
@@ -854,7 +858,7 @@ tr:hover td{background:var(--gris)}
           <button class="btn btn-secondary btn-sm" id="btn-voir-rc-sel" onclick="voirSelectionRC()" disabled>👁 Voir</button>
           <button class="btn btn-secondary btn-sm" id="btn-imprimer-rc-sel" onclick="imprimerSelectionRC()" disabled>🖨 Imprimer</button>
           <button class="btn btn-secondary btn-sm" id="btn-telecharger-rc-sel" onclick="telechargerSelectionRC()" disabled>⬇ Télécharger</button>
-          <button class="btn btn-danger btn-sm" id="btn-supprimer-rc-sel" onclick="supprimerSelectionRC()" disabled>🗑 Supprimer</button>
+          <button class="btn btn-danger btn-sm adm-only" id="btn-supprimer-rc-sel" onclick="supprimerSelectionRC()" disabled>🗑 Supprimer</button>
           <button class="btn btn-secondary btn-sm" onclick="exporterRecusPDF()">⬇ Tout exporter</button>
         </div>
       </div>
@@ -1479,6 +1483,12 @@ tr:hover td{background:var(--gris)}
               <div class="switch-row"><div class="switch-info"><div class="switch-label">🔍 Recherche globale</div></div><label class="switch"><input type="checkbox" id="d-recherche-globale"><span class="sw-slider"></span></label></div>
               <div class="switch-row"><div class="switch-info"><div class="switch-label">🕵️ Journal d'audit</div></div><label class="switch"><input type="checkbox" id="d-audit-log"><span class="sw-slider"></span></label></div>
               <div class="switch-row"><div class="switch-info"><div class="switch-label">📊 CA & Remorquages</div></div><label class="switch"><input type="checkbox" id="d-ca-remorq"><span class="sw-slider"></span></label></div>
+              <div class="switch-row"><div class="switch-info"><div class="switch-label">📁 Prises en charge</div></div><label class="switch"><input type="checkbox" id="d-pc"><span class="sw-slider"></span></label></div>
+              <div class="switch-row"><div class="switch-info"><div class="switch-label">🏠 Magasinage</div></div><label class="switch"><input type="checkbox" id="d-magasinage"><span class="sw-slider"></span></label></div>
+              <div class="switch-row"><div class="switch-info"><div class="switch-label">🚗 Véhicules</div></div><label class="switch"><input type="checkbox" id="d-vehicules"><span class="sw-slider"></span></label></div>
+              <div class="switch-row"><div class="switch-info"><div class="switch-label">🕓 Historique immatriculations</div></div><label class="switch"><input type="checkbox" id="d-historique"><span class="sw-slider"></span></label></div>
+              <div class="switch-row"><div class="switch-info"><div class="switch-label">🏢 Immobilisations</div></div><label class="switch"><input type="checkbox" id="d-immo"><span class="sw-slider"></span></label></div>
+              <div class="switch-row"><div class="switch-info"><div class="switch-label">🔀 Assignation camion temporaire</div></div><label class="switch"><input type="checkbox" id="d-assign"><span class="sw-slider"></span></label></div>
               <div class="switch-row"><div class="switch-info"><div class="switch-label">🚨 Alertes missions/gardiennage (Dashboard)</div></div><label class="switch"><input type="checkbox" id="d-missions-alertes"><span class="sw-slider"></span></label></div>
               <div class="switch-row"><div class="switch-info"><div class="switch-label">📡 Carte en direct des chauffeurs</div></div><label class="switch"><input type="checkbox" id="d-carte-live"><span class="sw-slider"></span></label></div>
               <div class="switch-row"><div class="switch-info"><div class="switch-label">🚛 Échéances camions (CT/Assurance)</div></div><label class="switch"><input type="checkbox" id="d-echeances-camions"><span class="sw-slider"></span></label></div>
@@ -1614,7 +1624,7 @@ tr:hover td{background:var(--gris)}
         <div class="card-title">🗑 Purge des photos</div>
         <div style="display:flex;gap:10px;align-items:center;margin-bottom:10px">
           <select class="filtre-inp" id="purge-mois"><option value="3">Photos &gt; 3 mois</option><option value="6">Photos &gt; 6 mois</option><option value="12">Photos &gt; 12 mois</option></select>
-          <button class="btn btn-danger" onclick="purgerPhotos()">🗑 Purger</button>
+          <button class="btn btn-danger adm-only" onclick="purgerPhotos()">🗑 Purger</button>
         </div>
         <div id="purge-result" style="font-size:12px;color:var(--gris3)"></div>
       </div>
@@ -1630,7 +1640,7 @@ tr:hover td{background:var(--gris)}
           ✅ Ce qui sera conservé : <strong>clients</strong>, camions, marques/modèles, paramètres société, comptes utilisateurs<br>
           ❌ Ce qui sera supprimé : BL, reçus, carburant, magasinage, PC
         </div>
-        <button class="btn btn-danger" onclick="purgeCompleteDemarrage()">🚀 Purge complète et remise à zéro</button>
+        <button class="btn btn-danger adm-only" onclick="purgeCompleteDemarrage()">🚀 Purge complète et remise à zéro</button>
         <div id="purge-complete-result" style="font-size:12px;margin-top:10px"></div>
       </div>
 
@@ -2116,32 +2126,37 @@ function estAdminConnecte(){
 }
 
 // Permission accordée ?
-//   defautOui = true  -> autorisé sauf si l'admin a explicitement coché non
-//   defautOui = false -> refusé sauf si l'admin a explicitement accordé
-function peut(cle, defautOui){
+// REFUS PAR DÉFAUT : une secrétaire n'a AUCUN droit tant que l'administrateur
+// ne l'a pas explicitement accordé dans la page Droits.
+function peut(cle){
   if(estAdminConnecte()) return true;
-  return defautOui ? droitsUtilisateur[cle] !== false
-                   : droitsUtilisateur[cle] === true;
+  return droitsUtilisateur[cle] === true;
 }
 
 // Menu → permission requise. Les pages absentes de cette table sont
 // visibles par tous. La 3e colonne est la valeur par défaut.
 var MENU_DROITS = {
-  "nav-bons":        ["secretaire_bl_voir",         true],
-  "nav-recus":       ["secretaire_recu_voir",       true],
-  "nav-chauffeurs":  ["secretaire_chauffeurs_voir", true],
-  "nav-camions":     ["secretaire_camions_voir",    true],
-  "nav-clients":     ["secretaire_clients",         true],
-  "nav-magasinage":  ["secretaire_magasinage",      true],
-  "nav-carburant":   ["secretaire_carburant",       true],
-  "nav-recap":       ["secretaire_recap",           true],
-  "nav-soldes":      ["secretaire_solde",           true],
-  "nav-stats":       ["secretaire_stats",           true],
-  "nav-gps":         ["secretaire_gps",             true],
-  "nav-commissions": ["secretaire_commissions",    false],
-  "nav-ca-remorq":   ["secretaire_ca_remorq",      false],
-  "nav-carte-live":  ["secretaire_carte_live",     false],
-  "nav-audit-log":   ["secretaire_audit_log",      false]
+  "nav-bons":        "secretaire_bl_voir",
+  "nav-recus":       "secretaire_recu_voir",
+  "nav-chauffeurs":  "secretaire_chauffeurs_voir",
+  "nav-camions":     "secretaire_camions_voir",
+  "nav-clients":     "secretaire_clients",
+  "nav-magasinage":  "secretaire_magasinage",
+  "nav-carburant":   "secretaire_carburant",
+  "nav-recap":       "secretaire_recap",
+  "nav-soldes":      "secretaire_solde",
+  "nav-stats":       "secretaire_stats",
+  "nav-gps":         "secretaire_gps",
+  "nav-commissions": "secretaire_commissions",
+  "nav-ca-remorq":   "secretaire_ca_remorq",
+  "nav-carte-live":  "secretaire_carte_live",
+  "nav-audit-log":   "secretaire_audit_log",
+  "nav-pc":          "secretaire_pc",
+  "nav-vehicules":   "secretaire_vehicules",
+  "nav-historique":  "secretaire_historique",
+  "nav-immo":        "secretaire_immo",
+  "nav-assign":      "secretaire_assign",
+  "nav-dashboard":   "__toujours__"
 };
 
 // Réservé à l'administrateur, quelles que soient les permissions.
@@ -2150,11 +2165,12 @@ var MENU_ADMIN_SEUL = ["nav-droits","nav-parametres","nav-utilisateurs","nav-res
 function appliquerRole(){
   const admin = estAdminConnecte();
   MENU_ADMIN_SEUL.forEach(id=>{ const el=G(id); if(el) el.style.display = admin ? "" : "none"; });
-  if(admin) return;                     // l'administrateur voit tout
+  if(admin){ document.body.classList.remove("role-secretaire"); return; }   // l'administrateur voit tout
+  document.body.classList.add("role-secretaire");   // masque les actions .adm-only
   Object.keys(MENU_DROITS).forEach(id=>{
     const el=G(id); if(!el) return;
-    const [cle, defautOui] = MENU_DROITS[id];
-    el.style.display = peut(cle, defautOui) ? "" : "none";
+    const cle = MENU_DROITS[id];
+    el.style.display = (cle === "__toujours__" || peut(cle)) ? "" : "none";
   });
   // Masquer un intitulé de section devenu vide (ex. "ADMINISTRATION")
   document.querySelectorAll(".sb-section").forEach(sect=>{
@@ -2172,8 +2188,9 @@ function pageAutorisee(pageId){
   if(estAdminConnecte()) return true;
   const navId = "nav-" + pageId.replace("pg-","");
   if(MENU_ADMIN_SEUL.indexOf(navId) !== -1) return false;
-  const regle = MENU_DROITS[navId];
-  return regle ? peut(regle[0], regle[1]) : true;
+  const cle = MENU_DROITS[navId];
+  if(!cle) return false;                 // page inconnue de la table : refus par défaut
+  return cle === "__toujours__" || peut(cle);
 }
 
 // ── LOGIN / LOGOUT ──
@@ -3375,7 +3392,7 @@ function chargerBons(){
           <button class="btn btn-secondary btn-sm btn-icon" onclick="imprimerBL('${b.id}')">🖨</button>
           <button class="btn btn-secondary btn-sm btn-icon" onclick="telechargerBL('${b.id}')">⬇</button>
           <button class="btn btn-sm btn-icon" style="background:#ede7f6;color:#5e35b1;border:1px solid #9575cd" title="Corriger l'immatriculation ou le montant" onclick="ouvrirCorriger('${b.id}','bons','${(b.bon_num||"").replace(/'/g,"\\'")}','${(b.nom_client||"").replace(/'/g,"\\'")}')">✏️</button>
-          <button class="btn btn-danger btn-sm btn-icon" onclick="supprimerBon('${b.id}')">🗑</button>
+          <button class="btn btn-danger btn-sm btn-icon adm-only" onclick="supprimerBon('${b.id}')">🗑</button>
         </div></td></tr>`;
     });
     G("bons-tbody").innerHTML=html||`<tr><td colspan="12" style="text-align:center;color:var(--gris3);padding:24px">Aucun bon</td></tr>`;
@@ -3383,7 +3400,9 @@ function chargerBons(){
   }).catch(e=>{loader(false);toast("Erreur : "+((e&&(e.code||e.message))||e),"err");console.error("ERREUR:",e);});
 }
 
-function supprimerBon(id){if(!confirm("Supprimer ?"))return;db.collection("bons").doc(id).delete().then(()=>{toast("Supprimé");chargerBons();});}
+function supprimerBon(id){
+  if(!estAdminConnecte()){ toast("Action réservée à l'administrateur","err"); return; }
+if(!confirm("Supprimer ?"))return;db.collection("bons").doc(id).delete().then(()=>{toast("Supprimé");chargerBons();});}
 
 function voirSelectionBL(){
   const cb=document.querySelectorAll(".bl-check:checked");
@@ -3402,6 +3421,8 @@ function telechargerSelectionBL(){
   if(cb.length===1) telechargerBL(cb[0].dataset.id); else exporterBonsPDF();
 }
 function supprimerSelectionBL(){
+  if(!estAdminConnecte()){ toast("Action réservée à l'administrateur","err"); return; }
+
   const cb=document.querySelectorAll(".bl-check:checked");
   if(!cb.length)return;
   if(!confirm("Supprimer "+cb.length+" BL ?"))return;
@@ -3489,18 +3510,22 @@ function chargerRecus(){
           <button class="btn btn-secondary btn-sm btn-icon" onclick="imprimerRecu('${r.id}')">🖨</button>
           <button class="btn btn-secondary btn-sm btn-icon" onclick="telechargerRecu('${r.id}')">⬇</button>
           ${r.email_client?`<button class="btn btn-secondary btn-sm btn-icon" title="${r.email_client}" onclick="copierEmailClient('${r.email_client.replace(/'/g,"\\'")}')">✉️</button>`:""}
-          <button class="btn btn-danger btn-sm btn-icon" onclick="supprimerRecu('${r.id}')">🗑</button>
+          <button class="btn btn-danger btn-sm btn-icon adm-only" onclick="supprimerRecu('${r.id}')">🗑</button>
         </div></td></tr>`;
     });
     G("recus-tbody").innerHTML=html||`<tr><td colspan="12" style="text-align:center;color:var(--gris3);padding:24px">Aucun reçu</td></tr>`;
     loader(false);
   }).catch(e=>{loader(false);console.error(e);});
 }
-function supprimerRecu(id){if(!confirm("Supprimer ?"))return;db.collection("recus").doc(id).delete().then(()=>{logAudit("suppression_recu",{doc_id:id});toast("Supprimé");chargerRecus();});}
+function supprimerRecu(id){
+  if(!estAdminConnecte()){ toast("Action réservée à l'administrateur","err"); return; }
+if(!confirm("Supprimer ?"))return;db.collection("recus").doc(id).delete().then(()=>{logAudit("suppression_recu",{doc_id:id});toast("Supprimé");chargerRecus();});}
 function voirSelectionRC(){const cb=document.querySelectorAll(".rc-check:checked");if(!cb.length)return;voirRecu(cb[0].dataset.id);}
 function imprimerSelectionRC(){const cb=document.querySelectorAll(".rc-check:checked");if(!cb.length)return;if(cb.length===1)imprimerRecu(cb[0].dataset.id);else exporterRecusPDF();}
 function telechargerSelectionRC(){const cb=document.querySelectorAll(".rc-check:checked");if(!cb.length)return;if(cb.length===1)telechargerRecu(cb[0].dataset.id);else exporterRecusPDF();}
 function supprimerSelectionRC(){
+  if(!estAdminConnecte()){ toast("Action réservée à l'administrateur","err"); return; }
+
   const cb=document.querySelectorAll(".rc-check:checked");
   if(!cb.length)return;
   if(!confirm("Supprimer "+cb.length+" reçu(s) ?"))return;
@@ -3693,7 +3718,7 @@ function chargerCamions(){
         <td><span class="badge ${cam.actif!==false?"badge-vert":"badge-rouge"}">${cam.actif!==false?"Actif":"Inactif"}</span></td>
         <td><div style="display:flex;gap:4px">
           <button class="btn btn-secondary btn-sm btn-icon" onclick="editerCamion('${cam.id}')">✏️</button>
-          <button class="btn btn-danger btn-sm btn-icon" onclick="supprimerCamion('${cam.id}')">🗑</button>
+          <button class="btn btn-danger btn-sm btn-icon adm-only" onclick="supprimerCamion('${cam.id}')">🗑</button>
         </div></td></tr>`;
     });
     G("cam-tbody").innerHTML=html||`<tr><td colspan="8" style="text-align:center;color:var(--gris3);padding:24px">Aucun camion</td></tr>`;
@@ -3761,7 +3786,9 @@ function sauvegarderCamion(){
     fermerModal("modal-camion");chargerCamions();chargerListeCamions();chargerChauffeurs();loader(false);
   }).catch(e=>{toast("Erreur : "+((e&&(e.code||e.message))||e),"err");loader(false);console.error("ERREUR:",e);});
 }
-function supprimerCamion(id){if(!confirm("Supprimer ?"))return;db.collection("vehicules").doc(id).delete().then(()=>{toast("Supprimé");chargerCamions();chargerListeCamions();});}
+function supprimerCamion(id){
+  if(!estAdminConnecte()){ toast("Action réservée à l'administrateur","err"); return; }
+if(!confirm("Supprimer ?"))return;db.collection("vehicules").doc(id).delete().then(()=>{toast("Supprimé");chargerCamions();chargerListeCamions();});}
 
 // ── CLIENTS ──
 // ══════════════════════════════════════
@@ -3872,7 +3899,7 @@ function afficherVehicules(list){
         <td style="color:var(--gris3);font-style:italic">Aucun modèle</td>
         <td><div style="display:flex;gap:4px">
           <button class="btn btn-secondary btn-sm" onclick="ouvrirRenommerMarque('${v.id}','${marque.replace(/'/g,"\'")}')">✏️ Marque</button>
-          <button class="btn btn-danger btn-sm" onclick="supprimerVehicule('${v.id}','${marque.replace(/'/g,"\'")}')">🗑</button>
+          <button class="btn btn-danger btn-sm adm-only" onclick="supprimerVehicule('${v.id}','${marque.replace(/'/g,"\'")}')">🗑</button>
         </div></td></tr>`;
     } else {
       modeles.forEach((mod, idx)=>{
@@ -3884,7 +3911,7 @@ function afficherVehicules(list){
           <td><div style="display:flex;gap:4px">
             ${idx===0 ? `<button class="btn btn-secondary btn-sm" onclick="ouvrirRenommerMarque('${v.id}','${safeMarque}')">✏️ Marque</button>` : ""}
             <button class="btn btn-warning btn-sm" onclick="ouvrirModifierModele('${v.id}','${safeMarque}','${safeMod}',${idx})">✏️ Modèle</button>
-            <button class="btn btn-danger btn-sm" onclick="supprimerModele('${v.id}','${safeMarque}','${safeMod}',${idx})">🗑</button>
+            <button class="btn btn-danger btn-sm adm-only" onclick="supprimerModele('${v.id}','${safeMarque}','${safeMod}',${idx})">🗑</button>
           </div></td></tr>`;
       });
     }
@@ -3998,6 +4025,8 @@ function sauvegarderVehicule(){
 }
 
 function supprimerModele(id, marque, modele, idx){
+  if(!estAdminConnecte()){ toast("Action réservée à l'administrateur","err"); return; }
+
   if(!confirm("Supprimer le modèle « "+modele+" » ?")) return;
   db.collection("vehicules_clients").doc(id).get().then(snap=>{
     if(!snap.exists) return;
@@ -4010,6 +4039,8 @@ function supprimerModele(id, marque, modele, idx){
 }
 
 function supprimerVehicule(id, marque){
+  if(!estAdminConnecte()){ toast("Action réservée à l'administrateur","err"); return; }
+
   if(!confirm("Supprimer la marque « "+marque+" » et tous ses modèles ?")) return;
   db.collection("vehicules_clients").doc(id).delete()
     .then(()=>{ toast("Supprimé"); chargerVehicules(); })
@@ -4151,7 +4182,7 @@ function afficherClients(list){
       <td><div style="display:flex;gap:4px">
         <button class="btn btn-secondary btn-sm" onclick="ouvrirModifierClientId('${cl.id}')">✏️</button>
         ${soldeDuClient(cl.nom).reste>0?`<button class="btn btn-success btn-sm" onclick="encaisserClient('${cl.id}','${(cl.nom||"").replace(/'/g,"\'")}',${soldeDuClient(cl.nom).reste})">💵 Encaisser</button>`:""}
-        <button class="btn btn-danger btn-sm" onclick="supprimerClient('${cl.id}')">🗑</button>
+        <button class="btn btn-danger btn-sm adm-only" onclick="supprimerClient('${cl.id}')">🗑</button>
       </div></td></tr>`;
   });
   G("clients-tbody").innerHTML=html||`<tr><td colspan="8" style="text-align:center;color:var(--gris3);padding:24px">Aucun client</td></tr>`;
@@ -4194,7 +4225,9 @@ function ouvrirModifierClientId(id){
   G("nc-mode").value=cl.mode_paiement||"";
   G("modal-client").classList.add("on");
 }
-function supprimerClient(id){if(!confirm("Supprimer ?"))return;db.collection("clients").doc(id).delete().then(()=>{toast("Supprimé");chargerClients();});}
+function supprimerClient(id){
+  if(!estAdminConnecte()){ toast("Action réservée à l'administrateur","err"); return; }
+if(!confirm("Supprimer ?"))return;db.collection("clients").doc(id).delete().then(()=>{toast("Supprimé");chargerClients();});}
 
 // ── ASSIGNATION ──
 function ouvrirModalAssign(){
@@ -4240,6 +4273,8 @@ function ouvrirModalReset(){
   G("modal-reset").classList.add("on");
 }
 function confirmerReset(){
+  if(!estAdminConnecte()){ toast("Action réservée à l'administrateur","err"); return; }
+
   const uid=G("reset-chauffeur").value;
   const bl=G("reset-bl").checked, rc=G("reset-rc").checked;
   if(!bl&&!rc){toast("Sélectionnez au moins un compteur","err");return;}
@@ -4370,7 +4405,7 @@ function chargerMagasinage(){
         <td><div style="display:flex;gap:4px;flex-wrap:wrap">
           ${m.statut==="en_cours"?`<button class="btn btn-success btn-sm" onclick="ouvrirLivraison('${m.id}')">✅ Restituer</button>`:""}
           ${m.statut!=="en_cours"&&m._statutPaie!=="paye"?`<button class="btn btn-primary btn-sm" onclick="ouvrirPaiementMag('${m.id}')">💰 Payer</button>`:""}
-          <button class="btn btn-danger btn-sm btn-icon" onclick="supprimerMag('${m.id}')">🗑</button>
+          <button class="btn btn-danger btn-sm btn-icon adm-only" onclick="supprimerMag('${m.id}')">🗑</button>
         </div></td></tr>`;
     });
     G("mag-tbody").innerHTML=html||`<tr><td colspan="15" style="text-align:center;color:var(--gris3);padding:24px">Aucun gardiennage</td></tr>`;
@@ -4597,7 +4632,9 @@ async function confirmerPaiementMag(){
   } catch(e){ toast("Erreur","err"); loader(false); console.error(e); }
 }
 
-function supprimerMag(id){if(!confirm("Supprimer ?"))return;db.collection("magasinage").doc(id).delete().then(()=>{toast("Supprimé");chargerMagasinage();});}
+function supprimerMag(id){
+  if(!estAdminConnecte()){ toast("Action réservée à l'administrateur","err"); return; }
+if(!confirm("Supprimer ?"))return;db.collection("magasinage").doc(id).delete().then(()=>{toast("Supprimé");chargerMagasinage();});}
 function selToutMag(){
   const all=G("mag-check-all");
   document.querySelectorAll(".mag-cb").forEach(cb=>cb.checked=all?all.checked:true);
@@ -4767,7 +4804,7 @@ function chargerPC(){
         <td><div style="display:flex;gap:3px;flex-wrap:wrap">
           <button class="btn btn-secondary btn-sm btn-icon" onclick="editerPC('${p.id}')">✏️</button>
           ${p.statut==="en_cours"?`<button class="btn btn-danger btn-sm" onclick="changerStatutPC('${p.id}','annule')">✕</button>`:""}
-          <button class="btn btn-danger btn-sm btn-icon" onclick="supprimerPC('${p.id}')">🗑</button>
+          <button class="btn btn-danger btn-sm btn-icon adm-only" onclick="supprimerPC('${p.id}')">🗑</button>
         </div></td></tr>`;
     });
     G("pc-tbody").innerHTML=html||`<tr><td colspan="16" style="text-align:center;color:var(--gris3);padding:24px">Aucune prise en charge</td></tr>`;
@@ -5315,7 +5352,9 @@ async function confirmerPaiementAssurancePC(){
     loader(false);
   }catch(e){ toast("Erreur","err"); loader(false); console.error(e); }
 }
-function supprimerPC(id){if(!confirm("Supprimer ?"))return;db.collection("prises_en_charge").doc(id).delete().then(()=>{toast("Supprimé");chargerPC();});}
+function supprimerPC(id){
+  if(!estAdminConnecte()){ toast("Action réservée à l'administrateur","err"); return; }
+if(!confirm("Supprimer ?"))return;db.collection("prises_en_charge").doc(id).delete().then(()=>{toast("Supprimé");chargerPC();});}
 function selToutPC(){
   const all=G("pc-check-all");
   document.querySelectorAll(".pc-cb").forEach(cb=>cb.checked=all?all.checked:true);
@@ -5487,14 +5526,16 @@ function chargerCarburant(){
         <td style="font-family:monospace">${f.kilometrage||"—"} km</td>
         <td style="font-weight:700;color:var(--bleu)">${kmP}</td>
         <td style="font-weight:700;color:var(--vert)">${conso}</td>
-        <td><button class="btn btn-danger btn-sm btn-icon" onclick="supprimerCarburant('${f.id}')">🗑</button></td>
+        <td><button class="btn btn-danger btn-sm btn-icon adm-only" onclick="supprimerCarburant('${f.id}')">🗑</button></td>
       </tr>`;
     });
     G("fuel-tbody").innerHTML=html||`<tr><td colspan="9" style="text-align:center;color:var(--gris3);padding:24px">Aucune saisie</td></tr>`;
     loader(false);
   }).catch(()=>{loader(false);});
 }
-function supprimerCarburant(id){if(!confirm("Supprimer ?"))return;db.collection("carburant").doc(id).delete().then(()=>{toast("Supprimé ✅");chargerCarburant();});}
+function supprimerCarburant(id){
+  if(!estAdminConnecte()){ toast("Action réservée à l'administrateur","err"); return; }
+if(!confirm("Supprimer ?"))return;db.collection("carburant").doc(id).delete().then(()=>{toast("Supprimé ✅");chargerCarburant();});}
 
 // ════════════════════════════════════
 // RÉCAPITULATION / PROFITABILITÉ PAR CAMION
@@ -6027,7 +6068,7 @@ async function chargerSoldes(prefix){
       const clientEsc = (item.client||"").replace(/'/g,"\\'");
       const docEsc = (item.doc||"").replace(/'/g,"\\'");
       const btnModifierClient = `<button class="btn btn-sm" style="background:var(--bleu-lt,#e3f2fd);color:var(--bleu);border:1px solid var(--bleu);margin-left:2px" onclick="ouvrirModifierClient('${item.id}','${item.collection}','${clientEsc}')">✏️ Client</button>`;
-      const btnSupprimerSolde = `<button class="btn btn-danger btn-sm" style="margin-left:2px" onclick="supprimerSolde('${item.id}','${item.collection}','${clientEsc}','${docEsc}')">🗑</button>`;
+      const btnSupprimerSolde = `<button class="btn btn-danger btn-sm adm-only" style="margin-left:2px" onclick="supprimerSolde('${item.id}','${item.collection}','${clientEsc}','${docEsc}')">🗑</button>`;
       // Correction immat / montant — disponible sur TOUTES les lignes (immat souvent mal saisie par les chauffeurs)
       const btnCorriger = `<button class="btn btn-sm" style="background:#ede7f6;color:#5e35b1;border:1px solid #9575cd;margin-left:2px" title="Corriger l'immatriculation ou le montant" onclick="ouvrirCorriger('${item.id}','${item.collection}','${docEsc}','${clientEsc}')">✏️ Corriger</button>`;
 
@@ -6058,6 +6099,8 @@ async function chargerSoldes(prefix){
 // ── SUPPRESSION D'UN DOCUMENT DEPUIS SOLDES CLIENTS ──
 // Supprime le document d'origine (BL, magasinage ou PC) — action irréversible.
 async function supprimerSolde(id, collection, client, doc){
+  if(!estAdminConnecte()){ toast("Action réservée à l'administrateur","err"); return; }
+
   if(!confirm(`Supprimer définitivement ce document ?\n\n${doc} — ${client}\n\nCette action supprime aussi le document d'origine (${collection==="bons"?"BL remorquage":collection==="magasinage"?"Magasinage":"Prise en charge"}) partout dans l'application. Irréversible.`)) return;
   loader(true);
   try{
@@ -6609,6 +6652,8 @@ function cloturerImmo(id){
     .catch(()=>toast("Erreur","err"));
 }
 function supprimerImmo(id){
+  if(!estAdminConnecte()){ toast("Action réservée à l'administrateur","err"); return; }
+
   if(!confirm("Supprimer cette immobilisation ?")) return;
   db.collection("immobilisations").doc(id).delete().then(()=>{ toast("Supprimé"); chargerImmobilisations(); });
 }
@@ -6662,7 +6707,7 @@ function chargerImmobilisations(){
         <td><div style="display:flex;gap:4px">
           ${!i.date_fin?`<button class="btn btn-secondary btn-sm btn-icon" title="Remettre en service (fin = aujourd'hui)" onclick="cloturerImmo('${i.id}')">✔</button>`:""}
           <button class="btn btn-secondary btn-sm btn-icon" title="Modifier (dates, motif, détails)" onclick="editerImmo('${i.id}')">✏️</button>
-          <button class="btn btn-danger btn-sm btn-icon" onclick="supprimerImmo('${i.id}')">🗑</button>
+          <button class="btn btn-danger btn-sm btn-icon adm-only" onclick="supprimerImmo('${i.id}')">🗑</button>
         </div></td></tr>`;
     });
     if(G("immo-tbody")) G("immo-tbody").innerHTML=html||`<tr><td colspan="6" style="text-align:center;color:var(--gris3);padding:20px">Aucune immobilisation enregistrée</td></tr>`;
@@ -7345,7 +7390,8 @@ function chargerDroitsOnglet(idx){
   const tousLesIds = ["d-bl-creer","d-bl-voir","d-bl-imprimer","d-bl-telecharger",
     "d-rc-voir","d-rc-imprimer","d-rc-telecharger","d-stats","d-gps","d-commissions",
     "d-carburant","d-chauffeurs-voir","d-camions-voir","d-clients","d-clients-ajouter",
-    "d-clients-modifier","d-solde","d-missions-alertes","d-carte-live","d-ca-remorq","d-dossier-client"];
+    "d-clients-modifier","d-solde","d-missions-alertes","d-carte-live","d-ca-remorq","d-dossier-client",
+    "d-pc","d-magasinage","d-vehicules","d-historique","d-immo","d-assign"];
   tousLesIds.forEach(id=>{ const el=G(id); if(el) el.checked=false; });
   G("sec-droits-nom").textContent = "Chargement...";
   G("sec-uid-actif").textContent = uid;
@@ -7392,6 +7438,12 @@ function chargerDroitsOnglet(idx){
     }
     s("d-clients-modifier",d.secretaire_clients_modifier===true);
     s("d-dossier-client",  d.secretaire_dossier_client===true);
+    s("d-pc",          d.secretaire_pc===true);
+    s("d-magasinage",  d.secretaire_magasinage===true);
+    s("d-vehicules",   d.secretaire_vehicules===true);
+    s("d-historique",  d.secretaire_historique===true);
+    s("d-immo",        d.secretaire_immo===true);
+    s("d-assign",      d.secretaire_assign===true);
     s("d-solde",           d.secretaire_solde===true);
     s("d-missions-alertes", d.secretaire_missions_alertes===true);
     s("d-carte-live",       d.secretaire_carte_live===true);
@@ -7448,6 +7500,12 @@ function sauvegarderDroits(){
     secretaire_clients_ajouter:g("d-clients-ajouter"),
     secretaire_clients_modifier:g("d-clients-modifier"),
     secretaire_dossier_client: g("d-dossier-client"),
+    secretaire_pc:          g("d-pc"),
+    secretaire_magasinage:  g("d-magasinage"),
+    secretaire_vehicules:   g("d-vehicules"),
+    secretaire_historique:  g("d-historique"),
+    secretaire_immo:        g("d-immo"),
+    secretaire_assign:      g("d-assign"),
     secretaire_solde:          g("d-solde"),
     secretaire_missions_alertes: g("d-missions-alertes"),
     secretaire_carte_live:     g("d-carte-live"),
@@ -7715,6 +7773,8 @@ function changerMDP(){
   auth.currentUser.updatePassword(m1).then(()=>{toast("Mot de passe modifié ✅");G("new-mdp").value="";G("new-mdp2").value="";}).catch(e=>toast("Erreur: "+e.message,"err"));
 }
 async function purgerPhotos(){
+  if(!estAdminConnecte()){ toast("Action réservée à l'administrateur","err"); return; }
+
   const mois=parseInt(G("purge-mois")?.value||3);
   if(!confirm("Purger les photos ET signatures des bons de plus de "+mois+" mois ?\n\n"
     +"CE QUI EST SUPPRIMÉ :\n"
@@ -8340,7 +8400,7 @@ function chargerUtilisateurs(){
           <button class="btn btn-secondary btn-sm" onclick="editerUtilisateur('${d.id}')">✏️ Modifier</button>
           <button class="btn btn-secondary btn-sm" onclick="resetMDPUser('${u.identifiant||""}','${u.nom||""}')">🔑 MDP</button>
           <button class="btn btn-${actif?"danger":"success"} btn-sm" onclick="toggleActifUser('${d.id}',${actif})">${actif?"Désactiver":"Activer"}</button>
-          <button class="btn btn-danger btn-sm" onclick="supprimerUtilisateur('${d.id}','${u.nom||""}')">🗑</button>
+          <button class="btn btn-danger btn-sm adm-only" onclick="supprimerUtilisateur('${d.id}','${u.nom||""}')">🗑</button>
         </div></td>
       </tr>`;
     });
@@ -8366,7 +8426,7 @@ function chargerUtilisateurs(){
           <button class="btn btn-secondary btn-sm" onclick="editerUtilisateur('${d.id}')">✏️ Modifier</button>
           <button class="btn btn-secondary btn-sm" onclick="resetMDPUser('${u.identifiant||""}','${u.nom||""}')">🔑 MDP</button>
           <button class="btn btn-${actif?"danger":"success"} btn-sm" onclick="toggleActifUser('${d.id}',${actif})">${actif?"Désactiver":"Activer"}</button>
-          <button class="btn btn-danger btn-sm" onclick="supprimerUtilisateur('${d.id}','${u.nom||""}')">🗑</button>
+          <button class="btn btn-danger btn-sm adm-only" onclick="supprimerUtilisateur('${d.id}','${u.nom||""}')">🗑</button>
         </div></td>
       </tr>`;
     });
@@ -8492,6 +8552,8 @@ function toggleActifUser(uid, actuel){
 }
 
 function supprimerUtilisateur(uid, nom){
+  if(!estAdminConnecte()){ toast("Action réservée à l'administrateur","err"); return; }
+
   if(!confirm("Supprimer définitivement "+nom+" ?\n\nAttention : cette action supprime le profil Firestore mais pas le compte de connexion Firebase Auth.")) return;
   loader(true);
   db.collection("users").doc(uid).delete()
@@ -8586,6 +8648,8 @@ function afficherModalResetMDP(nom, emailUser, mdpSouhaite, adminEmail){
 
 // ── PURGE COMPLÈTE AVANT DÉMARRAGE ──
 async function purgeCompleteDemarrage(){
+  if(!estAdminConnecte()){ toast("Action réservée à l'administrateur","err"); return; }
+
   if(!confirm("⚠️ PURGE COMPLÈTE\n\nDonnées qui seront supprimées :\n• Bons de livraison\n• Reçus\n• Carburant\n• Magasinage\n• Prises en charge\n\nDonnées CONSERVÉES :\n• ✅ Clients (liste gardée)\n• ✅ Chauffeurs, camions, comptes utilisateurs\n• ✅ Marques/modèles véhicules\n\nLes compteurs (BL, reçus, SEC, MAG) seront remis à zéro.\n\nCette action est IRRÉVERSIBLE !\n\nContinuer ?")) return;
   if(!confirm("Dernière confirmation :\nLes BL, reçus, carburant, magasinage et PC seront définitivement perdus.\nLes clients seront conservés.\n\nÊtes-vous sûr ?")) return;
 
