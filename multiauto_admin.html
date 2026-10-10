@@ -281,7 +281,7 @@ tr:hover td{background:var(--gris)}
   <div class="form-grid">
     <div class="form-group"><span class="fl">Nom</span><input class="inp inp-sm" id="ch-nom" placeholder="Nom complet"></div>
     <div class="form-group"><span class="fl">Identifiant</span><input class="inp inp-sm" id="ch-id" placeholder="Ex: ABD" style="text-transform:uppercase" oninput="this.value=this.value.toUpperCase()"></div>
-    <div class="form-group"><span class="fl">Nouveau mot de passe</span><input class="inp inp-sm" id="ch-mdp" type="password" placeholder="Laisser vide = inchangé"></div>
+    <div class="form-group"><span class="fl">Mot de passe</span><input class="inp inp-sm" id="ch-mdp" type="password" placeholder="6 caractères min. — création uniquement"><div id="ch-mdp-note" style="display:none;font-size:11px;color:var(--gris3);margin-top:4px">Pour changer le mot de passe d'un chauffeur existant, utilisez le bouton 🔑 sur sa ligne.</div></div>
     <div class="form-group"><span class="fl">Préfixe BL</span><input class="inp inp-sm" id="ch-pref-bl" placeholder="Ex: ABD" style="text-transform:uppercase" oninput="this.value=this.value.toUpperCase()"></div>
     <div class="form-group"><span class="fl">Camion</span><select class="inp inp-sm" id="ch-camion"><option value="">— Choisir —</option></select></div>
     <div class="form-group"><span class="fl">Immat. camion</span><input class="inp inp-sm" id="ch-immat" placeholder="Ex: DA-252-ZA" style="text-transform:uppercase" oninput="this.value=this.value.toUpperCase()"></div>
@@ -645,7 +645,7 @@ tr:hover td{background:var(--gris)}
     <div class="sb-user">
       <div class="sb-user-name" id="sb-nom">—</div>
       <div class="sb-user-role" id="sb-role">—</div>
-      <div id="app-version" style="font-size:10px;color:#9aa3b5;margin-top:6px;letter-spacing:.3px" title="Version du fichier en ligne">Version 05/10/2026 — R21</div>
+      <div id="app-version" style="font-size:10px;color:#9aa3b5;margin-top:6px;letter-spacing:.3px" title="Version du fichier en ligne">Version 10/10/2026 — R23</div>
     </div>
     <nav class="sb-nav">
       <div class="sb-section">Tableau de bord</div>
@@ -1892,6 +1892,12 @@ tr:hover td{background:var(--gris)}
     </div>
     <div class="form-group"><span class="fl">Modèle</span>
       <input class="inp" id="cor-modele" placeholder="Clio">
+    </div>
+    <div class="form-group" style="grid-column:1/-1"><span class="fl">Chauffeur</span>
+      <select class="inp" id="cor-chauffeur" onchange="majNoteChauffeurCor()"></select>
+      <div id="cor-note-sp" style="display:none;background:#fff8e1;border:1px solid #ffe082;border-radius:6px;padding:7px;font-size:11px;color:#e65100;margin-top:5px">
+        🚫 « Sur Place » : ce dossier ne générera aucune commission, ni pour le chauffeur ni pour le responsable.
+      </div>
     </div>
   </div>
   <div id="cor-note" style="font-size:11px;color:var(--gris3);margin-top:-6px;margin-bottom:8px"></div>
@@ -3594,7 +3600,7 @@ function chargerChauffeurs(){
         <td style="font-weight:700">${ch.bl_compteur||1}</td>
         <td><span class="badge ${actif?"badge-vert":"badge-rouge"}">${actif?"Actif":"Inactif"}</span></td>
         <td><div style="display:flex;gap:4px">
-          <button class="btn btn-secondary btn-sm" onclick="editerChauffeur('${ch.id}')">✏️</button>
+          <button class="btn btn-secondary btn-sm" onclick="editerChauffeur('${ch.id}')">✏️</button><button class="btn btn-sm adm-only" style="background:#fff8e1;color:#e65100;border:1px solid #ffb74d;margin-left:3px" title="Envoyer un lien pour changer son mot de passe" onclick="envoyerLienMDP('${ch.id}','${(ch.nom||"").replace(/'/g,"\\'")}','${ch.identifiant||""}')">🔑</button>
           <button class="btn ${actif?"btn-danger":"btn-success"} btn-sm" onclick="toggleActifChauffeur('${ch.id}',${actif})">${actif?"Désactiver":"Activer"}</button>
         </div></td></tr>`;
     });
@@ -3602,13 +3608,16 @@ function chargerChauffeurs(){
   });
 }
 
-function ouvrirModalChauffeur(){editingId=null;G("modal-ch-title").textContent="👤 Ajouter un chauffeur";["ch-nom","ch-id","ch-mdp","ch-pref-bl","ch-immat"].forEach(id=>G(id).value="");G("ch-mdp").placeholder="Mot de passe (6 caractères min.)";G("modal-chauffeur").classList.add("on");}
+function ouvrirModalChauffeur(){editingId=null;G("modal-ch-title").textContent="👤 Ajouter un chauffeur";if(G("ch-mdp").parentElement) G("ch-mdp").parentElement.style.display="";if(G("ch-mdp-note")) G("ch-mdp-note").style.display="none";["ch-nom","ch-id","ch-mdp","ch-pref-bl","ch-immat"].forEach(id=>G(id).value="");G("ch-mdp").placeholder="Mot de passe (6 caractères min.)";G("modal-chauffeur").classList.add("on");}
 function editerChauffeur(uid){
   db.collection("users").doc(uid).get().then(snap=>{
     const ch=snap.data(); editingId=uid;
     G("modal-ch-title").textContent="✏️ Modifier — "+ch.nom;
     G("ch-nom").value=ch.nom||""; G("ch-id").value=ch.identifiant||""; G("ch-mdp").value="";
-    G("ch-mdp").placeholder="Laisser vide = inchangé";
+    // Le mot de passe n'est JAMAIS modifiable ici (Firebase l'interdit depuis
+    // un navigateur) : on masque le champ et on renvoie vers le bouton 🔑.
+    if(G("ch-mdp").parentElement) G("ch-mdp").parentElement.style.display="none";
+    if(G("ch-mdp-note")) G("ch-mdp-note").style.display="";
     G("ch-pref-bl").value=ch.prefixe_bl||""; G("ch-immat").value=ch.immat_camion||"";
     // Re-peupler le select au cas où camionsList aurait changé
     const sch=G("ch-camion");
@@ -6243,6 +6252,21 @@ async function supprimerSolde(id, collection, client, doc){
 // Les chauffeurs saisissent souvent mal l'immatriculation, or c'est la clé de recherche
 // principale. Ce bouton corrige le document d'origine (BL, magasinage ou PC), quel que
 // soit son statut de paiement.
+// Prévient quand le chauffeur choisi est exclu du commissionnement ("Sur Place").
+// On réutilise la règle des commissions : identifiant "sp" ou préfixe "SP/".
+function estChauffeurSansCommission(nom){
+  const liste = (typeof chauffeursList!=="undefined"?chauffeursList:[]);
+  const fiche = liste.find(c=>c.nom===nom);
+  if(fiche && (String(fiche.identifiant||"").toLowerCase().trim()==="sp"
+            || String(fiche.prefixe_bl||"").toUpperCase().trim().startsWith("SP/"))) return true;
+  const n=String(nom||"").toLowerCase().replace(/[\s.]/g,"");
+  return n==="sp"||n==="surplace";
+}
+function majNoteChauffeurCor(){
+  const sel=G("cor-chauffeur"), note=G("cor-note-sp");
+  if(!sel||!note) return;
+  note.style.display = estChauffeurSansCommission(sel.value) ? "" : "none";
+}
 function ouvrirCorriger(id, collection, docNum, client){
   loader(true);
   db.collection(collection).doc(id).get().then(snap=>{
@@ -6268,6 +6292,30 @@ function ouvrirCorriger(id, collection, docNum, client){
       G("cor-montant").value=(parseFloat(d.montant_client)>0?parseFloat(d.montant_client):"");
       G("cor-note").textContent="Part client du dossier PC. La part assurance se modifie dans la page Prises en charge.";
     }
+    // ── CHAUFFEUR ──
+    // Le magasinage n'a pas de chauffeur : on masque le champ dans ce cas.
+    const grpCh = G("cor-chauffeur") ? G("cor-chauffeur").parentElement : null;
+    if(collection==="magasinage"){
+      if(grpCh) grpCh.style.display="none";
+    } else {
+      if(grpCh) grpCh.style.display="";
+      // Un BL stocke le nom dans chauffeur_nom, une PC dans chauffeur.
+      const actuel = (collection==="bons") ? (d.chauffeur_nom||"") : (d.chauffeur||"");
+      const sel = G("cor-chauffeur");
+      sel.innerHTML = '<option value="">— Aucun chauffeur —</option>';
+      (typeof chauffeursList!=="undefined"?chauffeursList:[]).forEach(c=>{
+        const o=document.createElement("option");
+        o.value=c.nom; o.textContent=c.nom; sel.appendChild(o);
+      });
+      // Le chauffeur du dossier peut ne plus figurer dans la liste (compte désactivé) :
+      // on l'ajoute pour ne pas l'effacer par inadvertance.
+      if(actuel && ![...sel.options].some(o=>o.value===actuel)){
+        const o=document.createElement("option");
+        o.value=actuel; o.textContent=actuel+" (hors liste)"; sel.appendChild(o);
+      }
+      sel.value=actuel;
+      majNoteChauffeurCor();
+    }
     G("modal-corriger").classList.add("on");
     loader(false);
   }).catch(()=>{ toast("Erreur","err"); loader(false); });
@@ -6278,6 +6326,12 @@ async function confirmerCorriger(){
   const immat=formatImmat(G("cor-immat").value);
   const marque=G("cor-marque").value.trim();
   const modele=G("cor-modele").value.trim();
+  // Chauffeur : sur un BL il est stocké DEUX fois (chauffeur_nom et chauffeur_uid).
+  // Si on ne met à jour que le nom, les filtres par chauffeur et le calcul des
+  // commissions donnent des résultats différents. On tient les deux à jour.
+  const chNom = G("cor-chauffeur") ? G("cor-chauffeur").value : null;
+  const chFiche = (typeof chauffeursList!=="undefined"?chauffeursList:[]).find(c=>c.nom===chNom);
+  const chUid = chFiche ? chFiche.id : "";
   const montant=parseFloat(G("cor-montant").value)||0;
   if(montant<0){ toast("Montant invalide","err"); return; }
   loader(true);
@@ -6285,13 +6339,15 @@ async function confirmerCorriger(){
     let maj={};
     if(collection==="bons"){
       maj={immatriculation:immat, montant, marque, modele};
+      if(chNom!==null) { maj.chauffeur_nom = chNom; maj.chauffeur_uid = chUid; }
     } else if(collection==="magasinage"){
-      maj={immat, montant_net:montant, marque, modele};
+      maj={immat, montant_net:montant, marque, modele};   // le magasinage n'a pas de chauffeur
     } else {
       // PC : la part client change → recalculer le montant réel (assurance + client)
       const snap=await db.collection(collection).doc(id).get();
       const d=snap.data()||{};
       maj={immat, montant_client:montant, montant_reel:(parseFloat(d.montant_assurance)||0)+montant, marque, modele};
+      if(chNom!==null) maj.chauffeur = chNom;
     }
     await db.collection(collection).doc(id).update(maj);
     // Si on corrige un BL, répercuter l'immatriculation sur le dossier PC créé depuis ce BL
@@ -8733,75 +8789,74 @@ function supprimerUtilisateur(uid, nom){
 
 
 // ── RESET MOT DE PASSE ──
-function resetMDPUser(identifiant, nom){
-  // Firebase envoie le lien à l'email de l'utilisateur
-  // Mais on peut intercepter en demandant à Firebase de générer le lien
-  // et l'envoyer à l'email admin à la place
+// ══════════════════════════════════════════════════════════════
+// MOT DE PASSE D'UN COMPTE (chauffeur ou secrétaire)
+// Une application qui tourne dans un navigateur ne PEUT PAS changer
+// le mot de passe d'un autre utilisateur : Firebase l'interdit.
+// Le seul chemin est le lien de réinitialisation. Comme tous les
+// comptes utilisent somalan2000+xxx@gmail.com, le lien arrive dans
+// la boîte de l'administrateur, qui choisit le mot de passe.
+// ══════════════════════════════════════════════════════════════
+async function envoyerLienMDP(uid, nom, identifiantSecours){
+  if(!estAdminConnecte()){ toast("Action réservée à l'administrateur","err"); return; }
+  let email = "";
+  try{
+    if(uid){
+      const s = await db.collection("users").doc(uid).get();
+      if(s.exists) email = (s.data()||{}).email || "";
+    }
+  }catch(e){ console.warn("Lecture du compte :", e); }
+  // Comptes anciens sans champ email : on reconstruit les deux formats connus
+  if(!email && identifiantSecours){
+    email = "somalan2000+" + String(identifiantSecours).toLowerCase() + "@gmail.com";
+  }
+  if(!email){ toast("Adresse du compte introuvable","err"); return; }
 
-  const emailUser = "somalan2000+"+identifiant+"@gmail.com";
+  if(!confirm("Envoyer un lien de réinitialisation pour « "+nom+" » ?\n\n"
+    +"Le lien arrivera dans VOTRE boîte Gmail.\n"
+    +"Vous choisirez le nouveau mot de passe, puis vous le communiquerez à "+nom+".\n\n"
+    +"⚠️ Le lien n'est valable qu'UNE HEURE et UNE SEULE FOIS.")) return;
 
-  // Demander le nouveau mot de passe directement
-  const nouveauMdp = prompt(
-    "🔑 Changer le mot de passe de : "+nom+"\n\n"+
-    "Nouveau mot de passe (minimum 6 caractères) :"
-  );
-  if(!nouveauMdp) return;
-  if(nouveauMdp.length < 6){ toast("Minimum 6 caractères","err"); return; }
-
-  // On ne peut pas changer le mdp d'un autre user via client SDK directement
-  // Solution : envoyer un email de réinitialisation à l'EMAIL ADMIN
-  // L'admin clique le lien → change le mdp → communique à l'utilisateur
-
-  // Alternative plus simple : stocker le mdp temporaire dans Firestore
-  // et l'afficher une fois — l'utilisateur devra le changer à la prochaine connexion
-  if(!confirm("Changer le mot de passe de "+nom+" ?\nNouveau mot de passe : "+nouveauMdp)) return;
-
-  loader(true,"Mise à jour...");
-
-  // Sauvegarder le nouveau MDP temporaire dans Firestore (crypté de base)
-  // + envoyer email de reset à l'admin
-  const adminEmail = "somalan2000@gmail.com";
-
-  // Envoyer lien reset à l'admin
-  auth.sendPasswordResetEmail(emailUser, {
-    url: window.location.href, // Redirection après reset
-    handleCodeInApp: false
-  }).then(()=>{
+  loader(true,"Envoi du lien...");
+  auth.sendPasswordResetEmail(email).then(()=>{
     loader(false);
-    // Afficher modal avec instructions
-    afficherModalResetMDP(nom, emailUser, nouveauMdp, adminEmail);
+    afficherModalResetMDP(nom, email);
   }).catch(e=>{
     loader(false);
-    toast("Erreur : "+e.message,"err");
+    toast("Erreur : "+((e&&(e.code||e.message))||e),"err");
+    console.error(e);
   });
 }
+// Ancien nom conservé (page Utilisateurs) : ne demande plus de mot de passe inutile
+function resetMDPUser(identifiant, nom, uid){
+  envoyerLienMDP(uid||"", nom||identifiant, identifiant);
+}
 
-function afficherModalResetMDP(nom, emailUser, mdpSouhaite, adminEmail){
+function afficherModalResetMDP(nom, emailUser){
   const existing = document.getElementById("modal-reset-mdp");
   if(existing) existing.remove();
-
   const div = document.createElement("div");
   div.id = "modal-reset-mdp";
   div.className = "modal-bg on";
   div.innerHTML = `
     <div class="modal" style="max-width:460px">
-      <div class="modal-title">🔑 Réinitialisation mot de passe</div>
-      <div style="background:var(--bleu-lt);border-radius:10px;padding:14px;margin-bottom:14px;font-size:13px;line-height:1.8">
-        <strong>${nom}</strong> (${emailUser})<br>
-        Un <strong>email de réinitialisation</strong> a été envoyé à :<br>
-        <span style="color:var(--rouge);font-weight:700">${emailUser}</span>
+      <div class="modal-title">🔑 Lien envoyé</div>
+      <div style="background:var(--bleu-lt);border-radius:10px;padding:14px;margin-bottom:14px;font-size:13px;line-height:1.7">
+        Un lien de réinitialisation pour <strong>${nom}</strong> vient d'être envoyé à<br>
+        <span style="color:var(--rouge);font-weight:700">${emailUser}</span><br>
+        <span style="font-size:11px;color:var(--gris3)">Cette adresse redirige vers votre boîte Gmail.</span>
       </div>
-      <div style="background:var(--jaune-lt);border:1.5px solid var(--jaune-bd);border-radius:10px;padding:14px;margin-bottom:14px;font-size:13px">
-        <strong>⚠️ Procédure :</strong><br>
-        1. Vérifiez votre boîte mail admin<br>
-        2. Cliquez sur le lien reçu de Firebase<br>
-        3. Saisissez le nouveau mot de passe : <strong style="color:var(--bleu);font-size:15px">${mdpSouhaite}</strong><br>
-        4. Communiquez ce mot de passe à ${nom}
+      <div style="background:var(--jaune-lt);border:1.5px solid var(--jaune-bd);border-radius:10px;padding:14px;margin-bottom:14px;font-size:13px;line-height:1.8">
+        <strong>À faire maintenant :</strong><br>
+        1. Ouvrez votre boîte Gmail<br>
+        2. Prenez le <strong>dernier</strong> e-mail reçu de Firebase<br>
+        3. Cliquez sur le lien et choisissez le nouveau mot de passe<br>
+        4. Communiquez-le à ${nom}
       </div>
-      <div style="background:var(--gris);border-radius:8px;padding:10px;font-size:12px;color:var(--gris4)">
-        💡 <strong>Astuce :</strong> Firebase envoie le lien à l'email de l'utilisateur.
-        Si vous voulez recevoir le lien sur votre email admin, changez temporairement
-        l'email de l'utilisateur dans Firebase Console → Authentication.
+      <div style="background:#fce4ec;border:1px solid #f8bbd0;border-radius:8px;padding:10px;font-size:12px;color:#c2185b">
+        ⏱️ <strong>Le lien expire au bout d'une heure et ne fonctionne qu'une fois.</strong>
+        Passé ce délai, ou s'il a déjà servi, la page affiche « link has expired or has already been used » :
+        il suffit alors de relancer l'envoi depuis ce bouton.
       </div>
       <div class="modal-footer">
         <button class="btn btn-primary" onclick="document.getElementById('modal-reset-mdp').remove()">Compris ✅</button>
