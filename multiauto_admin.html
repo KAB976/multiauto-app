@@ -649,7 +649,7 @@ tr:hover td{background:var(--gris)}
     <div class="sb-user">
       <div class="sb-user-name" id="sb-nom">—</div>
       <div class="sb-user-role" id="sb-role">—</div>
-      <div id="app-version" style="font-size:10px;color:#9aa3b5;margin-top:6px;letter-spacing:.3px" title="Version du fichier en ligne">Version 11/11/2026 — R25</div>
+      <div id="app-version" style="font-size:10px;color:#9aa3b5;margin-top:6px;letter-spacing:.3px" title="Version du fichier en ligne">Version 11/11/2026 — R28</div>
     </div>
     <nav class="sb-nav">
       <div class="sb-section">Tableau de bord</div>
@@ -7452,22 +7452,32 @@ function pdfEnteteDetail(){
 
 function chargerCommissions(){
   loader(true,"Calcul commissions...");
-  // ── CHAUFFEURS EXCLUS DU COMMISSIONNEMENT ──
-  // "Sur Place" (identifiant sp / préfixe SP/BL) ne génère aucune commission :
-  // ni pour lui, ni pour le responsable — son CA sort de la base de calcul,
-  // comme le magasinage. On se base sur l'IDENTIFIANT et le PRÉFIXE, jamais sur
-  // le nom affiché : renommer le chauffeur ne doit pas casser l'exclusion.
-  const nomsExclus=new Set(
-    (typeof chauffeursList!=="undefined"?chauffeursList:[])
-      .filter(c=> String(c.identifiant||"").toLowerCase().trim()==="sp"
-               || String(c.prefixe_bl||"").toUpperCase().trim().startsWith("SP/"))
-      .map(c=>c.nom)
-  );
-  // Filet de secours si la liste des chauffeurs n'est pas encore chargée
+  // ── QUI APPARAÎT DANS LES COMMISSIONS ── (R27)
+  // Le tableau suit la LISTE DES CHAUFFEURS (collection users, rôle "chauffeur") :
+  // ajouter, renommer ou retirer un chauffeur met la page à jour toute seule, sans
+  // qu'on ait à toucher au code — aucun nom n'est écrit en dur ici.
+  // Tout ce qui ne correspond à AUCUN chauffeur (compte ADM, ancien nom, BL sans
+  // chauffeur) sort du tableau et de la base de calcul du responsable ; le total
+  // correspondant est rappelé en bas de page, pour que rien ne disparaisse en silence.
+  //  • SP (sur place) EST un chauffeur : sa ligne reste VISIBLE avec ses montants,
+  //    mais elle ne génère AUCUNE commission — ni pour lui, ni pour le responsable :
+  //    son CA sort de la base de calcul, exactement comme le magasinage.
+  //    Repéré par l'IDENTIFIANT et le PRÉFIXE BL, jamais par le seul nom affiché :
+  //    renommer « SP » ne doit pas casser l'exclusion.
+  const normCode=s=>String(s||"").toLowerCase().replace(/[\s._-]/g,"");
+  const listeCh=(typeof chauffeursList!=="undefined"?chauffeursList:[]);
+  const nomsChauffeurs=new Set(listeCh.map(c=>normCode(c.nom)));
+  // Filet de sécurité : si la liste des chauffeurs n'est pas encore chargée,
+  // on n'écarte personne (mieux vaut trop afficher que de vider le tableau).
+  const estChauffeur=nom=> nomsChauffeurs.size===0 || nomsChauffeurs.has(normCode(nom));
+  const ficheCh=nom=>listeCh.find(c=>normCode(c.nom)===normCode(nom))||null;
   const estExclu=nom=>{
-    if(nomsExclus.has(nom)) return true;
-    const n=String(nom||"").toLowerCase().replace(/[\s.]/g,"");
-    return n==="sp"||n==="surplace";
+    const c=ficheCh(nom);
+    if(c){
+      if(normCode(c.identifiant)==="sp") return true;
+      if(normCode(String(c.prefixe_bl||"").split("/")[0])==="sp") return true;
+    }
+    return ["sp","surplace"].includes(normCode(nom));
   };
   const mode=G("comm-mode")?.value||"montant";
   db.collection("parametres").doc("societe").get().then(snap=>{
@@ -7475,7 +7485,10 @@ function chargerCommissions(){
     const txN=p.taux_commission_normal||3, txTW=p.taux_commission_tn_tw||5;
     const txResp=p.taux_commission_resp||3, nomResp=p.resp_nom||"Responsable";
     G("taux-normal").textContent=txN+"%"; G("taux-tntw").textContent=txTW+"%";
-    return db.collection("bons").orderBy("timestamp","desc").limit(500).get().then(snap2=>{
+    // ⚠ Pas d'orderBy("timestamp") ici : Firestore EXCLUT silencieusement les BL qui
+    // n'ont pas ce champ (anciens BL, BL importés) — ils disparaissaient des commissions.
+    // La limite passe de 500 à 5000, comme pour le Chiffre d'affaires. (R26)
+    return db.collection("bons").limit(5000).get().then(snap2=>{
       let bons=[]; snap2.forEach(d=>bons.push({id:d.id,...d.data()}));
       const bonsComplet=bons.slice(); // copie non filtrée, pour retrouver le tarif des BL liés aux PC
       const ch=G("comm-chauffeur")?.value||"";
@@ -7534,6 +7547,20 @@ function chargerCommissions(){
       });
     }).then(parCh=>{
       let html="", total=0;
+      // Lignes qui ne correspondent à aucun chauffeur de la liste (compte ADM, ancien
+      // nom, BL sans chauffeur) : retirées du tableau ET de la base du responsable.
+      // On garde le compte pour l'afficher en bas de page. (R27)
+      let hcNb=0, hcMont=0; const hcNoms=[];
+      Object.keys(parCh).forEach(k=>{
+        if(estChauffeur(k)) return;
+        const d=parCh[k];
+        hcNb += d.blN.length + d.blTW.length;
+        hcMont += d.montN + d.montTW;
+        hcNoms.push(k);
+        delete parCh[k];
+      });
+      // Base du responsable = CA des chauffeurs commissionnables uniquement
+      // (hors magasinage, hors Sur Place, hors comptes non-chauffeurs).
       const totalCA=Object.values(parCh).filter(d=>!d._exclu).reduce((s,d)=>s+(d.montN+d.montTW),0);
       Object.entries(parCh).sort((a,b)=>a[0].localeCompare(b[0])).forEach(([nom,d])=>{
         // Chauffeur exclu : la ligne reste visible (information de gestion) mais
@@ -7560,8 +7587,17 @@ function chargerCommissions(){
       // Commission responsable
       const commResp=Math.round(totalCA*txResp/100*100)/100;
       html+=`<tr style="background:var(--gris);font-weight:900"><td colspan="7" style="text-align:right;padding-right:12px">TOTAL COMMISSIONS CHAUFFEURS</td><td style="font-size:15px;color:var(--rouge)">${fmtMontant(total)}</td></tr>
-        <tr style="background:var(--violet-lt)"><td colspan="5"><strong>👔 ${nomResp}</strong> — ${txResp}% × CA ${fmtMontant(totalCA)} (hors magasinage)</td><td colspan="2" style="text-align:right;font-weight:800;color:var(--violet)">Commission :</td><td style="font-size:14px;font-weight:900;color:var(--violet)">${fmtMontant(commResp)}</td></tr>
+        <tr style="background:var(--violet-lt)"><td colspan="5"><strong>👔 ${nomResp}</strong> — ${txResp}% × CA ${fmtMontant(totalCA)}<br><span style="font-size:10px;font-weight:700;color:var(--gris3)">base de calcul : hors magasinage · hors Sur Place (SP) · hors comptes non-chauffeurs</span></td><td colspan="2" style="text-align:right;font-weight:800;color:var(--violet)">Commission :</td><td style="font-size:14px;font-weight:900;color:var(--violet)">${fmtMontant(commResp)}</td></tr>
         <tr style="background:var(--bleu)"><td colspan="7" style="text-align:right;font-weight:900;color:white">TOTAL GÉNÉRAL</td><td style="font-size:16px;font-weight:900;color:#F6D060">${fmtMontant(total+commResp)}</td></tr>`;
+      // Rappel : ce qui a été écarté parce que le nom ne correspond à aucun chauffeur.
+      // Rien ne doit disparaître sans que vous le voyiez. (R27)
+      if(hcNb>0){
+        html+=`<tr><td colspan="8" style="font-size:11px;color:var(--gris3);padding:10px 12px;border-top:2px dashed var(--gris3)">
+          ℹ️ <strong>${hcNb} BL / dossier${hcNb>1?"s":""} non commissionné${hcNb>1?"s":""}</strong> — ${fmtMontant(hcMont)} —
+          nom non reconnu dans la liste des chauffeurs : ${hcNoms.map(n=>"<strong>"+(n||"(vide)")+"</strong>").join(", ")}.
+          Exclu du tableau et de la base du responsable. Si l'un de ces noms est bien un chauffeur, ajoutez-le ou renommez-le dans <em>Chauffeurs</em> : il réapparaîtra automatiquement.
+        </td></tr>`;
+      }
       G("comm-tbody").innerHTML=html||`<tr><td colspan="8" style="text-align:center;color:var(--gris3);padding:24px">Aucune donnée</td></tr>`;
       loader(false);
     });
@@ -9101,7 +9137,7 @@ function exporterGPSSelection(){
 // (portage du module secrétaire — inclut les correctifs :
 //  1. incrément des compteurs BL/Reçu du chauffeur après enregistrement
 //  2. tarif basé sur la date + heure de la mission saisies
-//  3. règle "samedi matin = NORMAL" dans calculerTarif)
+//  3. règle "samedi 7h-12h = NORMAL" dans calculerTarif)
 // ══════════════════════════════════════
 function ouvrirModalBLAdmin(){
   // Peupler les listes Client / Chauffeur depuis les données déjà chargées par l'admin
@@ -9138,8 +9174,10 @@ function majModePaiementSec(){
 
 function calculerTarif(now){
   const j=now.getDay(),h=now.getHours()+now.getMinutes()/60;
-  if(j>=1&&j<=5&&h>=7&&h<17) return "NORMAL";
-  if(j===6&&h<12) return "NORMAL";   // samedi matin = NORMAL (identique à l'appli chauffeur)
+  // Lun-Ven 7h00 → 18h00 = NORMAL. TN commence donc à 18h00 (R26, avant : 17h00).
+  if(j>=1&&j<=5&&h>=7&&h<18) return "NORMAL";
+  // Samedi : avant 7h00 = TN (nuit) · de 7h00 à 11h59 = NORMAL · à partir de 12h00 = TW. (R28)
+  if(j===6&&h>=7&&h<12) return "NORMAL";
   if(j===6&&h>=12) return "TW";
   if(j===0) return "TW";
   if(j===1&&h<7) return "TW";
