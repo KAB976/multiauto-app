@@ -323,6 +323,10 @@ tr:hover td{background:var(--gris)}
     <div class="form-group"><span class="fl">Chauffeur par défaut</span><select class="inp inp-sm" id="cam-chauffeur"><option value="">— Aucun —</option></select></div>
     <div class="form-group"><span class="fl">Échéance contrôle technique</span><input class="inp inp-sm" id="cam-ct-date" type="date"></div>
     <div class="form-group"><span class="fl">Échéance assurance</span><input class="inp inp-sm" id="cam-assurance-date" type="date"></div>
+    <div class="form-group"><span class="fl">Frais fixes (%)</span>
+      <input class="inp inp-sm" id="cam-taux-frais" type="number" step="0.1" min="0" max="100" placeholder="Vide = taux global">
+      <div style="font-size:11px;color:var(--gris3);margin-top:4px">Assurance, contrôle technique, pièces… Appliqué sur (CA − carburant) de ce camion. Laissez vide pour utiliser le taux global de la Récapitulation.</div>
+    </div>
   </div>
   <div class="modal-footer">
     <button class="btn btn-secondary" onclick="fermerModal('modal-camion')">Annuler</button>
@@ -645,7 +649,7 @@ tr:hover td{background:var(--gris)}
     <div class="sb-user">
       <div class="sb-user-name" id="sb-nom">—</div>
       <div class="sb-user-role" id="sb-role">—</div>
-      <div id="app-version" style="font-size:10px;color:#9aa3b5;margin-top:6px;letter-spacing:.3px" title="Version du fichier en ligne">Version 10/10/2026 — R23</div>
+      <div id="app-version" style="font-size:10px;color:#9aa3b5;margin-top:6px;letter-spacing:.3px" title="Version du fichier en ligne">Version 11/11/2026 — R25</div>
     </div>
     <nav class="sb-nav">
       <div class="sb-section">Tableau de bord</div>
@@ -1132,7 +1136,7 @@ tr:hover td{background:var(--gris)}
             <thead><tr>
               <th><input type="checkbox" id="recap-check-all" onclick="selToutRecap()"></th>
               <th>Camion</th><th>Nb BL</th><th>Chiffre d'affaires</th><th>Carburant</th>
-              <th>Frais fixes (%)</th><th>Total charges</th><th>Profit net</th><th>Marge %</th>
+              <th>Frais fixes (%)</th><th>Total charges</th><th>CA Net</th><th>Marge %</th>
             </tr></thead>
             <tbody id="recap-tbody"><tr><td colspan="9" style="text-align:center;color:var(--gris3);padding:24px">Cliquez sur Calculer</td></tr></tbody>
           </table>
@@ -2928,10 +2932,22 @@ async function genererExportComptable(){
       if(!parCamion[cam].carburant) parCamion[cam].carburant=0;
       parCamion[cam].carburant+=parseFloat(f.montant)||0;
     });
+    // Taux propre à chaque camion (fiche Camions), sinon le taux global.
+    const tauxParCamionExp={};
+    try{
+      const cs=await db.collection("vehicules").get();
+      cs.forEach(d=>{ const v=d.data(); if(v.nom) tauxParCamionExp[v.nom]=v.taux_frais; });
+    }catch(e){ console.warn("Taux par camion indisponible:", e); }
     Object.values(parCamion).forEach(c=>{
       c.carburant=c.carburant||0;
-      c.fraisFixes=c.ca*(tauxFixe/100);
-      c.profit=c.ca-c.carburant-c.fraisFixes;
+      // Même formule que la Récapitulation : % appliqué après le carburant.
+      let tx=tauxParCamionExp[c.nom];
+      if(tx===undefined||tx===null||tx==="") tx=tauxFixe;
+      tx=parseFloat(tx); if(isNaN(tx)) tx=tauxFixe;
+      c.taux=tx;
+      const base=c.ca-c.carburant;
+      c.fraisFixes = base>0 ? base*(tx/100) : 0;
+      c.profit = base - c.fraisFixes;            // CA Net
     });
     const listeCamions=Object.values(parCamion).sort((a,b)=>b.ca-a.ca);
 
@@ -3793,7 +3809,7 @@ function chargerCamions(){
     }
   });
 }
-function ouvrirModalCamion(){editingId=null;G("modal-cam-title").textContent="🚛 Ajouter un camion";["cam-nom","cam-immat","cam-marque","cam-modele","cam-annee","cam-ct-date","cam-assurance-date"].forEach(id=>G(id).value="");G("cam-chauffeur").value="";G("modal-camion").classList.add("on");}
+function ouvrirModalCamion(){editingId=null;G("modal-cam-title").textContent="🚛 Ajouter un camion";["cam-nom","cam-immat","cam-marque","cam-modele","cam-annee","cam-ct-date","cam-assurance-date","cam-taux-frais"].forEach(id=>{const e=G(id); if(e) e.value="";});G("cam-chauffeur").value="";G("modal-camion").classList.add("on");}
 function editerCamion(id){
   db.collection("vehicules").doc(id).get().then(snap=>{
     const cam=snap.data();editingId=id;
@@ -3802,6 +3818,8 @@ function editerCamion(id){
     G("cam-marque").value=cam.marque||"";G("cam-modele").value=cam.modele||"";
     G("cam-annee").value=cam.annee||"";G("cam-chauffeur").value=cam.chauffeur_defaut||"";
     G("cam-ct-date").value=cam.echeance_ct||"";G("cam-assurance-date").value=cam.echeance_assurance||"";
+    // null / absent = pas de taux propre : le champ reste vide (taux global)
+    if(G("cam-taux-frais")) G("cam-taux-frais").value = (cam.taux_frais===null||cam.taux_frais===undefined||cam.taux_frais==="") ? "" : cam.taux_frais;
     G("modal-camion").classList.add("on");
   });
 }
@@ -3817,7 +3835,11 @@ function sauvegarderCamion(){
   const chId=chObj?chObj.id:null;
   if(!nom){toast("Nom obligatoire","err");return;}
   loader(true);
-  const data={nom,immat,marque,modele,annee,chauffeur_defaut:ch,actif:true,echeance_ct:ctDate||"",echeance_assurance:assuranceDate||""};
+  // Taux de frais fixes propre au camion. Chaîne vide = pas de taux défini,
+  // la Récapitulation retombe alors sur le taux global.
+  const txFrais=G("cam-taux-frais")?.value.trim();
+  const data={nom,immat,marque,modele,annee,chauffeur_defaut:ch,actif:true,echeance_ct:ctDate||"",echeance_assurance:assuranceDate||"",
+              taux_frais: txFrais==="" ? null : (parseFloat(txFrais)||0)};
   const p=editingId?db.collection("vehicules").doc(editingId).update(data):db.collection("vehicules").add({...data,createdAt:firebase.firestore.FieldValue.serverTimestamp()});
   p.then(async()=>{
     // Sync: mettre à jour le champ camion dans le doc users du chauffeur assigné
@@ -5702,14 +5724,20 @@ async function chargerRecap(){
   const mode=G("recap-mode")?.value||"montant";
 
   try{
-    // 1. Charger tous les BL (CA par camion)
-    const blSnap=await db.collection("bons").orderBy("timestamp","desc").limit(2000).get();
-    let bons=[]; blSnap.forEach(d=>bons.push({id:d.id,...d.data()}));
-    if(debut) bons=bons.filter(b=>toComp(b.date_bl)>=debut);
-    if(fin)   bons=bons.filter(b=>toComp(b.date_bl)<=fin);
+    // 1. CA réel par camion : BL + prises en charge, magasinage EXCLU.
+    //    Un BL passé en PC est compté une seule fois, au montant de la PC.
+    const ops = await operationsCA(debut, fin);
 
-    // 2. Charger tout le carburant (dépenses par camion)
-    const fuelSnap=await db.collection("carburant").orderBy("date","desc").limit(2000).get();
+    // 1bis. Taux de frais fixes propre à chaque camion (fiche Camions)
+    const tauxParCamion={};
+    try{
+      const camSnap=await db.collection("vehicules").get();
+      camSnap.forEach(d=>{ const v=d.data(); if(v.nom) tauxParCamion[v.nom]=v.taux_frais; });
+    }catch(e){ console.warn("Taux par camion indisponible, taux global utilisé:", e); }
+
+    // 2. Carburant (dépenses par camion)
+    //    PAS d'orderBy : il écarterait en silence tout plein sans champ "date".
+    const fuelSnap=await db.collection("carburant").limit(5000).get();
     let fuels=[]; fuelSnap.forEach(d=>fuels.push({id:d.id,...d.data()}));
     if(debut) fuels=fuels.filter(f=>toComp(f.date)>=debut);
     if(fin)   fuels=fuels.filter(f=>toComp(f.date)<=fin);
@@ -5720,16 +5748,16 @@ async function chargerRecap(){
       if(!parCamion[nom]) parCamion[nom]={nom, nbBL:0, ca:0, carburant:0, bons:[], fuels:[]};
       return parCamion[nom];
     }
-    bons.forEach(b=>{
-      const camNom=b.camion||"Non assigné";
+    ops.forEach(o=>{
+      const camNom=o.camion||CAMION_NON_ASSIGNE;
       if(camionFiltre && camNom!==camionFiltre) return;
       const c=ensureCamion(camNom);
       c.nbBL++;
-      c.ca+=parseFloat(b.montant)||0;
-      c.bons.push(b);
+      c.ca+=o.montant;
+      c.bons.push(o);
     });
     fuels.forEach(f=>{
-      const camNom=f.camion||"Non assigné";
+      const camNom=f.camion||camionDuChauffeur(f.chauffeur_nom)||CAMION_NON_ASSIGNE;
       if(camionFiltre && camNom!==camionFiltre) return;
       const c=ensureCamion(camNom);
       c.carburant+=parseFloat(f.montant)||0;
@@ -5738,9 +5766,20 @@ async function chargerRecap(){
 
     const liste=Object.values(parCamion).sort((a,b)=>b.ca-a.ca);
     liste.forEach(c=>{
-      c.fraisFixes = c.ca * (tauxFixe/100);
+      // FRAIS FIXES : pourcentage appliqué APRÈS déduction du carburant.
+      // base = CA − carburant, puis on retire le % pour obtenir le CA Net.
+      // Chaque camion peut avoir SON taux (fiche Camions) ; sans taux propre,
+      // on applique le taux global saisi en haut de la Récapitulation.
+      // Si la base est négative (carburant > CA), aucun pourcentage n'est
+      // prélevé : on ne facture pas de frais sur une perte.
+      c.taux = tauxParCamion[c.nom];
+      if(c.taux===undefined || c.taux===null || c.taux==="") c.taux = tauxFixe;
+      c.taux = parseFloat(c.taux); if(isNaN(c.taux)) c.taux = tauxFixe;
+      c.tauxPropre = (tauxParCamion[c.nom]!==undefined && tauxParCamion[c.nom]!==null && tauxParCamion[c.nom]!=="");
+      const base = c.ca - c.carburant;
+      c.fraisFixes = base > 0 ? base * (c.taux/100) : 0;
       c.totalCharges = c.carburant + c.fraisFixes;
-      c.profit = c.ca - c.totalCharges;
+      c.profit = base - c.fraisFixes;            // CA Net
       c.marge = c.ca>0 ? (c.profit/c.ca*100) : 0;
     });
     recapData=liste;
@@ -5755,8 +5794,8 @@ async function chargerRecap(){
     G("recap-stats").innerHTML=`
       <div class="stat-card"><div class="stat-num">${fmtMontant(totalCA)}</div><div class="stat-label">Chiffre d'affaires</div></div>
       <div class="stat-card" style="border-left-color:#f57c00"><div class="stat-num">${fmtMontant(totalCarb)}</div><div class="stat-label">Carburant</div></div>
-      <div class="stat-card" style="border-left-color:#9c27b0"><div class="stat-num">${fmtMontant(totalFixe)}</div><div class="stat-label">Frais fixes (${tauxFixe}%)</div></div>
-      <div class="stat-card" style="border-left-color:${totalProfit>=0?'var(--vert)':'var(--rouge)'}"><div class="stat-num" style="color:${totalProfit>=0?'var(--vert)':'var(--rouge)'}">${fmtMontant(totalProfit)}</div><div class="stat-label">Profit net</div></div>
+      <div class="stat-card" style="border-left-color:#9c27b0"><div class="stat-num">${fmtMontant(totalFixe)}</div><div class="stat-label">Frais fixes${liste.some(c=>c.tauxPropre)?" (taux par camion)":` (${tauxFixe}%)`}</div></div>
+      <div class="stat-card" style="border-left-color:${totalProfit>=0?'var(--vert)':'var(--rouge)'}"><div class="stat-num" style="color:${totalProfit>=0?'var(--vert)':'var(--rouge)'}">${fmtMontant(totalProfit)}</div><div class="stat-label">CA Net</div></div>
       <div class="stat-card" style="border-left-color:var(--bleu)"><div class="stat-num">${margeGlobale.toFixed(1)}%</div><div class="stat-label">Marge globale</div></div>`;
 
     // Graphique en barres horizontales — profit par camion
@@ -5773,7 +5812,7 @@ async function chargerRecap(){
           <div style="width:${pct}%;height:100%;background:${isNeg?'linear-gradient(90deg,#ef5350,#e53935)':'linear-gradient(90deg,#66bb6a,#43a047)'};border-radius:6px;transition:width .4s"></div>
         </div>
         <div style="display:flex;gap:14px;font-size:10px;color:var(--gris3);margin-top:3px">
-          <span>CA: ${fmtMontant(c.ca)}</span><span>⛽ ${fmtMontant(c.carburant)}</span><span>Fixe: ${fmtMontant(c.fraisFixes)}</span><span>${c.nbBL} BL</span>
+          <span>CA: ${fmtMontant(c.ca)}</span><span>⛽ ${fmtMontant(c.carburant)}</span><span>Fixe: ${fmtMontant(c.fraisFixes)} (${c.taux}%)</span><span>${c.nbBL} BL</span>
         </div>
       </div>`;
     }).join("") : `<div style="text-align:center;color:var(--gris3);padding:20px">Aucune donnée pour cette période</div>`;
@@ -5787,7 +5826,7 @@ async function chargerRecap(){
         <td style="text-align:center">${c.nbBL}</td>
         <td style="font-weight:700;color:var(--bleu)">${fmtMontant(c.ca)}</td>
         <td style="color:#f57c00">${fmtMontant(c.carburant)}</td>
-        <td style="color:#9c27b0">${fmtMontant(c.fraisFixes)}</td>
+        <td style="color:#9c27b0">${fmtMontant(c.fraisFixes)}<br><span style="font-size:10px;color:var(--gris3)">${c.taux}%${c.tauxPropre?"":" (global)"}</span></td>
         <td style="font-weight:700">${fmtMontant(c.totalCharges)}</td>
         <td style="font-weight:900;color:${c.profit>=0?'var(--vert)':'var(--rouge)'}">${fmtMontant(c.profit)}</td>
         <td style="font-weight:700;color:${c.marge>=0?'var(--vert)':'var(--rouge)'}">${c.marge.toFixed(1)}%</td>
@@ -5804,13 +5843,14 @@ async function chargerRecap(){
         dhtml+=`<div class="card" style="margin-top:14px">
           <div class="card-title">🚛 ${c.nom} — Détail des opérations</div>
           <div class="table-wrap"><table>
-            <thead><tr><th>N° BL</th><th>Date</th><th>Client</th><th>Trajet</th><th>Montant</th></tr></thead>
-            <tbody>${c.bons.map(b=>`<tr>
-              <td style="font-weight:700;color:var(--bleu);font-size:11px">${b.bon_num||"—"}</td>
-              <td>${b.date_bl||"—"}</td><td>${b.nom_client||"—"}</td>
-              <td style="font-size:11px">${b.lieu_embarquement||""} → ${b.destination||""}</td>
-              <td style="font-weight:700;color:var(--vert)">${fmtMontant(b.montant)}</td>
-            </tr>`).join("")||"<tr><td colspan='5' style='text-align:center;color:var(--gris3)'>Aucun BL</td></tr>"}</tbody>
+            <thead><tr><th>Référence</th><th>Type</th><th>Date</th><th>Client</th><th>Trajet</th><th>Montant</th></tr></thead>
+            <tbody>${c.bons.map(o=>`<tr>
+              <td style="font-weight:700;color:var(--bleu);font-size:11px">${o.ref||"—"}</td>
+              <td><span style="font-size:10px;padding:1px 5px;border-radius:8px;font-weight:700;background:${o.type==="PC"?"#ede7f6":"#e3f2fd"};color:${o.type==="PC"?"#5e35b1":"#1565c0"}">${o.type}</span></td>
+              <td>${o.date||"—"}</td><td>${o.client||"—"}</td>
+              <td style="font-size:11px">${o.trajet||""}</td>
+              <td style="font-weight:700;color:var(--vert)">${fmtMontant(o.montant)}</td>
+            </tr>`).join("")||"<tr><td colspan='6' style='text-align:center;color:var(--gris3)'>Aucune opération</td></tr>"}</tbody>
           </table></div>
           <div class="table-wrap" style="margin-top:10px"><table>
             <thead><tr><th>Date carburant</th><th>Litres</th><th>Montant</th></tr></thead>
@@ -5864,7 +5904,7 @@ function exporterRecapPDF(){
   ]);
   doc.autoTable({
     startY:32,
-    head:[['Camion','Nb BL','CA','Carburant','Frais fixes','Total charges','Profit net','Marge %']],
+    head:[['Camion','Nb BL','CA','Carburant','Frais fixes','Total charges','CA Net','Marge %']],
     body:rows,
     headStyles:{fillColor:[26,37,64],textColor:255,fontSize:8,fontStyle:'bold'},
     bodyStyles:{fontSize:8},
@@ -5881,7 +5921,7 @@ async function exporterRecapExcel(){
   const cbs=document.querySelectorAll(".recap-cb:checked");
   const indices=cbs.length>0 ? Array.from(cbs).map(cb=>parseInt(cb.dataset.idx)) : recapData.map((_,i)=>i);
   const liste=indices.map(i=>recapData[i]);
-  const headers=['Camion','Nb BL','Chiffre d\'affaires','Carburant','Frais fixes','Total charges','Profit net','Marge %'];
+  const headers=['Camion','Nb BL','Chiffre d\'affaires','Carburant','Frais fixes','Total charges','CA Net','Marge %'];
   const rows=liste.map(c=>[c.nom,c.nbBL,c.ca,c.carburant,c.fraisFixes,c.totalCharges,c.profit,c.marge]);
   exporterExcel(headers,rows,'recapitulation-profitabilite.xlsx','Récapitulation');
 }
@@ -6676,6 +6716,117 @@ async function exporterSoldesExcelSec(){
 function chargerSoldesSec(){ chargerSoldes("soldes-sec-"); }
 
 // ── CA & REMORQUAGES ──
+// ══════════════════════════════════════════════════════════════════
+// CHIFFRE D'AFFAIRES RÉEL — source unique de vérité
+//
+// Règle métier :
+//  • un remorquage = un BL. Si ce BL est passé en prise en charge,
+//    c'est la PC qui porte le VRAI montant (assurance + part client) ;
+//    le BL, lui, reste souvent à 0 € car le chauffeur ignore le tarif.
+//    On compte donc la PC et on écarte le BL, sinon on compte deux fois.
+//  • le MAGASINAGE n'est PAS du chiffre d'affaires de remorquage :
+//    il est exclu d'ici et affiché séparément.
+//
+// Rattachement au camion :
+//  • BL            → son champ camion
+//  • PC issue d'un BL → le camion de ce BL (via bon_num)
+//  • PC manuelle   → le camion du chauffeur saisi
+//  • chauffeur « Sur Place » → ligne « Sur Place » (aucun camion)
+//  • rien de tout cela → ligne « Non assigné »
+// ══════════════════════════════════════════════════════════════════
+var CAMION_SUR_PLACE = "Sur Place";
+var CAMION_NON_ASSIGNE = "Non assigné";
+
+// Un chauffeur « Sur Place » ne roule pas : son CA ne va sur aucun camion.
+function estChauffeurSurPlace(nom){
+  const liste=(typeof chauffeursList!=="undefined"?chauffeursList:[]);
+  const f=liste.find(c=>c.nom===nom);
+  if(f && (String(f.identifiant||"").toLowerCase().trim()==="sp"
+        || String(f.prefixe_bl||"").toUpperCase().trim().startsWith("SP"))) return true;
+  const n=String(nom||"").toLowerCase().replace(/[\s.]/g,"");
+  return n==="sp"||n==="surplace";
+}
+function camionDuChauffeur(nom){
+  if(!nom) return "";
+  if(estChauffeurSurPlace(nom)) return CAMION_SUR_PLACE;
+  const liste=(typeof chauffeursList!=="undefined"?chauffeursList:[]);
+  const f=liste.find(c=>c.nom===nom);
+  return f ? (f.camion||"") : "";
+}
+
+// Construit la liste des opérations de CA sur une période.
+// Renvoie [{date, montant, paye, camion, chauffeur, type, ref, statut}]
+async function operationsCA(debut, fin){
+  const [blSnap, pcSnap] = await Promise.all([
+    // PAS d'orderBy : Firestore écarte en silence tout document privé du
+    // champ trié, et des BL sans "timestamp" disparaissaient des totaux.
+    db.collection("bons").limit(5000).get(),
+    db.collection("prises_en_charge").limit(5000).get()
+  ]);
+
+  const bons=[];       const blParNum={};
+  blSnap.forEach(d=>{ const b={id:d.id,...d.data()}; bons.push(b); if(b.bon_num) blParNum[b.bon_num]=b; });
+
+  // Les PC actives, indexées par n° de BL : elles remplacent le BL d'origine.
+  const pcs=[];        const pcParBonNum={};
+  pcSnap.forEach(d=>{
+    const p={id:d.id,...d.data()};
+    if(!pcActif(p)) return;                 // dossier transféré vers solde client
+    if(p.statut==="annule") return;         // mission annulée : jamais facturée
+    pcs.push(p);
+    if(p.bon_num) pcParBonNum[p.bon_num]=p;
+  });
+
+  const ops=[];
+  const dansPeriode=d=>{ const c=toComp(d); if(debut&&c<debut) return false; if(fin&&c>fin) return false; return true; };
+
+  bons.forEach(b=>{
+    // Ce BL a basculé en PC : c'est la PC qui porte le montant réel.
+    if(b.bon_num && pcParBonNum[b.bon_num]) return;
+    if(!dansPeriode(b.date_bl)) return;
+    const montant=parseFloat(b.montant)||0;
+    const especes=b.especes===true?parseFloat(b.montant_especes)||0:0;
+    const payeAuto=parseFloat(b.paye_montant)||0;
+    const paye=payeAuto>0?payeAuto:(especes>0&&montant>0?Math.min(especes,montant):0);
+    const cam=b.camion||camionDuChauffeur(b.chauffeur_nom)||CAMION_NON_ASSIGNE;
+    ops.push({date:b.date_bl||"",montant,paye,camion:cam,chauffeur:b.chauffeur_nom||"",
+              type:"BL",ref:b.bon_num||"",client:b.nom_client||"",
+              trajet:(b.lieu_embarquement||"")+" → "+(b.destination||""),
+              statut:!montant?"incomplet":paye>=montant?"solde":paye>0?"partiel":"impaye"});
+  });
+
+  pcs.forEach(p=>{
+    const d=p.date_intervention||p.date||"";
+    if(!dansPeriode(d)) return;
+    const montant=parseFloat(p.montant_reel)||((parseFloat(p.montant_client)||0)+(parseFloat(p.montant_assurance)||0));
+    const paye=(parseFloat(p.montant_client_paye||p.paye_client)||0)+(parseFloat(p.montant_assurance_recu)||0);
+    // Camion : d'abord le BL d'origine, sinon le chauffeur du dossier.
+    const bl=p.bon_num?blParNum[p.bon_num]:null;
+    const cam=(bl&&bl.camion) || camionDuChauffeur(p.chauffeur||(bl?bl.chauffeur_nom:"")) || CAMION_NON_ASSIGNE;
+    ops.push({date:d,montant,paye,camion:cam,chauffeur:p.chauffeur||(bl?bl.chauffeur_nom:"")||"",
+              type:"PC",ref:p.bon_num||p.dossier||"",client:p.client||p.assureur||"",
+              trajet:bl?((bl.lieu_embarquement||"")+" → "+(bl.destination||"")):"",
+              statut:!montant?"incomplet":paye>=montant?"solde":paye>0?"partiel":"impaye"});
+  });
+  return ops;
+}
+
+// Magasinage : gardiennage, affiché à part et JAMAIS mélangé au CA remorquage.
+async function totauxMagasinage(debut, fin){
+  const snap=await db.collection("magasinage").limit(2000).get();
+  let nb=0, montant=0, encaisse=0;
+  snap.forEach(d=>{
+    const m=d.data();
+    if(m.statut==="en_cours") return;             // pas encore facturé
+    const dt=toComp(m.date_sortie||m.date_entree||"");
+    if(debut&&dt<debut) return;
+    if(fin&&dt>fin) return;
+    const v=(typeof netMagasinage==="function")?netMagasinage(m):(parseFloat(m.montant_net||m.montant_total)||0);
+    if(v<=0) return;
+    nb++; montant+=v; encaisse+=parseFloat(m.paye_montant)||0;
+  });
+  return {nb, montant, encaisse};
+}
 async function chargerCARemorquages(){
   await chargerCASection();
   await chargerRemorquagesSection();
@@ -6685,54 +6836,24 @@ async function chargerCASection(){
   const fin=G("ca-fin")?.value||"";
   if(G("ca-stats")) G("ca-stats").innerHTML=`<div style="color:var(--gris3);padding:12px">Calcul...</div>`;
   try{
-    const items=[];
-    const blSnap=await db.collection("bons").limit(2000).get();
-    blSnap.forEach(d=>{
-      const b=d.data();
-      if(b.deplace_en_pc && b.bon_num && (typeof _pcExistants!=="undefined") && _pcExistants.has(b.bon_num)) return;
-      if(!b.nom_client||b.nom_client==="—") return;
-      const montant=parseFloat(b.montant)||0;
-      const especes=b.especes===true?parseFloat(b.montant_especes)||0:0;
-      const payeAuto=parseFloat(b.paye_montant)||0;
-      const paye=payeAuto>0?payeAuto:(especes>0&&montant>0?Math.min(especes,montant):0);
-      items.push({date:b.date_bl||"",montant,paye,statut:!montant?"incomplet":paye>=montant?"solde":paye>0?"partiel":"impaye"});
-    });
-    const magSnap=await db.collection("magasinage").orderBy("date_entree","desc").limit(500).get();
-    magSnap.forEach(d=>{
-      const m=d.data();
-      if(m.statut==="en_cours") return;
-      if(estClientPC(m.client)) return;
-      const montant=parseFloat(m.montant_net||m.montant_total)||0;
-      if(montant<=0) return;
-      const paye=parseFloat(m.paye_montant)||0;
-      items.push({date:m.date_sortie||m.date_entree||"",montant,paye,statut:paye>=montant?"solde":paye>0?"partiel":"impaye"});
-    });
-    const pcSnap=await db.collection("prises_en_charge").limit(1000).get();
-    pcSnap.forEach(d=>{
-      const p=d.data();
-      if(!pcActif(p)) return;                               // dossier transféré vers solde client
-      if(p.statut==="annule") return;
-      const montant=parseFloat(p.montant_reel)||(parseFloat(p.montant_client)||0)+(parseFloat(p.montant_assurance)||0);
-      if(montant<=0) return;
-      const payeClient=parseFloat(p.montant_client_paye||p.paye_client)||0;
-      const payeAss=parseFloat(p.montant_assurance_recu)||0;
-      const paye=payeClient+payeAss;
-      items.push({date:p.date_intervention||p.date||"",montant,paye,statut:paye>=montant?"solde":paye>0?"partiel":"impaye"});
-    });
-    let filtered=items;
-    if(debut) filtered=filtered.filter(i=>toComp(i.date)>=debut);
-    if(fin)   filtered=filtered.filter(i=>toComp(i.date)<=fin);
-    const totalCA=filtered.reduce((s,i)=>s+i.montant,0);
-    const totalEncaisse=filtered.reduce((s,i)=>s+i.paye,0);
-    const totalPaye=filtered.filter(i=>i.statut==="solde").reduce((s,i)=>s+i.montant,0);
-    const totalPartiel=filtered.filter(i=>i.statut==="partiel").reduce((s,i)=>s+i.montant,0);
-    const totalImpaye=filtered.filter(i=>i.statut==="impaye"||i.statut==="incomplet").reduce((s,i)=>s+i.montant,0);
+    // CA = remorquages uniquement (BL + prises en charge). Le magasinage est
+    // compté à part : c'est du gardiennage, pas du chiffre d'affaires de dépannage.
+    const ops = await operationsCA(debut, fin);
+    const mag = await totauxMagasinage(debut, fin);
+
+    const totalCA       = ops.reduce((s,i)=>s+i.montant,0);
+    const totalEncaisse = ops.reduce((s,i)=>s+i.paye,0);
+    const totalPaye     = ops.filter(i=>i.statut==="solde").reduce((s,i)=>s+i.montant,0);
+    const totalPartiel  = ops.filter(i=>i.statut==="partiel").reduce((s,i)=>s+i.montant,0);
+    const totalImpaye   = ops.filter(i=>i.statut==="impaye"||i.statut==="incomplet").reduce((s,i)=>s+i.montant,0);
+
     if(G("ca-stats")) G("ca-stats").innerHTML=`
-      <div class="stat-card"><div class="stat-num">${fmtMontant(totalCA)}</div><div class="stat-label">CA total (${filtered.length} opérations)</div></div>
+      <div class="stat-card"><div class="stat-num">${fmtMontant(totalCA)}</div><div class="stat-label">CA remorquages (${ops.length} opérations)</div></div>
       <div class="stat-card" style="border-left-color:var(--bleu)"><div class="stat-num">${fmtMontant(totalEncaisse)}</div><div class="stat-label">💰 Montant encaissé</div></div>
       <div class="stat-card" style="border-left-color:var(--vert)"><div class="stat-num">${fmtMontant(totalPaye)}</div><div class="stat-label">✅ Payé (soldé)</div></div>
       <div class="stat-card" style="border-left-color:var(--violet)"><div class="stat-num">${fmtMontant(totalPartiel)}</div><div class="stat-label">🟣 Partiel</div></div>
-      <div class="stat-card" style="border-left-color:var(--rouge)"><div class="stat-num">${fmtMontant(totalImpaye)}</div><div class="stat-label">🔴 Impayé</div></div>`;
+      <div class="stat-card" style="border-left-color:var(--rouge)"><div class="stat-num">${fmtMontant(totalImpaye)}</div><div class="stat-label">🔴 Impayé</div></div>
+      <div class="stat-card" style="border-left-color:var(--jaune)"><div class="stat-num">${fmtMontant(mag.montant)}</div><div class="stat-label">🏠 Magasinage (${mag.nb}) — hors CA</div></div>`;
   }catch(e){ if(G("ca-stats")) G("ca-stats").innerHTML=`<div style="color:var(--rouge)">Erreur de calcul</div>`; console.error(e); }
 }
 async function chargerRemorquagesSection(){
@@ -6741,22 +6862,22 @@ async function chargerRemorquagesSection(){
   const ch=G("remorq-chauffeur")?.value||"";
   if(G("remorq-stats")) G("remorq-stats").innerHTML=`<div style="color:var(--gris3);padding:12px">Calcul...</div>`;
   try{
-    const snap=await db.collection("bons").orderBy("timestamp","desc").limit(2000).get();
-    let bons=[]; snap.forEach(d=>bons.push({id:d.id,...d.data()}));
-    if(debut) bons=bons.filter(b=>toComp(b.date_bl)>=debut);
-    if(fin)   bons=bons.filter(b=>toComp(b.date_bl)<=fin);
-    if(ch)    bons=bons.filter(b=>matchChauffeur(b,ch));
-    const total=bons.reduce((s,b)=>s+(parseFloat(b.montant)||0),0);
+    // Même source que le CA : un BL passé en prise en charge est compté une
+    // seule fois, au montant réel de la PC et non au montant du BL (souvent 0).
+    let ops = await operationsCA(debut, fin);
+    if(ch) ops = ops.filter(o=>o.chauffeur===ch);
+    const bons = ops;                                  // 1 opération = 1 remorquage
+    const total = ops.reduce((s,o)=>s+o.montant,0);
     if(G("remorq-stats")) G("remorq-stats").innerHTML=`
-      <div class="stat-card"><div class="stat-num">${bons.length}</div><div class="stat-label">Remorquages effectués</div></div>
+      <div class="stat-card"><div class="stat-num">${ops.length}</div><div class="stat-label">Remorquages effectués</div></div>
       <div class="stat-card" style="border-left-color:var(--vert)"><div class="stat-num">${fmtMontant(total)}</div><div class="stat-label">Montant total</div></div>`;
     // Détail par chauffeur si "Tous les chauffeurs" sélectionné
     if(!ch){
       const parCh={};
-      bons.forEach(b=>{
-        const k=b.chauffeur_nom||"—";
+      bons.forEach(o=>{
+        const k=o.chauffeur||"—";
         if(!parCh[k]) parCh[k]={nb:0,montant:0};
-        parCh[k].nb++; parCh[k].montant+=parseFloat(b.montant)||0;
+        parCh[k].nb++; parCh[k].montant+=o.montant;
       });
       let html=`<div class="table-wrap"><table><thead><tr><th>Chauffeur</th><th>Nb remorquages</th><th>Montant total</th></tr></thead><tbody>`;
       Object.entries(parCh).sort((a,b)=>b[1].nb-a[1].nb).forEach(([nom,d])=>{
@@ -9025,12 +9146,27 @@ function calculerTarif(now){
   return "TN";
 }
 
-function sauvegarderBL(){
+async function sauvegarderBL(){
   const immat=G("bl-immat").value.trim().toUpperCase();
   const client=G("bl-client").value;
   if(!immat||!client){ toast("Immatriculation et client obligatoires","err"); return; }
+  // ── CHAUFFEUR OBLIGATOIRE ──
+  // C'est lui qui porte le préfixe et le compteur. Sans lui, tous les BL
+  // sortaient numérotés ADM/BL-000001, sans propriétaire, et le compteur
+  // n'était jamais incrémenté.
+  const nomCh=G("bl-chauffeur").value;
+  const chSel=chauffeursList.find(c=>c.nom===nomCh);
+  if(!nomCh || !chSel || !chSel.id){ toast("Chauffeur obligatoire","err"); return; }
   loader(true);
-  const ch=chauffeursList.find(c=>c.nom===G("bl-chauffeur").value)||{};
+  // ── COMPTEUR RELU EN BASE ──
+  // chauffeursList date de la connexion. Si le chauffeur a créé des BL depuis
+  // son téléphone entre-temps, partir de la valeur en mémoire produirait un
+  // numéro en doublon ET ferait RECULER le compteur.
+  let ch=chSel;
+  try{
+    const snapCh=await db.collection("users").doc(chSel.id).get();
+    if(snapCh.exists) ch={id:snapCh.id, ...snapCh.data()};
+  }catch(e){ console.warn("Relecture du compteur impossible, valeur en mémoire utilisée:", e); }
   const now=new Date();
   // ── Date + heure DE LA MISSION (champs du formulaire) ; à défaut, le moment de la saisie ──
   const vDate=G("bl-date").value;                                    // YYYY-MM-DD ou ""
@@ -9078,8 +9214,11 @@ function sauvegarderBL(){
       if(ch.id){
         const maj={bl_compteur:(ch.bl_compteur||1)+1};
         if(estEspeces) maj.recu_compteur=(ch.recu_compteur||1)+1;
-        ch.bl_compteur=maj.bl_compteur;                      // mise à jour locale (saisies suivantes dans la même session)
+        ch.bl_compteur=maj.bl_compteur;
         if(estEspeces) ch.recu_compteur=maj.recu_compteur;
+        // Tenir la liste en mémoire à jour : le compteur affiché dans la page
+        // Chauffeurs reste juste sans recharger la page.
+        if(chSel){ chSel.bl_compteur=maj.bl_compteur; if(estEspeces) chSel.recu_compteur=maj.recu_compteur; }
         db.collection("users").doc(ch.id).update(maj).catch(e=>console.warn("MAJ compteurs chauffeur:",e));
       }
       // Reçu seulement si paiement espèces
